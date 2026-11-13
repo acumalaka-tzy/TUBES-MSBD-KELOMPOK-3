@@ -6,3 +6,380 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+// ============================================================================
+// 1. Tabel users
+// ============================================================================
+model User {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  name          String    @db.VarChar(100)
+  email         String?   @unique @db.VarChar(150)
+  phone         String    @db.VarChar(20)
+  password_hash String?   @db.VarChar(255)
+  role          String    @default("CUSTOMER") @db.VarChar(20) // CUSTOMER, CASHIER, ADMIN
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @default(now()) @updatedAt
+
+  orders             Order[]
+  payments           Payment[]
+  receipts           Receipt[]
+  table_qr_codes     TableQrCode[]
+  stock_movements    StockMovement[]
+  audit_logs         AuditLog[]
+  restaurant_settings RestaurantSetting[]
+
+  @@map("users")
+}
+
+// ============================================================================
+// 2. Tabel categories
+// ============================================================================
+model Category {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  name        String    @db.VarChar(100)
+  slug        String    @unique @db.VarChar(120)
+  description String?   @db.Text
+  sort_order  Int       @default(0)
+  is_active   Boolean   @default(true)
+  deleted_at  DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @default(now()) @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+// ============================================================================
+// 3. Tabel products
+// ============================================================================
+model Product {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  category_id  String    @db.VarChar(36)
+  name         String    @db.VarChar(120)
+  description  String?   @db.Text
+  base_price   Decimal   @db.Decimal(12, 2)
+  image_url    String?   @db.VarChar(255)
+  is_available Boolean   @default(true)
+  sort_order   Int       @default(0)
+  deleted_at   DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @default(now()) @updatedAt
+
+  category        Category             @relation(fields: [category_id], references: [id])
+  stock           ProductStock?
+  option_groups   ProductOptionGroup[]
+  order_items     OrderItem[]
+  stock_movements StockMovement[]
+
+  @@index([category_id, is_available, deleted_at], map: "idx_products_category_active")
+  @@map("products")
+}
+
+// ============================================================================
+// 4. Tabel product_option_groups
+// ============================================================================
+model ProductOptionGroup {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  product_id  String   @db.VarChar(36)
+  name        String   @db.VarChar(100)
+  is_required Boolean  @default(false)
+  min_select  Int      @default(0)
+  max_select  Int      @default(1)
+  sort_order  Int      @default(0)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+
+  product      Product             @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  option_items ProductOptionItem[]
+
+  @@map("product_option_groups")
+}
+
+// ============================================================================
+// 5. Tabel product_option_items
+// ============================================================================
+model ProductOptionItem {
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  option_group_id  String   @db.VarChar(36)
+  name             String   @db.VarChar(100)
+  price_adjustment Decimal  @default(0.00) @db.Decimal(12, 2)
+  is_available     Boolean  @default(true)
+  sort_order       Int      @default(0)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now()) @updatedAt
+
+  group              ProductOptionGroup @relation(fields: [option_group_id], references: [id], onDelete: Cascade)
+  order_item_options OrderItemOption[]
+
+  @@map("product_option_items")
+}
+
+// ============================================================================
+// 6. Tabel product_stocks
+// ============================================================================
+model ProductStock {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  product_id    String   @unique @db.VarChar(36)
+  available_qty Int      @default(0)
+  reserved_qty  Int      @default(0)
+  min_threshold Int      @default(5)
+  updated_at    DateTime @default(now()) @updatedAt
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@map("product_stocks")
+}
+
+// ============================================================================
+// 7. Tabel tables
+// ============================================================================
+model Table {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  table_number String   @unique @db.VarChar(20)
+  name         String   @db.VarChar(50)
+  capacity     Int      @default(4)
+  status       String   @default("AVAILABLE") @db.VarChar(20) // AVAILABLE, OCCUPIED, INACTIVE
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @default(now()) @updatedAt
+
+  qr_codes TableQrCode[]
+  orders   Order[]
+
+  @@map("tables")
+}
+
+// ============================================================================
+// 8. Tabel table_qr_codes
+// ============================================================================
+model TableQrCode {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  table_id     String    @db.VarChar(36)
+  token        String    @unique @db.VarChar(128)
+  is_active    Boolean   @default(true)
+  generated_by String?   @db.VarChar(36)
+  created_at   DateTime  @default(now())
+  revoked_at   DateTime?
+
+  table   Table @relation(fields: [table_id], references: [id], onDelete: Cascade)
+  creator User? @relation(fields: [generated_by], references: [id])
+
+  @@index([token, is_active], map: "idx_table_qr_active_token")
+  @@map("table_qr_codes")
+}
+
+// ============================================================================
+// 9. Tabel orders
+// ============================================================================
+model Order {
+  id             String    @id @default(uuid()) @db.VarChar(36)
+  order_number   String    @unique @db.VarChar(30)
+  user_id        String?   @db.VarChar(36)
+  table_id       String?   @db.VarChar(36)
+  customer_name  String    @db.VarChar(100)
+  customer_phone String    @db.VarChar(20)
+  tracking_token String?   @unique @db.VarChar(128)
+  source         String    @db.VarChar(15) // WEB, POS
+  service_type   String    @db.VarChar(15) // DINE_IN, TAKEAWAY
+  status         String    @default("PENDING") @db.VarChar(20) // PENDING, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED
+  subtotal       Decimal   @default(0.00) @db.Decimal(12, 2)
+  tax_amount     Decimal   @default(0.00) @db.Decimal(12, 2)
+  total_amount   Decimal   @default(0.00) @db.Decimal(12, 2)
+  notes          String?   @db.Text
+  expires_at     DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @default(now()) @updatedAt
+
+  user            User?           @relation(fields: [user_id], references: [id])
+  table           Table?          @relation(fields: [table_id], references: [id])
+  items           OrderItem[]
+  payment         Payment?
+  receipts        Receipt[]
+  stock_movements StockMovement[]
+
+  @@index([status, created_at(sort: Desc)], map: "idx_orders_status_created")
+  @@index([table_id, status], map: "idx_orders_table_status")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_orders_user_created")
+  @@index([status, expires_at], map: "idx_orders_pending_expires")
+  @@map("orders")
+}
+
+// ============================================================================
+// 10. Tabel stock_movements
+// ============================================================================
+model StockMovement {
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  product_id       String   @db.VarChar(36)
+  order_id         String?  @db.VarChar(36)
+  actor_id         String?  @db.VarChar(36)
+  movement_type    String   @db.VarChar(30)
+  qty_change       Int
+  available_before Int
+  available_after  Int
+  reserved_before  Int      @default(0)
+  reserved_after   Int      @default(0)
+  reason           String?  @db.VarChar(255)
+  created_at       DateTime @default(now())
+
+  product Product @relation(fields: [product_id], references: [id])
+  order   Order?  @relation(fields: [order_id], references: [id])
+  actor   User?   @relation(fields: [actor_id], references: [id])
+
+  @@index([product_id, created_at(sort: Desc)], map: "idx_stock_movements_product_created")
+  @@map("stock_movements")
+}
+
+// ============================================================================
+// 11. Tabel order_items
+// ============================================================================
+model OrderItem {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  order_id              String   @db.VarChar(36)
+  product_id            String   @db.VarChar(36)
+  product_name_snapshot String   @db.VarChar(120)
+  unit_price_snapshot   Decimal  @db.Decimal(12, 2)
+  quantity              Int
+  subtotal              Decimal  @db.Decimal(12, 2)
+  item_notes            String?  @db.VarChar(255)
+  created_at            DateTime @default(now())
+
+  order   Order             @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product Product           @relation(fields: [product_id], references: [id])
+  options OrderItemOption[]
+
+  @@index([order_id], map: "idx_order_items_order_id")
+  @@map("order_items")
+}
+
+// ============================================================================
+// 12. Tabel order_item_options
+// ============================================================================
+model OrderItemOption {
+  id                         String   @id @default(uuid()) @db.VarChar(36)
+  order_item_id              String   @db.VarChar(36)
+  option_item_id             String?  @db.VarChar(36)
+  option_group_name_snapshot String   @db.VarChar(100)
+  option_name_snapshot       String   @db.VarChar(100)
+  price_adjustment_snapshot  Decimal  @default(0.00) @db.Decimal(12, 2)
+
+  order_item  OrderItem          @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+  option_item ProductOptionItem? @relation(fields: [option_item_id], references: [id])
+
+  @@index([order_item_id], map: "idx_order_item_options_item_id")
+  @@map("order_item_options")
+}
+
+// ============================================================================
+// 13. Tabel payments
+// ============================================================================
+model Payment {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  order_id      String    @unique @db.VarChar(36)
+  cashier_id    String?   @db.VarChar(36)
+  method        String    @db.VarChar(20) // CASH, QRIS, VIRTUAL_ACCOUNT
+  status        String    @default("UNPAID") @db.VarChar(20) // UNPAID, PAID, FAILED, REFUNDED
+  amount_due    Decimal   @db.Decimal(12, 2)
+  amount_paid   Decimal   @default(0.00) @db.Decimal(12, 2)
+  change_amount Decimal   @default(0.00) @db.Decimal(12, 2)
+  paid_at       DateTime?
+  refunded_at   DateTime?
+  refund_reason String?   @db.Text
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @default(now()) @updatedAt
+
+  order        Order                @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  cashier      User?                @relation(fields: [cashier_id], references: [id])
+  transactions PaymentTransaction[]
+  receipts     Receipt[]
+
+  @@map("payments")
+}
+
+// ============================================================================
+// 14. Tabel payment_transactions
+// ============================================================================
+model PaymentTransaction {
+  id                     String   @id @default(uuid()) @db.VarChar(36)
+  payment_id             String   @db.VarChar(36)
+  gateway_provider       String   @default("MIDTRANS") @db.VarChar(50)
+  gateway_order_id       String   @db.VarChar(100)
+  gateway_transaction_id String?  @unique @db.VarChar(100)
+  payment_type           String?  @db.VarChar(50)
+  transaction_status     String   @db.VarChar(50)
+  gross_amount           Decimal  @db.Decimal(12, 2)
+  signature_verified     Boolean  @default(false)
+  raw_payload            Json?
+  received_at            DateTime @default(now())
+
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+
+  @@map("payment_transactions")
+}
+
+// ============================================================================
+// 15. Tabel receipts
+// ============================================================================
+model Receipt {
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  order_id         String   @db.VarChar(36)
+  payment_id       String   @db.VarChar(36)
+  printed_by       String?  @db.VarChar(36)
+  receipt_number   String   @unique @db.VarChar(40)
+  paper_size       String   @default("58MM") @db.VarChar(10) // 58MM, 80MM
+  print_count      Int      @default(1)
+  receipt_snapshot Json?
+  printed_at       DateTime @default(now())
+
+  order   Order   @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  printer User?   @relation(fields: [printed_by], references: [id])
+
+  @@map("receipts")
+}
+
+// ============================================================================
+// 16. Tabel restaurant_settings
+// ============================================================================
+model RestaurantSetting {
+  id                     String   @id @default(uuid()) @db.VarChar(36)
+  restaurant_name        String   @default("Warkop Agam") @db.VarChar(120)
+  address                String?  @db.Text
+  phone_whatsapp         String?  @db.VarChar(20)
+  opening_hours          String?  @db.VarChar(100)
+  is_web_ordering_open   Boolean  @default(true)
+  tax_enabled            Boolean  @default(true)
+  tax_percentage         Decimal  @default(10.00) @db.Decimal(5, 2)
+  digital_expiry_minutes Int      @default(15)
+  cash_expiry_minutes    Int      @default(30)
+  receipt_footer_note    String?  @db.Text
+  updated_by             String?  @db.VarChar(36)
+  updated_at             DateTime @default(now()) @updatedAt
+
+  updater User? @relation(fields: [updated_by], references: [id])
+
+  @@map("restaurant_settings")
+}
+
+// ============================================================================
+// 17. Tabel audit_logs
+// ============================================================================
+model AuditLog {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  actor_id    String?  @db.VarChar(36)
+  actor_role  String?  @db.VarChar(20)
+  entity_name String   @db.VarChar(60)
+  entity_id   String   @db.VarChar(36)
+  action      String   @db.VarChar(50)
+  old_data    Json?
+  new_data    Json?
+  reason      String?  @db.Text
+  ip_address  String?  @db.VarChar(45)
+  created_at  DateTime @default(now())
+
+  actor User? @relation(fields: [actor_id], references: [id])
+
+  @@index([entity_name, entity_id, created_at(sort: Desc)], map: "idx_audit_logs_entity_created")
+  @@map("audit_logs")
+}
