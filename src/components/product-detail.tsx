@@ -2,11 +2,46 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Edit3, Minus, Plus, ShoppingBag, X } from "lucide-react";
-import { useCart, type CartItem } from "@/context/cart-context";
+import { useCart, type CartItem, type CartOption } from "@/context/cart-context";
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
 import { getStockStatus, type Product } from "@/lib/menu-data";
 import { cn, formatRupiah } from "@/lib/utils";
+
+export interface ProductDetailInitialEdit {
+  cartItemId: string;
+  quantity: number;
+  options: CartOption[];
+  itemNotes?: string;
+}
+
+function getQuickNoteSuggestions(product: Product): string[] {
+  const text = `${product.name} ${product.categoryName}`.toLowerCase();
+  if (/kopi|sanger|teh|minum|dingin|jeruk|milo|badak/.test(text)) {
+    return [
+      "Gula dikurangi",
+      "Es batu sedikit",
+      "Gula dipisah",
+      "Kopi lebih kental",
+      "Disajikan hangat",
+    ];
+  }
+  if (/mie|indomie|nasi|aceh|makanan/.test(text)) {
+    return [
+      "Kuah dipisah",
+      "Tanpa bawang goreng",
+      "Telur matang sempurna",
+      "Acar & cabai pisah",
+      "Bumbu lebih lekoh",
+    ];
+  }
+  return [
+    "Potong kecil-kecil",
+    "Susu/selai dipisah",
+    "Panggang lebih garing",
+    "Sajikan hangat",
+  ];
+}
 
 /**
  * Detail produk & Alur GrabFood (PRD 5.3):
@@ -19,29 +54,33 @@ export function ProductDetail({
   onClose,
   onAdded,
   initialCartItemId,
+  initialEditItem,
 }: {
   product: Product;
   onClose: () => void;
   onAdded?: (message: string) => void;
   initialCartItemId?: string;
+  initialEditItem?: ProductDetailInitialEdit;
 }) {
   const { items, addItem, updateItem, updateQuantity } = useCart();
   const existingItems = items.filter((it) => it.productId === product.id);
 
+  const effectiveEditId = initialCartItemId || initialEditItem?.cartItemId;
+
   // Jika item keranjang spesifik dioper untuk diedit, cari datanya
-  const initialCartItem = initialCartItemId
-    ? existingItems.find((it) => it.id === initialCartItemId) || items.find((it) => it.id === initialCartItemId)
+  const initialCartItem = effectiveEditId
+    ? existingItems.find((it) => it.id === effectiveEditId) || items.find((it) => it.id === effectiveEditId)
     : undefined;
 
   // Jika produk sudah ada di keranjang, buka tampilan riwayat & "Make another" (seperti GrabFood)
   // Kecuali jika initialCartItem diberikan, maka langsung buka mode "customize" untuk mengeditnya
   const [viewMode, setViewMode] = useState<"manage" | "customize">(
-    initialCartItem ? "customize" : existingItems.length > 0 ? "manage" : "customize",
+    initialCartItem || initialEditItem ? "customize" : existingItems.length > 0 ? "manage" : "customize",
   );
 
   // ID item keranjang yang sedang diedit (null jika membuat varian baru)
   const [editingCartItemId, setEditingCartItemId] = useState<string | null>(
-    initialCartItem ? initialCartItem.id : null,
+    initialCartItem?.id || initialEditItem?.cartItemId || null,
   );
 
   const [selected, setSelected] = useState<Record<string, string[]>>(() => {
@@ -65,12 +104,39 @@ export function ProductDetail({
       return initialSelected;
     }
 
+    if (initialEditItem) {
+      const initialSelected: Record<string, string[]> = {};
+      product.options.forEach((g) => {
+        const matchedIds = g.items
+          .filter((item) =>
+            initialEditItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
+          )
+          .map((item) => item.id);
+
+        if (matchedIds.length > 0) {
+          initialSelected[g.id] = matchedIds;
+        } else if (g.type === "single" && g.required && g.items.length > 0) {
+          initialSelected[g.id] = [g.items[0].id];
+        } else {
+          initialSelected[g.id] = [];
+        }
+      });
+      return initialSelected;
+    }
+
     return Object.fromEntries(
       product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
     );
   });
-  const [quantity, setQuantity] = useState(initialCartItem ? initialCartItem.quantity : 1);
-  const [note, setNote] = useState(initialCartItem ? initialCartItem.itemNotes || "" : "");
+
+  const [quantity, setQuantity] = useState(
+    initialCartItem?.quantity || initialEditItem?.quantity || 1,
+  );
+  const [note, setNote] = useState(
+    initialCartItem?.itemNotes || initialEditItem?.itemNotes || "",
+  );
+
+  const quickNotes = useMemo(() => getQuickNoteSuggestions(product), [product]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -92,6 +158,7 @@ export function ProductDetail({
   }, [existingItems.length, viewMode]);
 
   const status = getStockStatus(product.availableQty, product.minThreshold);
+  const soldOut = status === "OUT_OF_STOCK";
 
   const chosen = useMemo(
     () =>
@@ -110,7 +177,9 @@ export function ProductDetail({
       if (type === "single") return { ...prev, [groupId]: [itemId] };
       return {
         ...prev,
-        [groupId]: current.includes(itemId) ? current.filter((i) => i !== itemId) : [...current, itemId],
+        [groupId]: current.includes(itemId)
+          ? current.filter((i) => i !== itemId)
+          : [...current, itemId],
       };
     });
   }
@@ -189,13 +258,13 @@ export function ProductDetail({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
-      <button type="button" aria-label="Tutup" onClick={onClose} className="absolute inset-0 bg-black/50" />
+      <button type="button" aria-label="Tutup" onClick={onClose} className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
       
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-detail-title"
-        className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:max-h-[88dvh] md:max-w-lg md:rounded-3xl"
+        className="relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-transform duration-150 md:max-h-[88dvh] md:max-w-xl md:rounded-3xl"
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-border md:hidden" aria-hidden />
 
@@ -204,7 +273,7 @@ export function ProductDetail({
            ========================================================================= */}
         {viewMode === "manage" ? (
           <div className="flex flex-col h-full overflow-hidden">
-            {/* Header Produk Ringkas (Tombol silang diletakkan terpisah rapi di kanan, tidak menutupi teks) */}
+            {/* Header Produk Ringkas */}
             <div className="flex items-start justify-between gap-3 p-5 pb-3.5 border-b border-border">
               <div className="min-w-0 flex-1">
                 <h2 id="product-detail-title" className="text-xl font-black text-foreground truncate">
@@ -218,7 +287,7 @@ export function ProductDetail({
                 </p>
               </div>
 
-              {/* Tombol Tutup (Di dalam header, tidak menutupi teks) */}
+              {/* Tombol Tutup */}
               <button
                 type="button"
                 onClick={onClose}
@@ -229,14 +298,14 @@ export function ProductDetail({
               </button>
             </div>
 
-            {/* List Item yang Sudah Berada di Keranjang (Scrollbar disembunyikan / no-scrollbar) */}
+            {/* List Item yang Sudah Berada di Keranjang */}
             <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4">
               <div className="flex items-center justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
                   <ShoppingBag className="w-3.5 h-3.5 text-primary" />
                   <span>Pilihan yang Sedang di Keranjang ({existingItems.length})</span>
                 </span>
-                <span className="text-[10px] lowercase font-normal italic text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground/80 normal-case italic">
                   (klik item untuk edit varian)
                 </span>
               </div>
@@ -246,27 +315,26 @@ export function ProductDetail({
                   <div
                     key={cartItem.id}
                     onClick={() => handleStartEdit(cartItem)}
-                    className="group flex items-start justify-between gap-3 p-4 rounded-2xl border border-border bg-secondary-bg/50 hover:bg-white hover:border-primary/50 hover:shadow-xs transition-all cursor-pointer"
-                    title="Klik untuk mengubah varian/catatan pesanan ini"
+                    className="group relative flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-border hover:border-primary/60 bg-white hover:bg-primary/[0.02] shadow-2xs transition-all cursor-pointer"
                   >
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div className="size-14 rounded-xl overflow-hidden shrink-0 border border-border bg-white flex items-center justify-center">
-                        <ProductImage product={product} className="size-full" />
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative size-14 rounded-xl overflow-hidden shrink-0 border border-border/70 bg-secondary-bg">
+                        <ProductImage product={product} className="size-full object-cover" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                          <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
                             {cartItem.name}
                           </p>
                           <Edit3 className="size-3 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </div>
                         {cartItem.options && cartItem.options.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                            {cartItem.options.map((o) => `${o.optionName}`).join(", ")}
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {cartItem.options.map((o) => o.optionName).join(", ")}
                           </p>
                         )}
                         {cartItem.itemNotes && (
-                          <p className="text-[11px] text-primary/80 italic mt-0.5">
+                          <p className="text-[10px] text-muted-foreground italic truncate mt-0.5">
                             &ldquo;{cartItem.itemNotes}&rdquo;
                           </p>
                         )}
@@ -366,7 +434,7 @@ export function ProductDetail({
               </button>
             )}
 
-            {/* Kontainer Form Varian (Scrollbar disembunyikan / no-scrollbar) */}
+            {/* Kontainer Form Varian */}
             <div className="overflow-y-auto no-scrollbar flex-1">
               <ProductImage
                 product={product}
@@ -387,36 +455,44 @@ export function ProductDetail({
                 </div>
 
                 {product.options.map((g) => (
-                  <fieldset key={g.id}>
-                    <legend className="mb-2 flex w-full items-center justify-between text-sm font-semibold">
-                      {g.name}
-                      <span className="text-xs font-medium text-muted-foreground">
+                  <fieldset key={g.id} className="space-y-2 border-t border-border pt-4">
+                    <div className="flex items-baseline justify-between">
+                      <legend className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        {g.name}
+                      </legend>
+                      <span className="text-[11px] text-muted-foreground">
                         {g.required ? "Wajib dipilih" : "Opsional"}
                       </span>
-                    </legend>
+                    </div>
+
                     <div className="space-y-2">
-                      {g.items.map((item) => {
-                        const checked = selected[g.id]?.includes(item.id);
+                      {g.items.map((i) => {
+                        const checked = selected[g.id]?.includes(i.id) ?? false;
                         return (
                           <label
-                            key={item.id}
+                            key={i.id}
                             className={cn(
-                              "flex min-h-11 cursor-pointer items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition-colors",
-                              checked ? "border-primary bg-primary/5" : "border-border hover:bg-secondary-bg",
+                              "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-sm transition-colors",
+                              checked
+                                ? "border-primary bg-primary/5 font-semibold text-foreground"
+                                : "border-border hover:bg-secondary-bg text-foreground",
                             )}
                           >
-                            <span className="flex items-center gap-3">
+                            <span className="flex items-center gap-2.5">
                               <input
                                 type={g.type === "single" ? "radio" : "checkbox"}
                                 name={g.id}
-                                checked={!!checked}
-                                onChange={() => toggle(g.id, item.id, g.type)}
-                                className="size-4 accent-primary"
+                                value={i.id}
+                                checked={checked}
+                                onChange={() => toggle(g.id, i.id, g.type)}
+                                className="accent-primary"
                               />
-                              {item.name}
+                              <span>{i.name}</span>
                             </span>
-                            {item.price > 0 && (
-                              <span className="text-muted-foreground">+{formatRupiah(item.price)}</span>
+                            {i.price > 0 && (
+                              <span className="font-mono text-xs text-muted-foreground">
+                                +{formatRupiah(i.price)}
+                              </span>
                             )}
                           </label>
                         );
@@ -425,55 +501,102 @@ export function ProductDetail({
                   </fieldset>
                 ))}
 
-                <div>
-                  <label htmlFor="item-note" className="mb-2 block text-sm font-semibold">Catatan Khusus</label>
+                {/* Catatan Tambahan & Quick Notes Chips */}
+                <div className="space-y-2 border-t border-border pt-4">
+                  <label htmlFor="item-note" className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Catatan Khusus (Opsional)
+                  </label>
+
+                  {quickNotes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {quickNotes.map((chip) => {
+                        const active = note.includes(chip);
+                        return (
+                          <button
+                            key={chip}
+                            type="button"
+                            disabled={soldOut}
+                            onClick={() => {
+                              if (active) {
+                                setNote((prev) =>
+                                  prev
+                                    .replace(chip, "")
+                                    .replace(/,\s*,/g, ",")
+                                    .replace(/^\s*,\s*|\s*,\s*$/g, "")
+                                    .trim(),
+                                );
+                              } else {
+                                setNote((prev) => (prev ? `${prev}, ${chip}` : chip));
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
+                              active
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-secondary-bg text-muted-foreground hover:bg-border/60 hover:text-foreground",
+                            )}
+                          >
+                            <span>{active ? "✓" : "+"}</span>
+                            <span>{chip}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <textarea
                     id="item-note"
                     value={note}
+                    disabled={soldOut}
                     onChange={(e) => setNote(e.target.value.slice(0, 255))}
                     rows={2}
-                    placeholder="Contoh: jangan terlalu pedas, telur setengah matang"
-                    className="w-full resize-none rounded-xl border border-border px-4 py-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+                    placeholder="Contoh: gula dikurangi, kuah dipisah, jangan pakai bawang..."
+                    className="w-full resize-none rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Bottom Bar: Jumlah & Tombol Simpan Perubahan / Tambah ke Keranjang */}
-            <div className="flex items-center gap-3 border-t border-border bg-white p-4">
-              <div className="flex items-center rounded-full border border-border">
+            {/* Footer Form: Kontrol Kuantitas & Tombol Submit */}
+            <div className="border-t border-border bg-white p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center rounded-2xl border border-border bg-secondary-bg p-0.5">
+                  <button
+                    type="button"
+                    aria-label="Kurangi jumlah"
+                    disabled={quantity <= 1}
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                  >
+                    <Minus className="size-4" aria-hidden />
+                  </button>
+                  <span className="w-8 text-center text-sm font-semibold font-mono" aria-live="polite">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Tambah jumlah"
+                    disabled={quantity >= product.availableQty}
+                    onClick={() => setQuantity((q) => Math.min(product.availableQty, q + 1))}
+                    className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                  >
+                    <Plus className="size-4" aria-hidden />
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  aria-label="Kurangi jumlah"
-                  disabled={quantity <= 1}
-                  onClick={() => setQuantity((q) => q - 1)}
-                  className="flex size-11 items-center justify-center rounded-full hover:bg-secondary-bg disabled:opacity-40"
+                  onClick={handleSubmit}
+                  disabled={missingRequired || soldOut}
+                  className="h-11 flex-1 rounded-2xl bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
                 >
-                  <Minus className="size-4" aria-hidden />
-                </button>
-                <span className="w-8 text-center text-sm font-semibold" aria-live="polite">{quantity}</span>
-                <button
-                  type="button"
-                  aria-label="Tambah jumlah"
-                  disabled={quantity >= product.availableQty}
-                  onClick={() => setQuantity((q) => q + 1)}
-                  className="flex size-11 items-center justify-center rounded-full hover:bg-secondary-bg disabled:opacity-40"
-                >
-                  <Plus className="size-4" aria-hidden />
+                  {editingCartItemId ? (
+                    <span>Simpan Perubahan · {formatRupiah(unitPrice * quantity)}</span>
+                  ) : (
+                    <span>Tambah · {formatRupiah(unitPrice * quantity)}</span>
+                  )}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={missingRequired}
-                className="h-11 flex-1 rounded-full bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
-              >
-                {editingCartItemId ? (
-                  <span>Simpan Perubahan · {formatRupiah(unitPrice * quantity)}</span>
-                ) : (
-                  <span>Tambah · {formatRupiah(unitPrice * quantity)}</span>
-                )}
-              </button>
             </div>
           </div>
         )}

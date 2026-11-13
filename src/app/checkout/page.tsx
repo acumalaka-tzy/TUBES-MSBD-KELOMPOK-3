@@ -18,6 +18,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const storedTable = useActiveTable();
   const urlTable = searchParams.get("table") ?? searchParams.get("meja") ?? storedTable;
+  const urlService = searchParams.get("service");
 
   const {
     items,
@@ -29,20 +30,30 @@ function CheckoutContent() {
     taxAmount,
     totalAmount,
     itemCount,
+    serviceType,
+    setServiceType,
+    orderNotes: notes,
+    setOrderNotes: setNotes,
   } = useCart();
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [serviceType, setServiceType] = useState<"DINE_IN" | "TAKEAWAY">("DINE_IN");
   const [tableNumber, setTableNumber] = useState(urlTable || "01");
   const [tables, setTables] = useState<TableItem[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [editingTarget, setEditingTarget] = useState<{ product: Product; cartItemId: string } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "QRIS" | "VIRTUAL_ACCOUNT">("QRIS");
-  const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (urlTable) {
+      setServiceType("DINE_IN");
+    } else if (urlService === "TAKEAWAY" || urlService === "DINE_IN") {
+      setServiceType(urlService);
+    }
+  }, [urlTable, urlService, setServiceType]);
 
   useEffect(() => {
     // Ambil daftar meja dan produk katalog dari MySQL
