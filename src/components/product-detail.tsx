@@ -209,7 +209,7 @@ export function ProductDetail({
               </div>
             </div>
 
-            {/* Tombol Utama: MAKE ANOTHER (Gaya GrabFood) */}
+            {/* Tombol Utama: BUAT VARIAN BARU */}
             <div className="border-t border-border bg-white p-4">
               <button
                 type="button"
@@ -217,10 +217,9 @@ export function ProductDetail({
                   handleResetCustomization();
                   setViewMode("customize");
                 }}
-                className="h-12 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition-all shadow-md flex items-center justify-center gap-2"
+                className="h-12 w-full rounded-2xl bg-primary hover:bg-primary-hover text-white font-extrabold text-sm transition-all shadow-md flex items-center justify-center gap-2"
               >
-                <Plus className="size-4" />
-                <span>Make another (Buat Varian Baru)</span>
+                <span>+ Buat Varian Baru</span>
               </button>
             </div>
           </div>

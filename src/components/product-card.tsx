@@ -46,11 +46,11 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           )}
 
-          {/* Indikator Badge Jumlah di Keranjang (Gaya GrabFood) */}
+          {/* Indikator Badge Jumlah di Keranjang */}
           {totalQtyInCart > 0 && (
             <span
               title={`${totalQtyInCart} item ada di keranjang`}
-              className="absolute right-2.5 top-2.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-black text-white shadow-md ring-2 ring-white animate-in zoom-in-75 duration-200"
+              className="absolute right-2.5 top-2.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-black text-white shadow-md ring-2 ring-white animate-in zoom-in-75 duration-200"
             >
               {totalQtyInCart}
             </span>
@@ -84,20 +84,17 @@ export function ProductCard({ product }: { product: Product }) {
                 Habis
               </span>
             ) : totalQtyInCart > 0 ? (
-              /* Tombol dengan indikator jumlah (Sudah ada di keranjang) */
+              /* Tombol dengan indikator jumlah (Sudah ada di keranjang - Hanya angka saja) */
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setOpen(true);
                 }}
-                aria-label={`Kelola ${product.name} (${totalQtyInCart} di keranjang)`}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-emerald-700"
+                aria-label={`${totalQtyInCart} ${product.name} di keranjang`}
+                className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-primary px-3 text-xs font-black text-white shadow-2xs transition-colors hover:bg-primary-hover"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-emerald-700 text-[11px] font-black">
-                  {totalQtyInCart}
-                </span>
-                <span>Atur</span>
+                <span>{totalQtyInCart}</span>
               </button>
             ) : (
               /* Tombol Tambah default */
