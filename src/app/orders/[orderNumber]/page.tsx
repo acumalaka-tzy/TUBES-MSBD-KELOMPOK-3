@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, use, Suspense } from "react";
+import React, { useCallback, useEffect, useState, use, Suspense } from "react";
 import Link from "next/link";
 import {
   getOrderDetail,
   simulatePaymentSuccess,
   simulateStatusUpdate,
+  type OrderDetailData,
 } from "@/app/actions/checkout";
 import {
   Clock,
@@ -33,14 +34,14 @@ function OrderTrackingContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const orderNumber = resolvedParams.orderNumber;
 
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<OrderDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const res = await getOrderDetail(orderNumber);
       if (res.success && res.data) {
@@ -48,25 +49,27 @@ function OrderTrackingContent({ params }: PageProps) {
       } else {
         setError(res.error || "Pesanan tidak ditemukan.");
       }
-    } catch (e: any) {
-      setError(e.message || "Gagal memuat status pesanan.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Gagal memuat status pesanan.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderNumber]);
 
   useEffect(() => {
-    fetchOrder();
+    queueMicrotask(() => {
+      void fetchOrder();
+    });
     const interval = setInterval(fetchOrder, 6000); // Polling otomatis tiap 6 detik
     return () => clearInterval(interval);
-  }, [orderNumber]);
+  }, [fetchOrder]);
 
   // Countdown Timer
   useEffect(() => {
     if (!order?.expires_at || order?.payment?.status === "PAID") return;
 
     const timer = setInterval(() => {
-      const expiry = new Date(order.expires_at).getTime();
+      const expiry = new Date(order.expires_at!).getTime();
       const now = Date.now();
       const diff = expiry - now;
 
@@ -144,7 +147,7 @@ function OrderTrackingContent({ params }: PageProps) {
         </div>
         <h1 className="text-xl font-bold text-foreground">Pesanan Tidak Ditemukan</h1>
         <p className="text-xs text-muted-foreground mt-2 mb-6">
-          Nomor pesanan "{orderNumber}" tidak terdaftar atau telah kedaluwarsa.
+          Nomor pesanan &ldquo;{orderNumber}&rdquo; tidak terdaftar atau telah kedaluwarsa.
         </p>
         <Link
           href="/checkout"
@@ -174,11 +177,11 @@ function OrderTrackingContent({ params }: PageProps) {
       {/* Header Back & Refresh */}
       <div className="flex items-center justify-between mb-6">
         <Link
-          href="/checkout"
+          href="/menu"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Pesan Lagi
+          Pesan Menu Lagi
         </Link>
 
         <button
@@ -356,7 +359,9 @@ function OrderTrackingContent({ params }: PageProps) {
                     <p className="text-xs text-muted-foreground">Nomor Virtual Account:</p>
                     <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-border font-mono font-bold text-sm">
                       <span>8808 1234 5678 9001</span>
-                      <button className="text-xs text-primary font-semibold">Salin</button>
+                      <button type="button" className="text-xs text-primary font-semibold">
+                        Salin
+                      </button>
                     </div>
                   </div>
                 )}
@@ -432,7 +437,7 @@ function OrderTrackingContent({ params }: PageProps) {
             </h2>
 
             <div className="divide-y divide-border my-2">
-              {order.items?.map((item: any) => (
+              {order.items?.map((item) => (
                 <div key={item.id} className="py-3.5 flex justify-between gap-3">
                   <div className="flex-1">
                     <p className="text-sm font-bold text-foreground">
@@ -442,14 +447,14 @@ function OrderTrackingContent({ params }: PageProps) {
                     {item.options && item.options.length > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {item.options
-                          .map((o: any) => `${o.option_name_snapshot}`)
+                          .map((o) => `${o.option_name_snapshot}`)
                           .join(", ")}
                       </p>
                     )}
 
                     {item.item_notes && (
                       <p className="text-xs text-primary/80 italic mt-0.5">
-                        "{item.item_notes}"
+                        &ldquo;{item.item_notes}&rdquo;
                       </p>
                     )}
 

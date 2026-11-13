@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { sampleProducts } from "@/lib/menu-data";
+
 function safeRevalidate(path: string) {
   try {
     revalidatePath(path);
@@ -31,8 +33,71 @@ export interface CheckoutInput {
   }[];
 }
 
+export interface OrderOptionSnapshot {
+  option_group_name_snapshot: string;
+  option_name_snapshot: string;
+  price_adjustment_snapshot: number;
+}
+
+export interface OrderItemSnapshot {
+  id: string;
+  product_name_snapshot: string;
+  unit_price_snapshot: number;
+  quantity: number;
+  subtotal: number;
+  item_notes: string | null;
+  options: OrderOptionSnapshot[];
+}
+
+export interface OrderDetailData {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  tracking_token: string | null;
+  source: string;
+  service_type: string;
+  status: string;
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  notes: string | null;
+  expires_at: Date | string | null;
+  created_at: Date | string;
+  table: { table_number: string; name: string } | null;
+  items: OrderItemSnapshot[];
+  payment: {
+    id: string;
+    method: string;
+    status: string;
+    amount_due: number;
+    amount_paid: number;
+    change_amount?: number;
+    paid_at: Date | string | null;
+  } | null;
+}
+
+export interface AvailableProductSummary {
+  id: string;
+  name: string;
+  category: string;
+  base_price: number;
+  description: string | null;
+  available_qty: number;
+  option_groups: {
+    id: string;
+    name: string;
+    is_required: boolean;
+    items: {
+      id: string;
+      name: string;
+      price_adjustment: number;
+    }[];
+  }[];
+}
+
 // Fallback in-memory storage jika MySQL belum terkoneksi saat pengujian mandiri
-const memoryOrders = new Map<string, any>();
+const memoryOrders = new Map<string, OrderDetailData>();
 
 function generateOrderNumber(): string {
   const now = new Date();
@@ -209,11 +274,17 @@ export async function createOrder(input: CheckoutInput) {
         orderNumber: created.order_number,
         trackingToken: created.tracking_token,
       };
-    } catch (dbError: any) {
-      console.warn("Prisma DB belum tersambung langsung, menyimpan di mock memory order:", dbError.message);
-      
+    } catch (dbError: unknown) {
+      const msg = dbError instanceof Error ? dbError.message : String(dbError);
+      // Jika error karena stok habis dari validasi bisnis, kembalikan ke pengguna
+      if (msg.startsWith("Stok menu")) {
+        return { success: false, error: msg };
+      }
+
+      console.warn("Prisma DB belum tersambung langsung, menyimpan di mock memory order:", msg);
+
       // Simpan di Memory Fallback agar user tetap bisa menguji alur 100%
-      const fallbackOrder = {
+      const fallbackOrder: OrderDetailData = {
         id: `mock-${Date.now()}`,
         order_number: orderNumber,
         customer_name: input.customerName.trim(),
@@ -265,13 +336,20 @@ export async function createOrder(input: CheckoutInput) {
         trackingToken,
       };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Gagal membuat pesanan:", err);
-    return { success: false, error: err.message || "Terjadi kesalahan internal server." };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Terjadi kesalahan internal server.",
+    };
   }
 }
 
-export async function getOrderDetail(orderNumber: string) {
+export async function getOrderDetail(orderNumber: string): Promise<{
+  success: boolean;
+  data?: OrderDetailData;
+  error?: string;
+}> {
   try {
     const order = await prisma.order.findUnique({
       where: { order_number: orderNumber },
@@ -314,7 +392,7 @@ export async function getOrderDetail(orderNumber: string) {
         },
       };
     }
-  } catch (dbErr) {
+  } catch {
     console.warn("Mencari di fallback memory order:", orderNumber);
   }
 
@@ -386,12 +464,12 @@ export async function simulatePaymentSuccess(orderNumber: string) {
       safeRevalidate(`/orders/${orderNumber}`);
       return { success: true };
     }
-  } catch (err) {
+  } catch {
     console.warn("Update payment di fallback memory");
   }
 
   const fallback = memoryOrders.get(orderNumber);
-  if (fallback) {
+  if (fallback && fallback.payment) {
     fallback.payment.status = "PAID";
     fallback.payment.amount_paid = fallback.total_amount;
     fallback.payment.paid_at = new Date();
@@ -419,7 +497,7 @@ export async function simulateStatusUpdate(orderNumber: string, nextStatus: stri
       safeRevalidate(`/orders/${orderNumber}`);
       return { success: true };
     }
-  } catch (err) {
+  } catch {
     console.warn("Update status di fallback memory");
   }
 
@@ -448,7 +526,7 @@ export async function getTablesList() {
         status: t.status,
       }));
     }
-  } catch (err) {
+  } catch {
     // fallback tables
   }
 
@@ -462,7 +540,7 @@ export async function getTablesList() {
   ];
 }
 
-export async function getAvailableProducts() {
+export async function getAvailableProducts(): Promise<AvailableProductSummary[]> {
   try {
     const products = await prisma.product.findMany({
       where: { is_available: true, deleted_at: null },
@@ -482,27 +560,48 @@ export async function getAvailableProducts() {
       orderBy: { sort_order: "asc" },
     });
 
-    return products.map((p) => ({
+    if (products.length > 0) {
+      return products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category.name,
+        base_price: Number(p.base_price),
+        description: p.description,
+        available_qty: p.stock?.available_qty ?? 0,
+        option_groups: p.option_groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          is_required: g.is_required,
+          items: g.option_items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            price_adjustment: Number(i.price_adjustment),
+          })),
+        })),
+      }));
+    }
+  } catch {
+    // Fallback ke katalog statis jika MySQL belum aktif
+  }
+
+  return sampleProducts
+    .filter((p) => p.availableQty > 0)
+    .map((p) => ({
       id: p.id,
       name: p.name,
-      category: p.category.name,
-      base_price: Number(p.base_price),
+      category: p.categoryName,
+      base_price: p.basePrice,
       description: p.description,
-      available_qty: p.stock?.available_qty ?? 0,
-      option_groups: p.option_groups.map((g) => ({
+      available_qty: p.availableQty,
+      option_groups: p.options.map((g) => ({
         id: g.id,
         name: g.name,
-        is_required: g.is_required,
-        items: g.option_items.map((i) => ({
+        is_required: g.required,
+        items: g.items.map((i) => ({
           id: i.id,
           name: i.name,
-          price_adjustment: Number(i.price_adjustment),
+          price_adjustment: i.price,
         })),
       })),
     }));
-  } catch (err: any) {
-    console.error("Gagal mengambil produk dari database:", err.message);
-    return [];
-  }
 }
-

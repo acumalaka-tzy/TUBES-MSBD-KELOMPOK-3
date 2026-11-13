@@ -3,10 +3,12 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/context/cart-context";
+import { saveRecentOrder, useActiveTable } from "@/lib/active-table";
 import {
   createOrder,
   getTablesList,
   getAvailableProducts,
+  type AvailableProductSummary,
 } from "@/app/actions/checkout";
 import {
   ShoppingBag,
@@ -18,17 +20,16 @@ import {
   Plus,
   Minus,
   Trash2,
-  Sparkles,
   AlertCircle,
   ArrowRight,
   Database,
-  Coffee,
 } from "lucide-react";
 
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlTable = searchParams.get("table");
+  const storedTable = useActiveTable();
+  const urlTable = searchParams.get("table") ?? searchParams.get("meja") ?? storedTable;
 
   const {
     items,
@@ -44,12 +45,10 @@ function CheckoutContent() {
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [serviceType, setServiceType] = useState<"DINE_IN" | "TAKEAWAY">(
-    urlTable ? "DINE_IN" : "DINE_IN"
-  );
+  const [serviceType, setServiceType] = useState<"DINE_IN" | "TAKEAWAY">("DINE_IN");
   const [tableNumber, setTableNumber] = useState(urlTable || "01");
   const [tables, setTables] = useState<{ id: string; table_number: string; name: string }[]>([]);
-  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<AvailableProductSummary[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "QRIS" | "VIRTUAL_ACCOUNT">("QRIS");
   const [notes, setNotes] = useState("");
 
@@ -57,7 +56,6 @@ function CheckoutContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Ambil data meja dinamis dari database MySQL
     getTablesList().then((data) => {
       setTables(data);
       if (urlTable && data.some((t) => t.table_number === urlTable)) {
@@ -65,26 +63,25 @@ function CheckoutContent() {
       }
     });
 
-    // Ambil data menu produk asli dari database MySQL
     getAvailableProducts().then((prods) => {
       setAvailableProducts(prods);
     });
   }, [urlTable]);
 
-  const handleAddRealProduct = (product: any) => {
-    // Format opsi default jika produk memiliki grup varian
-    const defaultOptions = product.option_groups?.flatMap((g: any) => {
-      if (g.is_required && g.items?.length > 0) {
-        return [
-          {
-            groupName: g.name,
-            optionName: g.items[0].name,
-            priceAdjustment: g.items[0].price_adjustment || 0,
-          },
-        ];
-      }
-      return [];
-    }) || [];
+  const handleAddRealProduct = (product: AvailableProductSummary) => {
+    const defaultOptions =
+      product.option_groups?.flatMap((g) => {
+        if (g.is_required && g.items?.length > 0) {
+          return [
+            {
+              groupName: g.name,
+              optionName: g.items[0].name,
+              priceAdjustment: g.items[0].price_adjustment || 0,
+            },
+          ];
+        }
+        return [];
+      }) || [];
 
     addItem({
       productId: product.id,
@@ -138,13 +135,23 @@ function CheckoutContent() {
       });
 
       if (result.success && result.orderNumber) {
+        saveRecentOrder({
+          orderNumber: result.orderNumber,
+          trackingToken: result.trackingToken,
+          totalAmount,
+          serviceType,
+          tableNumber: serviceType === "DINE_IN" ? tableNumber : undefined,
+          createdAt: new Date().toISOString(),
+        });
         clearCart();
         router.push(`/orders/${result.orderNumber}?token=${result.trackingToken}`);
       } else {
         setErrorMessage(result.error || "Gagal membuat pesanan.");
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || "Terjadi kesalahan saat memproses pesanan.");
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Terjadi kesalahan saat memproses pesanan."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -155,7 +162,7 @@ function CheckoutContent() {
       {/* Title */}
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
-          Checkout & Pembayaran
+          Checkout &amp; Pembayaran
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Lengkapi data pemesan dan pilih metode pembayaran untuk memproses pesanan Anda.
@@ -466,7 +473,7 @@ function CheckoutContent() {
                       {/* Catatan Item */}
                       {item.itemNotes && (
                         <p className="text-[11px] text-primary/80 italic mt-0.5">
-                          "{item.itemNotes}"
+                          &ldquo;{item.itemNotes}&rdquo;
                         </p>
                       )}
 
@@ -514,7 +521,7 @@ function CheckoutContent() {
             <div className="pt-3 border-t border-border">
               <div className="flex items-center gap-1.5 text-xs font-bold text-foreground mb-2">
                 <Database className="w-3.5 h-3.5 text-primary" />
-                <span>Pilih Menu Asli dari Database MySQL:</span>
+                <span>Pilih Menu Cepat dari Katalog MySQL:</span>
               </div>
 
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
@@ -579,7 +586,7 @@ function CheckoutContent() {
                   </>
                 ) : (
                   <>
-                    <span>Konfirmasi & Simpan Pesanan</span>
+                    <span>Konfirmasi &amp; Simpan Pesanan</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
