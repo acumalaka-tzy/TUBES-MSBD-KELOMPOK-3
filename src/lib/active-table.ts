@@ -79,3 +79,12 @@ export function getRecentOrders(): RecentOrderSummary[] {
     return [];
   }
 }
+
+export function clearRecentOrders() {
+  try {
+    localStorage.removeItem(ORDERS_KEY);
+    window.dispatchEvent(new Event(ORDERS_EVENT));
+  } catch {
+    // localStorage tidak tersedia
+  }
+}
