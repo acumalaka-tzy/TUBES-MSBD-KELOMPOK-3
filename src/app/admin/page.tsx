@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -13,7 +14,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/app/actions/auth";
 
-export default async function AdminDashboardPage() {
+async function AdminDashboardContent() {
   const session = await getSession();
 
   // Proteksi ganda di Server Component (Defense in Depth)
@@ -185,5 +186,19 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-secondary-bg/50 px-4 py-16 text-center text-xs font-semibold text-muted-foreground">
+          Memuat panel administrator...
+        </div>
+      }
+    >
+      <AdminDashboardContent />
+    </Suspense>
   );
 }

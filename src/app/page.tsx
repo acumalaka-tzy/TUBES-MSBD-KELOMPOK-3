@@ -7,8 +7,6 @@ import {
   Flame,
   MapPin,
   MessageCircle,
-  QrCode,
-  ShoppingBag,
   Sparkles,
   Tag,
   UtensilsCrossed,

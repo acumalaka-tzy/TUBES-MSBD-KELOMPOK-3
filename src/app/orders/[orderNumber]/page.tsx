@@ -29,7 +29,7 @@ function OrderTrackingContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const orderNumber = resolvedParams.orderNumber;
 
-  const [order, setOrder] = useState<OrderDetailData | any | null>(null);
+  const [order, setOrder] = useState<OrderDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -61,10 +61,11 @@ function OrderTrackingContent({ params }: PageProps) {
 
   // Countdown Timer
   useEffect(() => {
-    if (!order?.expires_at || order?.payment?.status === "PAID") return;
+    const expiresAt = order?.expires_at;
+    if (!expiresAt || order?.payment?.status === "PAID") return;
 
     const timer = setInterval(() => {
-      const expiry = new Date(order.expires_at).getTime();
+      const expiry = new Date(expiresAt).getTime();
       const now = Date.now();
       const diff = expiry - now;
 
@@ -142,7 +143,7 @@ function OrderTrackingContent({ params }: PageProps) {
         </div>
         <h1 className="text-xl font-bold text-foreground">Pesanan Tidak Ditemukan</h1>
         <p className="text-xs text-muted-foreground mt-2 mb-6">
-          Nomor pesanan "{orderNumber}" tidak terdaftar atau telah kedaluwarsa.
+          Nomor pesanan &ldquo;{orderNumber}&rdquo; tidak terdaftar atau telah kedaluwarsa.
         </p>
         <Link
           href="/checkout"

@@ -17,8 +17,11 @@ export async function getTablesList(): Promise<TableItem[]> {
         status: t.status,
       }));
     }
-  } catch (err: any) {
-    console.warn("Gagal query tabel meja di database, menggunakan fallback:", err.message);
+  } catch (err: unknown) {
+    console.warn(
+      "Gagal query tabel meja di database, menggunakan fallback:",
+      err instanceof Error ? err.message : String(err),
+    );
   }
 
   return [

@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import type { OrderDetailData } from "./types";
 
 export function safeRevalidate(path: string) {
   try {
@@ -9,5 +10,5 @@ export function safeRevalidate(path: string) {
 }
 
 // Fallback in-memory storage jika MySQL belum terkoneksi saat pengujian mandiri
-export const memoryOrders = new Map<string, any>();
+export const memoryOrders = new Map<string, OrderDetailData>();
 

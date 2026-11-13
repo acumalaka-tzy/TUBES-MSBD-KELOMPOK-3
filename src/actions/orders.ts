@@ -1,8 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { CheckoutInput } from "./types";
-import { safeRevalidate, memoryOrders } from "./helpers";
+import { CheckoutInput, OrderDetailData } from "./types";
+import { memoryOrders } from "./helpers";
 import { getSession } from "@/lib/auth/session";
 
 function generateOrderNumber(): string {
@@ -185,11 +185,14 @@ export async function createOrder(input: CheckoutInput) {
         orderNumber: created.order_number,
         trackingToken: created.tracking_token,
       };
-    } catch (dbError: any) {
-      console.warn("Prisma DB belum tersambung langsung, menyimpan di mock memory order:", dbError.message);
-      
+    } catch (dbError: unknown) {
+      console.warn(
+        "Prisma DB belum tersambung langsung, menyimpan di mock memory order:",
+        dbError instanceof Error ? dbError.message : String(dbError),
+      );
+
       // Simpan di Memory Fallback agar user tetap bisa menguji alur 100%
-      const fallbackOrder = {
+      const fallbackOrder: OrderDetailData = {
         id: `mock-${Date.now()}`,
         order_number: orderNumber,
         user_id: effectiveUserId,
@@ -242,13 +245,18 @@ export async function createOrder(input: CheckoutInput) {
         trackingToken,
       };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Gagal membuat pesanan:", err);
-    return { success: false, error: err.message || "Terjadi kesalahan internal server." };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Terjadi kesalahan internal server.",
+    };
   }
 }
 
-export async function getOrderDetail(orderNumber: string) {
+export async function getOrderDetail(
+  orderNumber: string,
+): Promise<{ success: boolean; data?: OrderDetailData; error?: string }> {
   try {
     const order = await prisma.order.findUnique({
       where: { order_number: orderNumber },
@@ -268,6 +276,9 @@ export async function getOrderDetail(orderNumber: string) {
         success: true,
         data: {
           ...order,
+          table: order.table
+            ? { table_number: order.table.table_number, name: order.table.name }
+            : null,
           subtotal: Number(order.subtotal),
           tax_amount: Number(order.tax_amount),
           total_amount: Number(order.total_amount),
@@ -291,7 +302,7 @@ export async function getOrderDetail(orderNumber: string) {
         },
       };
     }
-  } catch (dbErr) {
+  } catch {
     console.warn("Mencari di fallback memory order:", orderNumber);
   }
 

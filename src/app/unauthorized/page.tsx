@@ -1,8 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ShieldAlert, LogIn, Home } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 
-export default async function UnauthorizedPage() {
+async function UnauthorizedContent() {
   const session = await getSession();
 
   return (
@@ -58,5 +59,19 @@ export default async function UnauthorizedPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function UnauthorizedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-secondary-bg px-4 py-12 text-xs font-semibold text-muted-foreground">
+          Memuat...
+        </div>
+      }
+    >
+      <UnauthorizedContent />
+    </Suspense>
   );
 }

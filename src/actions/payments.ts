@@ -62,12 +62,15 @@ export async function simulatePaymentSuccess(orderNumber: string) {
       safeRevalidate(`/orders/${orderNumber}`);
       return { success: true };
     }
-  } catch (err: any) {
-    console.warn("Update payment di fallback memory:", err.message);
+  } catch (err: unknown) {
+    console.warn(
+      "Update payment di fallback memory:",
+      err instanceof Error ? err.message : String(err),
+    );
   }
 
   const fallback = memoryOrders.get(orderNumber);
-  if (fallback) {
+  if (fallback && fallback.payment) {
     fallback.payment.status = "PAID";
     fallback.payment.amount_paid = fallback.total_amount;
     fallback.payment.paid_at = new Date();
@@ -95,8 +98,11 @@ export async function simulateStatusUpdate(orderNumber: string, nextStatus: stri
       safeRevalidate(`/orders/${orderNumber}`);
       return { success: true };
     }
-  } catch (err: any) {
-    console.warn("Update status di fallback memory:", err.message);
+  } catch (err: unknown) {
+    console.warn(
+      "Update status di fallback memory:",
+      err instanceof Error ? err.message : String(err),
+    );
   }
 
   const fallback = memoryOrders.get(orderNumber);
