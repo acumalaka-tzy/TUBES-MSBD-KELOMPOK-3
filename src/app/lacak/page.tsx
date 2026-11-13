@@ -10,12 +10,10 @@ import {
   Search,
   UtensilsCrossed,
   ShoppingBag,
-  Trash2,
   ChevronDown,
 } from "lucide-react";
 import {
   getRecentOrders,
-  clearRecentOrders,
   type RecentOrderSummary,
 } from "@/lib/active-table";
 import { formatRupiah } from "@/lib/utils";
@@ -42,11 +40,6 @@ export default function LacakPage() {
     }
     setError(null);
     router.push(`/orders/${encodeURIComponent(value)}`);
-  }
-
-  function handleClearHistory() {
-    clearRecentOrders();
-    setRecentOrders([]);
   }
 
   return (
@@ -121,22 +114,11 @@ export default function LacakPage() {
         /* KONDISI 2: SUDAH MEMILIKI RIWAYAT PESANAN */
         <div className="space-y-6">
           <div className="rounded-2xl border border-border bg-white p-6 shadow-xs sm:p-7">
-            <div className="flex items-center justify-between pb-4 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                  Riwayat Pesanan Anda ({recentOrders.length})
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={handleClearHistory}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
-                title="Hapus riwayat pesanan dari browser ini"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>Hapus Riwayat</span>
-              </button>
+            <div className="flex items-center gap-2 pb-4 border-b border-border">
+              <Clock className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                Riwayat Pesanan Anda ({recentOrders.length})
+              </h2>
             </div>
 
             <div className="mt-4 space-y-3">
