@@ -47,3 +47,4 @@ export function ProductPicker({ products, onAddProduct }: ProductPickerProps) {
     </div>
   );
 }
+

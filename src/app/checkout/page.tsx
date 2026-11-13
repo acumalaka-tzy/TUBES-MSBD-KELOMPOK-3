@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/context/cart-context";
+import { saveRecentOrder, useActiveTable } from "@/lib/active-table";
 import { createOrder, getTablesList, getAvailableProducts } from "@/actions";
 import { TableItem, AvailableProduct } from "@/actions/types";
 import { CustomerForm } from "@/components/checkout/CustomerForm";
@@ -13,7 +14,8 @@ import { Sparkles, AlertCircle } from "lucide-react";
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlTable = searchParams.get("table");
+  const storedTable = useActiveTable();
+  const urlTable = searchParams.get("table") ?? searchParams.get("meja") ?? storedTable;
 
   const {
     items,
@@ -128,10 +130,22 @@ function CheckoutContent() {
         return;
       }
 
+      // Simpan riwayat pesanan ke localStorage via active-table
+      saveRecentOrder({
+        orderNumber: res.orderNumber,
+        trackingToken: res.trackingToken,
+        totalAmount,
+        serviceType,
+        tableNumber: serviceType === "DINE_IN" ? tableNumber : undefined,
+        createdAt: new Date().toISOString(),
+      });
+
       clearCart();
-      router.push(`/orders/${res.orderNumber}`);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Terjadi kesalahan saat memproses pesanan.");
+      router.push(`/orders/${res.orderNumber}${res.trackingToken ? `?token=${res.trackingToken}` : ""}`);
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Terjadi kesalahan saat memproses pesanan."
+      );
       setIsSubmitting(false);
     }
   };
@@ -142,13 +156,13 @@ function CheckoutContent() {
       <div className="mb-8">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-2">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Checkout & Pembayaran Mandiri</span>
+          <span>Checkout &amp; Pembayaran Mandiri</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
           Selesaikan Pesanan Anda
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Warkop Agam Senayan • Pesanan diproses otomatis ke kasir & dapur
+          Warkop Agam Senayan • Pesanan diproses otomatis ke kasir &amp; dapur
         </p>
       </div>
 

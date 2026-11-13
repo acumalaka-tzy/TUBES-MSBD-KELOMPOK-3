@@ -30,3 +30,4 @@ export async function getTablesList(): Promise<TableItem[]> {
     { id: "tbl-06", table_number: "06", name: "Meja 06 (VIP)", status: "AVAILABLE" },
   ];
 }
+

@@ -41,16 +41,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setItems(JSON.parse(saved));
+    queueMicrotask(() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setItems(JSON.parse(saved));
+        }
+      } catch (e) {
+        console.error("Gagal membaca cart dari localStorage", e);
+      } finally {
+        setIsLoaded(true);
       }
-    } catch (e) {
-      console.error("Gagal membaca cart dari localStorage", e);
-    } finally {
-      setIsLoaded(true);
-    }
+    });
   }, []);
 
   useEffect(() => {

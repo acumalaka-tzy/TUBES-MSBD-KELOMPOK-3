@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, use, Suspense } from "react";
+import React, { useCallback, useEffect, useState, use, Suspense } from "react";
 import Link from "next/link";
 import {
   getOrderDetail,
   simulatePaymentSuccess,
   simulateStatusUpdate,
 } from "@/actions";
+import { OrderDetailData } from "@/actions/types";
 import { OrderStatusStepper } from "@/components/orders/OrderStatusStepper";
 import { PaymentInstructions } from "@/components/orders/PaymentInstructions";
 import { OrderSimulationToolbar } from "@/components/orders/OrderSimulationToolbar";
@@ -28,14 +29,14 @@ function OrderTrackingContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const orderNumber = resolvedParams.orderNumber;
 
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<OrderDetailData | any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const res = await getOrderDetail(orderNumber);
       if (res.success && res.data) {
@@ -43,18 +44,20 @@ function OrderTrackingContent({ params }: PageProps) {
       } else {
         setError(res.error || "Pesanan tidak ditemukan.");
       }
-    } catch (e: any) {
-      setError(e.message || "Gagal memuat status pesanan.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Gagal memuat status pesanan.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderNumber]);
 
   useEffect(() => {
-    fetchOrder();
+    queueMicrotask(() => {
+      void fetchOrder();
+    });
     const interval = setInterval(fetchOrder, 6000); // Polling otomatis tiap 6 detik
     return () => clearInterval(interval);
-  }, [orderNumber]);
+  }, [fetchOrder]);
 
   // Countdown Timer
   useEffect(() => {
@@ -160,11 +163,11 @@ function OrderTrackingContent({ params }: PageProps) {
       {/* Header Back & Refresh */}
       <div className="flex items-center justify-between mb-6">
         <Link
-          href="/checkout"
+          href="/menu"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Pesan Lagi
+          Pesan Menu Lagi
         </Link>
 
         <button

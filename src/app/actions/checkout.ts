@@ -1,4 +1,4 @@
 "use server";
 
-// Re-export semua fungsi modular dari @/actions untuk backward compatibility
+// Re-export semua fungsi dan tipe data modular dari @/actions
 export * from "@/actions";
