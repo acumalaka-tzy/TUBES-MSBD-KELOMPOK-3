@@ -32,7 +32,7 @@ const links = [
 
 function NavbarContent() {
   const pathname = usePathname();
-  const { items, itemCount, subtotal, totalAmount, isCartOpen, openCart, closeCart } = useCart();
+  const { items, itemCount, subtotal, totalAmount, isCartOpen, openCart, closeCart, storeSettings } = useCart();
   const table = useActiveTable();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
@@ -316,7 +316,7 @@ function NavbarContent() {
                 <p className="font-mono text-sm font-extrabold text-foreground">
                   {formatRupiah(totalAmount)}{" "}
                   <span className="font-sans text-[10px] font-normal text-muted-foreground">
-                    (+PB1)
+                    {storeSettings.taxEnabled ? `(+PB1 ${storeSettings.taxPercentage}%)` : "(Tanpa Pajak)"}
                   </span>
                 </p>
               </div>

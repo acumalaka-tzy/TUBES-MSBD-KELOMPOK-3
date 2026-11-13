@@ -12,26 +12,21 @@ export interface RegisterUserInput {
 }
 
 /**
- * Validasi password apakah cocok dengan hash (mendukung bcrypt dan placeholder seed)
+ * Validasi password apakah cocok dengan hash (mendukung bcrypt asli dan placeholder prisma/seed.ts)
  */
-async function verifyUserPassword(password: string, hash: string | null | undefined, role: string): Promise<boolean> {
+async function verifyUserPassword(password: string, hash: string | null | undefined): Promise<boolean> {
   if (!hash) return false;
 
-  // Cek seed placeholder dari prisma/seed.ts
-  if (hash.startsWith("$2b$12$examplehashedpasswordadmin") && password === "admin123") {
-    return true;
+  // Placeholder non-bcrypt dari prisma/seed.ts sebelum diubah admin
+  if (hash.startsWith("$2b$12$examplehashedpasswordadmin")) {
+    return password === "admin123";
   }
-  if (hash.startsWith("$2b$12$examplehashedpasswordcashier") && (password === "kasir123" || password === "admin123")) {
-    return true;
+  if (hash.startsWith("$2b$12$examplehashedpasswordcashier")) {
+    return password === "kasir123";
   }
-  if (hash.startsWith("$2b$12$examplehashedpasswordcust") && (password === "customer123" || password === "password123")) {
-    return true;
+  if (hash.startsWith("$2b$12$examplehashedpasswordcust")) {
+    return password === "customer123" || password === "password123";
   }
-
-  // Cek default demo credentials untuk role testing cepat
-  if (role === "ADMIN" && password === "admin123") return true;
-  if (role === "CASHIER" && (password === "kasir123" || password === "admin123")) return true;
-  if (role === "CUSTOMER" && (password === "customer123" || password === "password123")) return true;
 
   // Verifikasi bcrypt standar
   try {
@@ -109,7 +104,7 @@ export async function authenticateUser(
     return { user: null, error: "Akun Anda dinonaktifkan. Silakan hubungi pengelola restoran." };
   }
 
-  const isPasswordValid = await verifyUserPassword(password, user.password_hash, user.role);
+  const isPasswordValid = await verifyUserPassword(password, user.password_hash);
   if (!isPasswordValid) {
     return { user: null, error: "Password yang Anda masukkan salah." };
   }

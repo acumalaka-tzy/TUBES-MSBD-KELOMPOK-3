@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -14,7 +15,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/app/actions/auth";
 
-export default async function CashierDashboardPage() {
+async function CashierDashboardContent() {
   const session = await getSession();
 
   // Defense in depth server-side check
@@ -186,5 +187,19 @@ export default async function CashierDashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CashierDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-secondary-bg/50 px-4 py-16 text-center text-xs font-semibold text-muted-foreground">
+          Memuat layar POS kasir...
+        </div>
+      }
+    >
+      <CashierDashboardContent />
+    </Suspense>
   );
 }

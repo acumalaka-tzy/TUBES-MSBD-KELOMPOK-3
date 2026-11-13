@@ -60,6 +60,7 @@ export interface OrderOptionSnapshot {
 
 export interface OrderItemSnapshot {
   id: string;
+  product_id?: string;
   product_name_snapshot: string;
   unit_price_snapshot: number;
   quantity: number;

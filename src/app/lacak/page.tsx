@@ -27,8 +27,10 @@ export default function LacakPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    setRecentOrders(getRecentOrders());
+    queueMicrotask(() => {
+      setMounted(true);
+      setRecentOrders(getRecentOrders());
+    });
   }, []);
 
   function submit(e: React.FormEvent) {

@@ -1,9 +1,14 @@
 "use client";
 
 import React from "react";
+import type {
+  OrderDetailData,
+  OrderItemSnapshot,
+  OrderOptionSnapshot,
+} from "@/actions/types";
 
 interface OrderInvoiceProps {
-  order: any;
+  order: OrderDetailData;
 }
 
 export function OrderInvoice({ order }: OrderInvoiceProps) {
@@ -14,7 +19,7 @@ export function OrderInvoice({ order }: OrderInvoiceProps) {
       </h2>
 
       <div className="divide-y divide-border my-2">
-        {order.items?.map((item: any) => (
+        {order.items?.map((item: OrderItemSnapshot) => (
           <div key={item.id} className="py-3.5 flex justify-between gap-3">
             <div className="flex-1">
               <p className="text-sm font-bold text-foreground">
@@ -24,14 +29,14 @@ export function OrderInvoice({ order }: OrderInvoiceProps) {
               {item.options && item.options.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {item.options
-                    .map((o: any) => `${o.option_name_snapshot}`)
+                    .map((o: OrderOptionSnapshot) => `${o.option_name_snapshot}`)
                     .join(", ")}
                 </p>
               )}
 
               {item.item_notes && (
                 <p className="text-xs text-primary/80 italic mt-0.5">
-                  "{item.item_notes}"
+                  &ldquo;{item.item_notes}&rdquo;
                 </p>
               )}
 
@@ -56,7 +61,7 @@ export function OrderInvoice({ order }: OrderInvoiceProps) {
           </span>
         </div>
         <div className="flex justify-between">
-          <span>Pajak Restoran (PB1 10%)</span>
+          <span>Pajak Restoran (PB1)</span>
           <span className="font-mono font-medium">
             Rp {Number(order.tax_amount).toLocaleString("id-ID")}
           </span>

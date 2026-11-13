@@ -2,6 +2,16 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { sampleProducts } from "@/lib/menu-data";
+import { getPublicStoreSettingsAction } from "@/app/actions/store";
+import type { PublicStoreSettings } from "@/lib/admin/types";
+
+const DEFAULT_STORE_SETTINGS: PublicStoreSettings = {
+  isWebOrderingOpen: true,
+  taxEnabled: true,
+  taxPercentage: 10,
+  digitalExpiryMinutes: 15,
+  cashExpiryMinutes: 30,
+};
 
 export interface CartOption {
   groupName: string;
@@ -49,6 +59,9 @@ interface CartContextType {
   setServiceType: (type: ServiceTypeOption) => void;
   orderNotes: string;
   setOrderNotes: (notes: string) => void;
+  storeSettings: PublicStoreSettings;
+  taxLabel: string;
+  refreshStoreSettings: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -431,11 +444,44 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(sampleItems);
   };
 
-  const openCart = useCallback(() => setIsCartOpen(true), []);
+  const [storeSettings, setStoreSettings] = useState<PublicStoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  const refreshStoreSettings = useCallback(async () => {
+    try {
+      const fresh = await getPublicStoreSettingsAction();
+      setStoreSettings(fresh);
+    } catch {
+      // Abaikan jika server sedang restart; tetap pakai state terakhir
+    }
+  }, []);
+
+  const openCart = useCallback(() => {
+    setIsCartOpen(true);
+    void refreshStoreSettings();
+  }, [refreshStoreSettings]);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
 
+  useEffect(() => {
+    let active = true;
+    getPublicStoreSettingsAction()
+      .then((fresh) => {
+        if (active) setStoreSettings(fresh);
+      })
+      .catch(() => {
+        // Abaikan jika server belum siap; pakai nilai bawaan
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const taxAmount = Math.round(subtotal * 0.1); // PB1 10%
+  const taxAmount = storeSettings.taxEnabled
+    ? Math.round(subtotal * (storeSettings.taxPercentage / 100))
+    : 0;
+  const taxLabel = storeSettings.taxEnabled
+    ? `Pajak Restoran (PB1 ${storeSettings.taxPercentage}%)`
+    : "Pajak Restoran (PB1 0% • Nonaktif)";
   const totalAmount = subtotal + taxAmount;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -464,6 +510,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setServiceType,
         orderNotes,
         setOrderNotes,
+        storeSettings,
+        taxLabel,
+        refreshStoreSettings,
       }}
     >
       {children}

@@ -149,13 +149,7 @@ export function ProductDetail({
     };
   }, [onClose]);
 
-  // Jika semua item dari produk ini dihapus saat di mode manage, alihkan ke mode customize
-  useEffect(() => {
-    if (viewMode === "manage" && existingItems.length === 0) {
-      setEditingCartItemId(null);
-      setViewMode("customize");
-    }
-  }, [existingItems.length, viewMode]);
+  const activeViewMode = viewMode === "manage" && existingItems.length === 0 ? "customize" : viewMode;
 
   const status = getStockStatus(product.availableQty, product.minThreshold);
   const soldOut = status === "OUT_OF_STOCK";
@@ -271,7 +265,7 @@ export function ProductDetail({
         {/* =========================================================================
             TAMPILAN 1: MANAGE / MAKE ANOTHER (GAYA GRABFOOD)
            ========================================================================= */}
-        {viewMode === "manage" ? (
+        {activeViewMode === "manage" ? (
           <div className="flex flex-col h-full overflow-hidden">
             {/* Header Produk Ringkas */}
             <div className="flex items-start justify-between gap-3 p-5 pb-3.5 border-b border-border">
@@ -351,7 +345,13 @@ export function ProductDetail({
                     >
                       <button
                         type="button"
-                        onClick={() => updateQuantity(cartItem.id, -1)}
+                        onClick={() => {
+                          if (existingItems.length === 1 && cartItem.quantity === 1) {
+                            setEditingCartItemId(null);
+                            setViewMode("customize");
+                          }
+                          updateQuantity(cartItem.id, -1);
+                        }}
                         className="size-7 rounded-full flex items-center justify-center hover:bg-secondary-bg text-muted-foreground hover:text-foreground transition-colors"
                         title="Kurangi"
                       >

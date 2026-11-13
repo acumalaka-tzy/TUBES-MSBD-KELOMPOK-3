@@ -45,6 +45,8 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     setServiceType,
     orderNotes,
     setOrderNotes,
+    taxLabel,
+    storeSettings,
   } = useCart();
 
   const table = useActiveTable();
@@ -652,11 +654,16 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Pajak Restoran (PB1 10%)</span>
+                  <span>{taxLabel}</span>
                   <span className="font-mono font-semibold text-foreground">
                     {formatRupiah(taxAmount)}
                   </span>
                 </div>
+                {!storeSettings.isWebOrderingOpen && (
+                  <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                    Pemesanan web sedang ditutup sementara oleh admin.
+                  </p>
+                )}
                 <div className="flex justify-between border-t border-border pt-2 text-sm font-extrabold text-foreground">
                   <span>Total Tagihan</span>
                   <span className="font-mono text-base text-primary">

@@ -9,8 +9,11 @@ export async function getCatalogProducts(): Promise<Product[]> {
   try {
     const catalog = await getCatalog();
     return catalog.products;
-  } catch (err: any) {
-    console.warn("Gagal getCatalogProducts:", err?.message);
+  } catch (err: unknown) {
+    console.warn(
+      "Gagal getCatalogProducts:",
+      err instanceof Error ? err.message : String(err),
+    );
     return sampleProducts;
   }
 }
@@ -55,12 +58,16 @@ export async function getAvailableProducts(): Promise<AvailableProduct[]> {
         })),
       }));
     }
-  } catch (err: any) {
-    console.warn("Gagal query produk MySQL, menggunakan fallback:", err.message);
+  } catch (err: unknown) {
+    console.warn(
+      "Gagal query produk MySQL, menggunakan fallback:",
+      err instanceof Error ? err.message : String(err),
+    );
   }
 
-  // Fallback katalog statis jika MySQL belum aktif
-  return sampleProducts
+  // Fallback mengikuti katalog dinamis dari memoryStore agar selaras dengan Admin CRUD
+  const { products } = await getCatalog();
+  return products
     .filter((p) => p.availableQty > 0)
     .map((p) => ({
       id: p.id,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Eye, Flame, Plus, ShoppingBag } from "lucide-react";
+import { Check, Flame, Plus } from "lucide-react";
 import { ProductDetail } from "@/components/product-detail";
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
