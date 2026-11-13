@@ -12,7 +12,7 @@
 | **Model Bisnis** | Single Restaurant (Warkop Agam) |
 | **Role Pengguna** | Customer, Cashier, Admin |
 | **Frontend & Backend** | Next.js Fullstack (App Router + TypeScript) |
-| **Database & ORM** | PostgreSQL + Prisma ORM |
+| **Database & ORM** | MySQL + Prisma ORM |
 | **Identitas Visual** | Modern minimalist; coral/salmon (`#F16F62`), putih (`#FFFFFF`), abu-abu netral (`#F6F4F2`) |
 
 Dokumen ini menjadi acuan utama untuk perancangan sistem, desain basis data (ERD, Normalisasi, DDL/DML, Trigger, Stored Procedure, Transaksi), implementasi kode aplikasi, serta penyusunan Laporan Tugas Besar MSBD.
@@ -96,7 +96,7 @@ Pencatatan pesanan dan transaksi secara manual atau terpisah menimbulkan berbaga
 
 ## 3.1 Analisis Kelayakan Sistem
 
-- **Kelayakan Teknis:** Dibangun menggunakan *stack* modern yang matang dan open-source (Next.js, TypeScript, PostgreSQL, Prisma ORM) yang mendukung pemrosesan transaksi ACID dan akses responsif lintas perangkat tanpa memerlukan instalasi aplikasi khusus di sisi pelanggan.
+- **Kelayakan Teknis:** Dibangun menggunakan *stack* modern yang matang dan open-source (Next.js, TypeScript, MySQL, Prisma ORM) yang mendukung pemrosesan transaksi ACID dan akses responsif lintas perangkat tanpa memerlukan instalasi aplikasi khusus di sisi pelanggan.
 - **Kelayakan Operasional:** Antarmuka dirancang minimalis dan intuitif (POS-style untuk kasir dan katalog familiar untuk pelanggan) sehingga staf kasir dapat mengoperasikannya dengan pelatihan singkat (< 30 menit).
 - **Kelayakan Ekonomi:** Penggunaan perangkat keras yang sudah ada (PC/Laptop/Tablet kasir dan smartphone pelanggan) menekan biaya investasi infrastruktur awal.
 
@@ -115,7 +115,7 @@ Pengembangan sistem menggunakan pendekatan **Iterative & Incremental SDLC (Proto
 
 1. *Requirement Gathering & Analysis* (Identifikasi kebutuhan Warkop Agam).
 2. *Conceptual & Logical Database Design* (Pembuatan DFD, ERD, dan Normalisasi tabel).
-3. *Physical Database Design* (Implementasi skema PostgreSQL, Index, View, Trigger, dan Stored Function).
+3. *Physical Database Design* (Implementasi skema MySQL, Index, View, Trigger, dan Stored Function).
 4. *Application Prototyping & Integration* (Pengembangan UI/UX dan API Next.js).
 5. *Testing & Evaluation* (Pengujian *Black-box*, integritas transaksi ACID, dan uji coba pengguna).
 
@@ -134,7 +134,7 @@ Pengembangan sistem menggunakan pendekatan **Iterative & Incremental SDLC (Proto
 ## 4.2 Manajemen User, Privilege, dan Keamanan Database (DCL)
 
 - **Server-Side RBAC:** Semua hak akses wajib divalidasi di sisi server (*Server-side RBAC/Middleware*) pada setiap Route Handler dan Server Action.
-- **Database Role & Privilege (PostgreSQL):**
+- **Database Role & Privilege (MySQL):**
   - `warkop_admin_db`: Memiliki hak akses penuh (`ALL PRIVILEGES`) untuk DDL (migrasi skema) dan administrasi basis data.
   - `warkop_app_user`: Akun yang digunakan oleh aplikasi Next.js di lingkungan produksi; hanya diberikan hak akses DML (`SELECT, INSERT, UPDATE, DELETE`) pada tabel operasional, tanpa hak akses `DROP` atau `ALTER TABLE` untuk mencegah kerusakan skema jika terjadi celah keamanan.
 
@@ -424,7 +424,7 @@ Berikut adalah daftar seluruh entitas tabel beserta spesifikasi lengkap entitas 
 
 ## 9.4 Rancangan View, Trigger, Fungsi & Stored Procedure (Format Bab III.5 & III.6 Sistematika)
 
-Untuk memenuhi standar implementasi DBMS tingkat lanjut, sistem menerapkan objek database berikut pada PostgreSQL:
+Untuk memenuhi standar implementasi DBMS tingkat lanjut, sistem menerapkan objek database berikut pada MySQL:
 
 1. **Database Views (`CREATE VIEW`):**
    - `vw_daily_sales_summary`: Mengagregasi total pesanan sukses, total penjualan kotor, pajak, refund, dan penjualan bersih (*Net Sales*) per tanggal untuk mempercepat kueri Dashboard Admin.
@@ -463,7 +463,7 @@ Untuk memenuhi standar implementasi DBMS tingkat lanjut, sistem menerapkan objek
 
 - **Performance:** Waktu muat halaman utama (LCP) `< 2,5 detik`; respons API pencarian/filter `< 500ms`; sinkronisasi pesanan baru ke layar kasir `<= 5 detik`.
 - **Security:** Password di-hash menggunakan `bcrypt`/`Argon2`; cookie sesi `HTTP-only`, `Secure`, `SameSite`; validasi input dengan `Zod`; verifikasi *cryptographic signature* pada *webhook* pembayaran; serta penerapan *Rate Limiting* pada endpoint autentikasi dan pembuatan pesanan.
-- **Reliability:** Idempotency pada pengiriman pesanan, transaksi database atomik untuk mencegah *overselling*, dan prosedur *automated backup* harian PostgreSQL.
+- **Reliability:** Idempotency pada pengiriman pesanan, transaksi database atomik untuk mencegah *overselling*, dan prosedur *automated backup* harian MySQL.
 
 ---
 
@@ -473,7 +473,7 @@ Untuk memenuhi standar implementasi DBMS tingkat lanjut, sistem menerapkan objek
 | --- | --- | --- |
 | **Fullstack Framework** | Next.js (App Router) + TypeScript | UI rendering, Route Handlers, Server Actions. |
 | **Styling & UI** | Tailwind CSS + shadcn/ui + Lucide React | Sistem komponen aksesibel, responsif, dan ringan. |
-| **Database & ORM** | PostgreSQL + Prisma ORM | Database relasional ACID, migrasi skema, dan kueri transaksional. |
+| **Database & ORM** | MySQL + Prisma ORM | Database relasional ACID, migrasi skema, dan kueri transaksional. |
 | **Authentication** | Auth.js (NextAuth) | Manajemen sesi dan RBAC berbasis role. |
 | **Validation** | Zod + React Hook Form | Validasi skema payload di client dan server. |
 | **Payments** | Midtrans (Snap / Core API) | Pemrosesan QRIS dinamis dan Virtual Account dengan webhook. |
@@ -486,7 +486,7 @@ Untuk memenuhi standar implementasi DBMS tingkat lanjut, sistem menerapkan objek
 
 ## 12.1 Tahapan Pengembangan (MVP Roadmap)
 
-- **Phase 1 — Core Database & MVP:** Implementasi skema PostgreSQL (DDL, Constraints, Indexes, Triggers), autentikasi RBAC, katalog responsif & varian, cart, guest checkout, Dine In QR tervalidasi & Takeaway, reservasi stok transaksional, dashboard kasir dengan audio alert, POS kasir, pembayaran tunai & QRIS, serta admin CRUD menu, stok, dan meja.
+- **Phase 1 — Core Database & MVP:** Implementasi skema MySQL (DDL, Constraints, Indexes, Triggers), autentikasi RBAC, katalog responsif & varian, cart, guest checkout, Dine In QR tervalidasi & Takeaway, reservasi stok transaksional, dashboard kasir dengan audio alert, POS kasir, pembayaran tunai & QRIS, serta admin CRUD menu, stok, dan meja.
 - **Phase 2 — Operational & Reporting:** Cetak struk termal (58mm/80mm), *stored procedure* auto-cancel pesanan kedaluwarsa, riwayat transaksi, laporan penjualan & ekspor CSV/PDF, pengelolaan akun kasir, audit log, dan alur refund.
 - **Phase 3 — Enhancement:** Ulasan pelanggan, manajemen promo/diskon, dan notifikasi WhatsApp otomatis.
 
