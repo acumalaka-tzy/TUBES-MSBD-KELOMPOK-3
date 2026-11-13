@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, Suspense } from "react";
+import React, { useRef, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Coffee, Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle } from "lucide-react";
@@ -11,10 +11,14 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get("redirect") || "";
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [adminPromptActive, setAdminPromptActive] = useState(
+    redirectTarget === "/admin" || redirectTarget.startsWith("/admin/"),
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -42,6 +46,16 @@ function LoginForm() {
 
   const handleQuickDemo = (role: UserRole) => {
     setErrorMessage(null);
+    if (role === "ADMIN") {
+      // Sesuai alur keamanan RBAC: Admin wajib memasukkan password (tidak bypass 1-klik)
+      setIdentifier("admin@warkopagam.id");
+      setPassword("");
+      setAdminPromptActive(true);
+      queueMicrotask(() => passwordInputRef.current?.focus());
+      return;
+    }
+
+    setAdminPromptActive(false);
     startTransition(async () => {
       const res = await quickDemoLoginAction(role);
       if (!res.success) {
@@ -81,9 +95,9 @@ function LoginForm() {
             disabled={isPending}
             onClick={() => handleQuickDemo("ADMIN")}
             className="flex items-center justify-center rounded-lg border border-border bg-white py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary hover:text-primary disabled:opacity-50"
-            title="Login instan sebagai Admin"
+            title="Isi email Admin & masukkan password secara manual"
           >
-            Admin
+            Admin (Password)
           </button>
           <button
             type="button"
@@ -105,9 +119,24 @@ function LoginForm() {
           </button>
         </div>
         <p className="mt-1.5 text-[11px] text-muted-foreground text-center">
-          Klik tombol di atas untuk login otomatis role demo sesuai seed.
+          Admin wajib verifikasi password; Kasir &amp; Pelanggan tersedia login cepat demo.
         </p>
       </div>
+
+      {/* Peringatan Keamanan Khusus Login Admin */}
+      {(adminPromptActive ||
+        identifier.trim().toLowerCase() === "admin@warkopagam.id" ||
+        identifier.trim() === "081260001001") && (
+        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs text-foreground">
+          <Lock className="h-4 w-4 shrink-0 mt-0.5 text-primary" aria-hidden />
+          <div>
+            <p className="font-bold text-primary">Verifikasi Password Administrator</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Demi keamanan RBAC &amp; Audit Log, silakan masukkan password Admin pada kolom di bawah sebelum mengakses Dashboard Admin (default seed: <code className="rounded bg-white px-1 py-0.5 font-mono text-foreground">admin123</code>).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Error Message */}
       {errorMessage && (
@@ -152,6 +181,7 @@ function LoginForm() {
           </div>
           <div className="relative">
             <input
+              ref={passwordInputRef}
               id="password"
               type={showPassword ? "text" : "password"}
               required

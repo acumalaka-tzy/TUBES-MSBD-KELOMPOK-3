@@ -65,8 +65,9 @@ export async function getAvailableProducts(): Promise<AvailableProduct[]> {
     );
   }
 
-  // Fallback katalog statis jika MySQL belum aktif
-  return sampleProducts
+  // Fallback mengikuti katalog dinamis dari memoryStore agar selaras dengan Admin CRUD
+  const { products } = await getCatalog();
+  return products
     .filter((p) => p.availableQty > 0)
     .map((p) => ({
       id: p.id,

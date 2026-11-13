@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { CheckoutInput, OrderDetailData } from "./types";
 import { memoryOrders } from "./helpers";
 import { getSession } from "@/lib/auth/session";
+import { getPublicStoreSettings } from "@/lib/admin/queries";
+import { getMemoryStore, memoryId } from "@/lib/admin/memory-store";
+import { invalidateDatabaseCheck } from "@/lib/admin/db";
 
 function generateOrderNumber(): string {
   const now = new Date();
@@ -31,7 +34,15 @@ export async function createOrder(input: CheckoutInput) {
       return { success: false, error: "Keranjang pesanan masih kosong." };
     }
 
-    // Hitung subtotal dan total
+    const storeSettings = await getPublicStoreSettings();
+    if (!storeSettings.isWebOrderingOpen) {
+      return {
+        success: false,
+        error: "Maaf, pemesanan melalui web sedang ditutup sementara oleh admin.",
+      };
+    }
+
+    // Hitung subtotal dan total mengikuti pengaturan pajak aktif dari Admin
     let subtotal = 0;
     for (const item of input.items) {
       const optionsSum = item.options.reduce(
@@ -41,7 +52,9 @@ export async function createOrder(input: CheckoutInput) {
       subtotal += (item.unitPrice + optionsSum) * item.quantity;
     }
 
-    const taxAmount = Math.round(subtotal * 0.1); // PB1 10%
+    const taxAmount = storeSettings.taxEnabled
+      ? Math.round(subtotal * (storeSettings.taxPercentage / 100))
+      : 0;
     const totalAmount = subtotal + taxAmount;
 
     const orderNumber = generateOrderNumber();
@@ -51,7 +64,10 @@ export async function createOrder(input: CheckoutInput) {
     const session = await getSession();
     const effectiveUserId = input.userId !== undefined ? input.userId : (session?.sub || null);
 
-    const expiryMinutes = input.paymentMethod === "CASH" ? 30 : 15;
+    const expiryMinutes =
+      input.paymentMethod === "CASH"
+        ? storeSettings.cashExpiryMinutes
+        : storeSettings.digitalExpiryMinutes;
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
     // Eksekusi transaksi database Prisma (ACID)
@@ -186,10 +202,61 @@ export async function createOrder(input: CheckoutInput) {
         trackingToken: created.tracking_token,
       };
     } catch (dbError: unknown) {
+      const msg = dbError instanceof Error ? dbError.message : String(dbError);
+      if (msg.startsWith("Stok ") || msg.startsWith("Menu ")) {
+        return { success: false, error: msg };
+      }
+
+      invalidateDatabaseCheck();
       console.warn(
         "Prisma DB belum tersambung langsung, menyimpan di mock memory order:",
-        dbError instanceof Error ? dbError.message : String(dbError),
+        msg,
       );
+
+      const mem = getMemoryStore();
+      for (const item of input.items) {
+        const prod = mem.products.get(item.productId);
+        if (prod && prod.deleted_at !== null) {
+          return { success: false, error: `Menu "${item.name}" sudah tidak tersedia.` };
+        }
+        const st = mem.stocks.get(item.productId);
+        if (st && (!prod?.is_available || st.available_qty < item.quantity)) {
+          const tersisa = prod?.is_available ? st.available_qty : 0;
+          return {
+            success: false,
+            error: `Stok "${item.name}" hanya tersisa ${tersisa} porsi.`,
+          };
+        }
+      }
+
+      for (const item of input.items) {
+        const st = mem.stocks.get(item.productId);
+        const prod = mem.products.get(item.productId);
+        if (st) {
+          const availBefore = st.available_qty;
+          const resBefore = st.reserved_qty;
+          st.available_qty = availBefore - item.quantity;
+          st.reserved_qty = resBefore + item.quantity;
+          st.updated_at = new Date();
+          if (prod && st.available_qty <= 0) {
+            prod.is_available = false;
+          }
+          mem.movements.unshift({
+            id: memoryId("mov"),
+            product_id: item.productId,
+            actor_id: effectiveUserId,
+            actor_name: input.customerName,
+            movement_type: "RESERVE",
+            qty_change: -item.quantity,
+            available_before: availBefore,
+            available_after: st.available_qty,
+            reserved_before: resBefore,
+            reserved_after: st.reserved_qty,
+            reason: `Reservasi order ${orderNumber}`,
+            created_at: new Date(),
+          });
+        }
+      }
 
       // Simpan di Memory Fallback agar user tetap bisa menguji alur 100%
       const fallbackOrder: OrderDetailData = {

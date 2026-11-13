@@ -19,7 +19,7 @@ export const INITIAL_MOCK_USERS: MockUserRecord[] = [
     email: "admin@warkopagam.id",
     phone: "081260001001",
     // bcrypt hash untuk "admin123"
-    password_hash: "$2a$10$pLw.P5V1Y697p87iT68pQO1Y3j5gL8Vd4o/jEaCcvs7m6gW/8C9cO",
+    password_hash: "$2b$10$I6kXNF9zntOmY7wOGB7lzunxeD.YINMFS0CbcXkL4t99xwmv1rsiW",
     role: "ADMIN",
     is_active: true,
   },
@@ -29,7 +29,7 @@ export const INITIAL_MOCK_USERS: MockUserRecord[] = [
     email: "rizky.kasir@warkopagam.id",
     phone: "081260001002",
     // bcrypt hash untuk "kasir123"
-    password_hash: "$2a$10$pLw.P5V1Y697p87iT68pQO1Y3j5gL8Vd4o/jEaCcvs7m6gW/8C9cO",
+    password_hash: "$2b$10$wo03NfpO26M5m5p.yYfx1.TMccZxwRiMLwxAi3SzqC8awICMk2SxW",
     role: "CASHIER",
     is_active: true,
   },
@@ -39,7 +39,7 @@ export const INITIAL_MOCK_USERS: MockUserRecord[] = [
     email: "siti.kasir@warkopagam.id",
     phone: "081260001003",
     // bcrypt hash untuk "kasir123"
-    password_hash: "$2a$10$pLw.P5V1Y697p87iT68pQO1Y3j5gL8Vd4o/jEaCcvs7m6gW/8C9cO",
+    password_hash: "$2b$10$wo03NfpO26M5m5p.yYfx1.TMccZxwRiMLwxAi3SzqC8awICMk2SxW",
     role: "CASHIER",
     is_active: true,
   },
@@ -49,7 +49,7 @@ export const INITIAL_MOCK_USERS: MockUserRecord[] = [
     email: "andi.customer@gmail.com",
     phone: "085270002001",
     // bcrypt hash untuk "customer123"
-    password_hash: "$2a$10$pLw.P5V1Y697p87iT68pQO1Y3j5gL8Vd4o/jEaCcvs7m6gW/8C9cO",
+    password_hash: "$2b$10$cs.wdW9YDAbo2DA1aadPUux2AE9TntWZmKz7p3f.Rz3pDRLC491Ey",
     role: "CUSTOMER",
     is_active: true,
   },
@@ -59,7 +59,7 @@ export const INITIAL_MOCK_USERS: MockUserRecord[] = [
     email: "dina.customer@gmail.com",
     phone: "085270002002",
     // bcrypt hash untuk "customer123"
-    password_hash: "$2a$10$pLw.P5V1Y697p87iT68pQO1Y3j5gL8Vd4o/jEaCcvs7m6gW/8C9cO",
+    password_hash: "$2b$10$cs.wdW9YDAbo2DA1aadPUux2AE9TntWZmKz7p3f.Rz3pDRLC491Ey",
     role: "CUSTOMER",
     is_active: true,
   },

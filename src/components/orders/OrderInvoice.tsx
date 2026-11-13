@@ -61,7 +61,7 @@ export function OrderInvoice({ order }: OrderInvoiceProps) {
           </span>
         </div>
         <div className="flex justify-between">
-          <span>Pajak Restoran (PB1 10%)</span>
+          <span>Pajak Restoran (PB1)</span>
           <span className="font-mono font-medium">
             Rp {Number(order.tax_amount).toLocaleString("id-ID")}
           </span>

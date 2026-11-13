@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { recordAuditLog } from "@/lib/admin/audit";
 import {
   authenticateUser,
   createSession,
   deleteSession,
+  findUserByIdentifier,
   getSession,
   registerNewUser,
   getDefaultRedirectForRole,
@@ -47,6 +49,20 @@ export async function loginAction(
 
   const authResult = await authenticateUser(identifier, password);
   if (!authResult.user || authResult.error) {
+    const attempted = await findUserByIdentifier(identifier);
+    if (attempted?.role === "ADMIN") {
+      await recordAuditLog({
+        actorId: attempted.id,
+        actorName: attempted.name,
+        actorRole: attempted.role,
+        entityName: "users",
+        entityId: attempted.id,
+        action: "ADMIN_LOGIN_FAILED",
+        oldData: null,
+        newData: { identifier: identifier.trim(), attemptedAt: new Date().toISOString() },
+        reason: authResult.error || "Percobaan login Admin gagal (password tidak valid).",
+      });
+    }
     return {
       success: false,
       error: authResult.error || "Gagal masuk. Periksa kembali kredensial Anda.",
@@ -55,6 +71,24 @@ export async function loginAction(
 
   // Set HTTP-Only Session Cookie (JWT)
   await createSession(authResult.user);
+
+  if (authResult.user.role === "ADMIN") {
+    await recordAuditLog({
+      actorId: authResult.user.id,
+      actorName: authResult.user.name,
+      actorRole: authResult.user.role,
+      entityName: "users",
+      entityId: authResult.user.id,
+      action: "ADMIN_LOGIN",
+      oldData: null,
+      newData: {
+        email: authResult.user.email,
+        phone: authResult.user.phone,
+        loginAt: new Date().toISOString(),
+      },
+      reason: "Admin masuk ke Dashboard setelah verifikasi password",
+    });
+  }
 
   try {
     revalidatePath("/");
@@ -146,6 +180,13 @@ export async function registerAction(
  * Server Action: Quick Demo Login untuk Pengujian & Evaluasi MSBD
  */
 export async function quickDemoLoginAction(role: UserRole): Promise<AuthActionResult> {
+  if (role === "ADMIN") {
+    return {
+      success: false,
+      error: "Login Administrator wajib memasukkan email/WhatsApp dan password.",
+    };
+  }
+
   const targetMock = INITIAL_MOCK_USERS.find((u) => u.role === role);
   if (!targetMock) {
     return { success: false, error: `Role demo "${role}" tidak ditemukan.` };

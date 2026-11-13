@@ -42,7 +42,7 @@ export function ProductImage({
           alt={product.name}
           fill
           sizes={sizes ?? "(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"}
-          unoptimized={src.endsWith(".svg")}
+          unoptimized={src.endsWith(".svg") || /^https?:\/\//i.test(src) || src.startsWith("data:")}
           onError={() => setFailedCount((n) => n + 1)}
           className="object-cover"
         />

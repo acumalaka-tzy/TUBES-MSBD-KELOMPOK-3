@@ -34,6 +34,9 @@ function CheckoutContent() {
     setServiceType,
     orderNotes: notes,
     setOrderNotes: setNotes,
+    taxLabel,
+    storeSettings,
+    refreshStoreSettings,
   } = useCart();
 
   const [customerName, setCustomerName] = useState("");
@@ -54,6 +57,10 @@ function CheckoutContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void refreshStoreSettings();
+  }, [refreshStoreSettings]);
 
   useEffect(() => {
     if (urlTable) {
@@ -95,6 +102,11 @@ function CheckoutContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (!storeSettings.isWebOrderingOpen) {
+      setErrorMessage("Maaf, pemesanan melalui web sedang ditutup sementara oleh admin.");
+      return;
+    }
 
     if (items.length === 0) {
       setErrorMessage("Keranjang pesanan masih kosong. Silakan pilih menu di bawah.");
@@ -180,6 +192,15 @@ function CheckoutContent() {
         </p>
       </div>
 
+      {!storeSettings.isWebOrderingOpen && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-sm flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>
+            <strong>Pemesanan web sedang ditutup sementara oleh admin.</strong> Silakan hubungi kasir atau coba beberapa saat lagi.
+          </span>
+        </div>
+      )}
+
       {errorMessage && (
         <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0" />
@@ -223,8 +244,10 @@ function CheckoutContent() {
             itemCount={itemCount}
             subtotal={subtotal}
             taxAmount={taxAmount}
+            taxLabel={taxLabel}
             totalAmount={totalAmount}
             isSubmitting={isSubmitting}
+            isWebOrderingOpen={storeSettings.isWebOrderingOpen}
             onUpdateQuantity={updateQuantity}
             onRemoveItem={removeItem}
             onClearCart={clearCart}

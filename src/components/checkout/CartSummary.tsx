@@ -9,8 +9,10 @@ interface CartSummaryProps {
   itemCount: number;
   subtotal: number;
   taxAmount: number;
+  taxLabel?: string;
   totalAmount: number;
   isSubmitting: boolean;
+  isWebOrderingOpen?: boolean;
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemoveItem: (id: string) => void;
   onClearCart: () => void;
@@ -22,8 +24,10 @@ export function CartSummary({
   itemCount,
   subtotal,
   taxAmount,
+  taxLabel = "Pajak Restoran (PB1 10%)",
   totalAmount,
   isSubmitting,
+  isWebOrderingOpen = true,
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
@@ -155,7 +159,7 @@ export function CartSummary({
 
           <div className="flex justify-between text-muted-foreground text-xs">
             <span className="flex items-center gap-1">
-              Pajak Restoran (PB1 10%)
+              {taxLabel}
             </span>
             <span className="font-mono text-foreground font-semibold">
               Rp {taxAmount.toLocaleString("id-ID")}
@@ -175,7 +179,7 @@ export function CartSummary({
       <div className="mt-5">
         <button
           type="submit"
-          disabled={isSubmitting || items.length === 0}
+          disabled={isSubmitting || items.length === 0 || !isWebOrderingOpen}
           className="w-full py-3.5 px-4 bg-primary hover:bg-primary-hover disabled:bg-muted-foreground/30 text-white font-bold rounded-xl transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
