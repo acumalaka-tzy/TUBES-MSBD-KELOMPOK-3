@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { sampleProducts } from "@/lib/menu-data";
+import { getSession } from "@/lib/auth/session";
 
 function safeRevalidate(path: string) {
   try {
@@ -19,6 +20,7 @@ export interface CheckoutInput {
   tableNumber?: string;
   paymentMethod: "CASH" | "QRIS" | "VIRTUAL_ACCOUNT";
   notes?: string;
+  userId?: string | null;
   items: {
     productId: string;
     name: string;
@@ -52,6 +54,7 @@ export interface OrderItemSnapshot {
 export interface OrderDetailData {
   id: string;
   order_number: string;
+  user_id?: string | null;
   customer_name: string;
   customer_phone: string;
   tracking_token: string | null;
@@ -141,6 +144,10 @@ export async function createOrder(input: CheckoutInput) {
     const orderNumber = generateOrderNumber();
     const trackingToken = generateTrackingToken();
 
+    // Sesi login & identitas user jika ada (Guest Checkout: null)
+    const session = await getSession();
+    const effectiveUserId = input.userId !== undefined ? input.userId : (session?.sub || null);
+
     const expiryMinutes = input.paymentMethod === "CASH" ? 30 : 15;
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
@@ -199,6 +206,7 @@ export async function createOrder(input: CheckoutInput) {
         const order = await tx.order.create({
           data: {
             order_number: orderNumber,
+            user_id: effectiveUserId,
             table_id: selectedTableId,
             customer_name: input.customerName.trim(),
             customer_phone: input.customerPhone.trim(),
@@ -287,6 +295,7 @@ export async function createOrder(input: CheckoutInput) {
       const fallbackOrder: OrderDetailData = {
         id: `mock-${Date.now()}`,
         order_number: orderNumber,
+        user_id: effectiveUserId,
         customer_name: input.customerName.trim(),
         customer_phone: input.customerPhone.trim(),
         tracking_token: trackingToken,

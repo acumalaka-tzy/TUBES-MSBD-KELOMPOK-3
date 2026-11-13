@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/context/cart-context";
 import { saveRecentOrder, useActiveTable } from "@/lib/active-table";
+import { getCurrentUserAction } from "@/app/actions/auth";
 import {
   createOrder,
   getTablesList,
@@ -23,6 +25,8 @@ import {
   AlertCircle,
   ArrowRight,
   Database,
+  UserCheck,
+  Zap,
 } from "lucide-react";
 
 function CheckoutContent() {
@@ -45,6 +49,7 @@ function CheckoutContent() {
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; phone: string; email: string | null; role: string } | null>(null);
   const [serviceType, setServiceType] = useState<"DINE_IN" | "TAKEAWAY">("DINE_IN");
   const [tableNumber, setTableNumber] = useState(urlTable || "01");
   const [tables, setTables] = useState<{ id: string; table_number: string; name: string }[]>([]);
@@ -65,6 +70,14 @@ function CheckoutContent() {
 
     getAvailableProducts().then((prods) => {
       setAvailableProducts(prods);
+    });
+
+    getCurrentUserAction().then((user) => {
+      if (user) {
+        setCurrentUser(user);
+        setCustomerName((prev) => prev || user.name);
+        setCustomerPhone((prev) => prev || user.phone);
+      }
     });
   }, [urlTable]);
 
@@ -124,6 +137,7 @@ function CheckoutContent() {
         tableNumber: serviceType === "DINE_IN" ? tableNumber : undefined,
         paymentMethod,
         notes,
+        userId: currentUser?.id || undefined,
         items: items.map((i) => ({
           productId: i.productId,
           name: i.name,
@@ -269,6 +283,63 @@ function CheckoutContent() {
               </span>
               Informasi Pemesan
             </h2>
+
+            {/* Banner Status Akun / Guest Checkout */}
+            {currentUser ? (
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <UserCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-foreground">
+                        Masuk sebagai: {currentUser.name}
+                      </p>
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                        {currentUser.role}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {currentUser.phone} • {currentUser.email || "Pesanan tersimpan di akun Anda"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerName("");
+                    setCustomerPhone("");
+                    setCurrentUser(null);
+                  }}
+                  className="text-[11px] font-bold text-muted-foreground hover:text-primary underline ml-2"
+                >
+                  Pesan Tamu Lain
+                </button>
+              </div>
+            ) : (
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-border bg-secondary-bg/80 p-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">
+                      Guest Checkout Didukung
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Cukup isi nama &amp; No. WhatsApp tanpa wajib daftar akun.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/login?redirect=/checkout"
+                  className="shrink-0 text-xs font-bold text-primary hover:underline ml-2"
+                >
+                  Punya Akun? Masuk
+                </Link>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div>
