@@ -62,7 +62,7 @@ async function runTests() {
   console.log("\n--- 3. Uji Evaluasi RBAC (Role-Based Access Control) ---");
   // A. Admin Route (/admin)
   const unauthAdmin = evaluatePathAccess("/admin", null);
-  assert(unauthAdmin.isProtected && !unauthAdmin.allowed && unauthAdmin.redirectUrl?.includes("/login"), "User tanpa login diarahkan ke /login saat akses /admin.");
+  assert(Boolean(unauthAdmin.isProtected && !unauthAdmin.allowed && unauthAdmin.redirectUrl?.includes("/login")), "User tanpa login diarahkan ke /login saat akses /admin.");
 
   const custAdmin = evaluatePathAccess("/admin", "CUSTOMER");
   assert(custAdmin.isProtected && !custAdmin.allowed && custAdmin.redirectUrl === "/unauthorized", "CUSTOMER ditolak (403/unauthorized) saat akses /admin.");
@@ -75,7 +75,7 @@ async function runTests() {
 
   // B. Cashier Route (/cashier)
   const unauthCashier = evaluatePathAccess("/cashier", null);
-  assert(unauthCashier.isProtected && !unauthCashier.allowed && unauthCashier.redirectUrl?.includes("/login"), "User tanpa login diarahkan ke /login saat akses /cashier.");
+  assert(Boolean(unauthCashier.isProtected && !unauthCashier.allowed && unauthCashier.redirectUrl?.includes("/login")), "User tanpa login diarahkan ke /login saat akses /cashier.");
 
   const custCashier = evaluatePathAccess("/cashier", "CUSTOMER");
   assert(custCashier.isProtected && !custCashier.allowed && custCashier.redirectUrl === "/unauthorized", "CUSTOMER ditolak saat akses /cashier.");

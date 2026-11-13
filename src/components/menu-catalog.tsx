@@ -62,41 +62,43 @@ export function MenuCatalog({ categories, products }: { categories: Category[]; 
     <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-8">
       {/* Sidebar kategori (Desktop) */}
       <aside className="hidden lg:block">
-        <div className="sticky top-24 rounded-2xl border border-border bg-white p-3.5 shadow-sm">
-          <h2 className="flex items-center gap-2 px-2.5 pb-2.5 pt-1 text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-            <UtensilsCrossed className="h-3.5 w-3.5 text-primary" aria-hidden />
-            Kategori Menu
-          </h2>
-          <ul className="space-y-1">
-            {tabs.map((t) => (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => setCategory(t.id)}
-                  aria-pressed={category === t.id}
-                  className={cn(
-                    "flex h-11 w-full items-center justify-between rounded-xl px-3 text-left text-xs font-bold transition-all",
-                    category === t.id
-                      ? "bg-primary text-white shadow-2xs"
-                      : "text-foreground/80 hover:bg-secondary-bg hover:text-foreground",
-                  )}
-                >
-                  <span className="flex items-center gap-2 truncate pr-2">
-                    <span aria-hidden>{t.emoji}</span>
-                    <span className="truncate">{t.name}</span>
-                  </span>
-                  <span
+        <div className="sticky top-24">
+          <div className="rounded-2xl border border-border bg-white p-3.5 shadow-sm">
+            <h2 className="flex items-center gap-2 px-2.5 pb-2.5 pt-1 text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
+              <UtensilsCrossed className="h-3.5 w-3.5 text-primary" aria-hidden />
+              Kategori Menu
+            </h2>
+            <ul className="space-y-1">
+              {tabs.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => setCategory(t.id)}
+                    aria-pressed={category === t.id}
                     className={cn(
-                      "rounded-full px-2 py-0.5 font-mono text-[11px]",
-                      category === t.id ? "bg-white/20 text-white" : "bg-secondary-bg text-muted-foreground",
+                      "flex h-11 w-full items-center justify-between rounded-xl px-3 text-left text-xs font-bold transition-all",
+                      category === t.id
+                        ? "bg-primary text-white shadow-2xs"
+                        : "text-foreground/80 hover:bg-secondary-bg hover:text-foreground",
                     )}
                   >
-                    {countFor(t.id)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                    <span className="flex items-center gap-2 truncate pr-2">
+                      <span aria-hidden>{t.emoji}</span>
+                      <span className="truncate">{t.name}</span>
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 font-mono text-[11px]",
+                        category === t.id ? "bg-white/20 text-white" : "bg-secondary-bg text-muted-foreground",
+                      )}
+                    >
+                      {countFor(t.id)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </aside>
 

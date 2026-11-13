@@ -40,24 +40,11 @@ function Hero() {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link
               href="/menu"
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-md transition-all hover:bg-primary-hover"
+              className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-white shadow-md transition-all hover:bg-primary-hover"
             >
               <UtensilsCrossed className="h-4 w-4" aria-hidden />
               <span>Jelajahi Katalog Menu</span>
               <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
-              href="/checkout"
-              className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-white px-5 text-sm font-bold text-foreground shadow-2xs transition-all hover:bg-border/40"
-            >
-              <ShoppingBag className="h-4 w-4 text-primary" aria-hidden />
-              <span>Checkout &amp; Pembayaran</span>
-            </Link>
-            <Link
-              href="/lacak"
-              className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-muted-foreground transition-all hover:text-foreground"
-            >
-              <span>Lacak Pesanan</span>
             </Link>
           </div>
 
@@ -91,11 +78,11 @@ function Hero() {
 
             <div className="mt-4 grid grid-cols-2 gap-2.5 text-xs">
               <Link
-                href="/?table=04"
+                href="/menu"
                 className="flex items-center gap-2 rounded-xl border border-border bg-secondary-bg p-2.5 font-semibold text-foreground transition-colors hover:border-primary"
               >
-                <QrCode className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                <span className="truncate">Simulasi QR Meja 04</span>
+                <UtensilsCrossed className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                <span className="truncate">Semua Menu</span>
               </Link>
               <Link
                 href="/menu?kategori=mie-makanan-berat"

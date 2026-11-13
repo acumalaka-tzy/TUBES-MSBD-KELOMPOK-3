@@ -32,10 +32,9 @@ const links = [
 
 function NavbarContent() {
   const pathname = usePathname();
-  const { itemCount, subtotal, totalAmount } = useCart();
+  const { items, itemCount, subtotal, totalAmount, isCartOpen, openCart, closeCart } = useCart();
   const table = useActiveTable();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -95,7 +94,7 @@ function NavbarContent() {
             {/* Tombol Keranjang */}
             <button
               type="button"
-              onClick={() => setCartOpen(true)}
+              onClick={openCart}
               aria-label={`Buka keranjang, ${itemCount} item`}
               className="relative flex h-11 items-center gap-2 rounded-xl bg-secondary-bg px-3.5 py-2 text-sm font-semibold text-foreground transition-all hover:bg-border/60"
             >
@@ -296,32 +295,48 @@ function NavbarContent() {
         )}
       </header>
 
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CartDrawer open={isCartOpen} onClose={closeCart} />
 
       {/* Sticky Bottom Cart Bar khusus Mobile sesuai PRD 5.4 */}
       {showStickyMobileCart && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 p-3 shadow-lg backdrop-blur md:hidden">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 p-3 shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur md:hidden">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-2.5">
             <button
               type="button"
-              onClick={() => setCartOpen(true)}
-              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+              onClick={openCart}
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 text-left transition-colors hover:bg-secondary-bg"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary">
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-mono text-sm font-black text-primary">
                 {itemCount}
               </span>
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-muted-foreground">Total (+PB1 10%)</p>
-                <p className="font-mono text-sm font-extrabold text-foreground">{formatRupiah(totalAmount)}</p>
+                <p className="truncate text-[11px] font-semibold text-muted-foreground">
+                  {items.length} menu dipilih • Ketuk rincian
+                </p>
+                <p className="font-mono text-sm font-extrabold text-foreground">
+                  {formatRupiah(totalAmount)}{" "}
+                  <span className="font-sans text-[10px] font-normal text-muted-foreground">
+                    (+PB1)
+                  </span>
+                </p>
               </div>
             </button>
-            <Link
-              href={checkoutHref}
-              className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-bold text-white shadow-sm hover:bg-primary-hover"
-            >
-              <span>Checkout</span>
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={openCart}
+                className="inline-flex h-11 items-center rounded-xl border border-border bg-secondary-bg px-3 text-xs font-bold text-foreground hover:bg-border/60"
+              >
+                Keranjang
+              </button>
+              <Link
+                href={checkoutHref}
+                className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-bold text-white shadow-sm hover:bg-primary-hover"
+              >
+                <span>Checkout</span>
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            </div>
           </div>
         </div>
       )}

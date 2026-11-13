@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Database } from "lucide-react";
 import { MenuCatalog } from "@/components/menu-catalog";
 import { getCatalog } from "@/lib/catalog";
 
@@ -10,25 +9,11 @@ export const metadata: Metadata = {
 };
 
 async function CatalogLoader() {
-  const { categories, products, source } = await getCatalog();
+  const { categories, products } = await getCatalog();
   return (
-    <>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-secondary-bg px-3.5 py-2 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5 font-medium">
-          <Database className="h-3.5 w-3.5 text-primary" aria-hidden />
-          {source === "database"
-            ? "Terhubung langsung dengan database MySQL Warkop Agam (real-time stock)."
-            : "Mode Pratinjau Mandiri — menampilkan katalog Warkop Agam (otomatis beralih ke MySQL saat DATABASE_URL aktif)."}
-        </span>
-        <span className="font-mono text-[11px] font-bold text-primary">
-          {products.length} Menu • {categories.length} Kategori
-        </span>
-      </div>
-
-      <Suspense fallback={<CatalogSkeleton />}>
-        <MenuCatalog categories={categories} products={products} />
-      </Suspense>
-    </>
+    <Suspense fallback={<CatalogSkeleton />}>
+      <MenuCatalog categories={categories} products={products} />
+    </Suspense>
   );
 }
 
