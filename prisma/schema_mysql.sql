@@ -149,12 +149,12 @@ CREATE TABLE tables (
     table_number    VARCHAR(20) UNIQUE NOT NULL,
     name            VARCHAR(50) NOT NULL,
     capacity        INT NOT NULL DEFAULT 4,
-    status          VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
+    `status`        VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_tables_capacity CHECK (capacity > 0),
-    CONSTRAINT chk_tables_status CHECK (status IN ('AVAILABLE', 'OCCUPIED', 'INACTIVE'))
+    CONSTRAINT chk_tables_status CHECK (`status` IN ('AVAILABLE', 'OCCUPIED', 'INACTIVE'))
 ) ENGINE=InnoDB;
 
 -- 8. Tabel table_qr_codes
@@ -179,9 +179,9 @@ CREATE TABLE orders (
     customer_name   VARCHAR(100) NOT NULL,
     customer_phone  VARCHAR(20) NOT NULL,
     tracking_token  VARCHAR(128) UNIQUE,
-    source          VARCHAR(15) NOT NULL,
+    `source`        VARCHAR(15) NOT NULL,
     service_type    VARCHAR(15) NOT NULL,
-    status          VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    `status`        VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     subtotal        DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     tax_amount      DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     total_amount    DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
@@ -191,15 +191,12 @@ CREATE TABLE orders (
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT fk_orders_table FOREIGN KEY (table_id) REFERENCES tables(id) ON DELETE SET NULL,
-    CONSTRAINT chk_orders_source CHECK (source IN ('WEB', 'POS')),
+    CONSTRAINT chk_orders_source CHECK (`source` IN ('WEB', 'POS')),
     CONSTRAINT chk_orders_service_type CHECK (service_type IN ('DINE_IN', 'TAKEAWAY')),
-    CONSTRAINT chk_orders_status CHECK (status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED')),
+    CONSTRAINT chk_orders_status CHECK (`status` IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED')),
     CONSTRAINT chk_orders_subtotal CHECK (subtotal >= 0),
     CONSTRAINT chk_orders_tax CHECK (tax_amount >= 0),
-    CONSTRAINT chk_orders_total CHECK (total_amount >= 0),
-    CONSTRAINT chk_orders_dine_in_table CHECK (
-        (service_type = 'DINE_IN' AND table_id IS NOT NULL) OR (service_type = 'TAKEAWAY')
-    )
+    CONSTRAINT chk_orders_total CHECK (total_amount >= 0)
 ) ENGINE=InnoDB;
 
 -- 10. Tabel stock_movements
@@ -265,7 +262,7 @@ CREATE TABLE payments (
     order_id        VARCHAR(36) UNIQUE NOT NULL,
     cashier_id      VARCHAR(36),
     method          VARCHAR(20) NOT NULL,
-    status          VARCHAR(20) NOT NULL DEFAULT 'UNPAID',
+    `status`        VARCHAR(20) NOT NULL DEFAULT 'UNPAID',
     amount_due      DECIMAL(12, 2) NOT NULL,
     amount_paid     DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     change_amount   DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
@@ -277,7 +274,7 @@ CREATE TABLE payments (
     CONSTRAINT fk_payments_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     CONSTRAINT fk_payments_cashier FOREIGN KEY (cashier_id) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT chk_payments_method CHECK (method IN ('CASH', 'QRIS', 'VIRTUAL_ACCOUNT')),
-    CONSTRAINT chk_payments_status CHECK (status IN ('UNPAID', 'PAID', 'FAILED', 'REFUNDED')),
+    CONSTRAINT chk_payments_status CHECK (`status` IN ('UNPAID', 'PAID', 'FAILED', 'REFUNDED')),
     CONSTRAINT chk_payments_amount_due CHECK (amount_due >= 0),
     CONSTRAINT chk_payments_amount_paid CHECK (amount_paid >= 0),
     CONSTRAINT chk_payments_change_amount CHECK (change_amount >= 0)
