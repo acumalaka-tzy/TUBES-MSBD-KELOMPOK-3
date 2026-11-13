@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCart } from "@/context/cart-context";
+import { useCart, CartItem } from "@/context/cart-context";
 import { saveRecentOrder, useActiveTable } from "@/lib/active-table";
-import { createOrder, getTablesList, getAvailableProducts } from "@/actions";
-import { TableItem, AvailableProduct } from "@/actions/types";
+import { createOrder, getTablesList, getCatalogProducts } from "@/actions";
+import { TableItem } from "@/actions/types";
+import { Product } from "@/lib/menu-data";
 import { CustomerForm } from "@/components/checkout/CustomerForm";
 import { PaymentSelector } from "@/components/checkout/PaymentSelector";
 import { CartSummary } from "@/components/checkout/CartSummary";
+import { ProductDetail } from "@/components/product-detail";
 import { Sparkles, AlertCircle } from "lucide-react";
 
 function CheckoutContent() {
@@ -34,7 +36,8 @@ function CheckoutContent() {
   const [serviceType, setServiceType] = useState<"DINE_IN" | "TAKEAWAY">("DINE_IN");
   const [tableNumber, setTableNumber] = useState(urlTable || "01");
   const [tables, setTables] = useState<TableItem[]>([]);
-  const [availableProducts, setAvailableProducts] = useState<AvailableProduct[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [editingTarget, setEditingTarget] = useState<{ product: Product; cartItemId: string } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "QRIS" | "VIRTUAL_ACCOUNT">("QRIS");
   const [notes, setNotes] = useState("");
 
@@ -42,7 +45,7 @@ function CheckoutContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Ambil daftar meja dan produk aktif dari MySQL
+    // Ambil daftar meja dan produk katalog dari MySQL
     getTablesList().then((data) => {
       setTables(data);
       if (urlTable && data.some((t) => t.table_number === urlTable)) {
@@ -50,33 +53,16 @@ function CheckoutContent() {
       }
     });
 
-    getAvailableProducts().then((prods) => {
-      setAvailableProducts(prods);
+    getCatalogProducts().then((prods) => {
+      setCatalogProducts(prods);
     });
   }, [urlTable]);
 
-  const handleAddRealProduct = (product: AvailableProduct) => {
-    const defaultOptions = product.option_groups?.flatMap((g) => {
-      if (g.is_required && g.items?.length > 0) {
-        return [
-          {
-            groupName: g.name,
-            optionName: g.items[0].name,
-            priceAdjustment: g.items[0].price_adjustment || 0,
-          },
-        ];
-      }
-      return [];
-    }) || [];
-
-    addItem({
-      productId: product.id,
-      name: product.name,
-      unitPrice: product.base_price,
-      quantity: 1,
-      options: defaultOptions,
-      itemNotes: "",
-    });
+  const handleEditItem = (item: CartItem) => {
+    const prod = catalogProducts.find((p) => p.id === item.productId);
+    if (prod) {
+      setEditingTarget({ product: prod, cartItemId: item.id });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,7 +182,7 @@ function CheckoutContent() {
           />
         </div>
 
-        {/* KOLOM KANAN: RINGKASAN PESANAN (STICKY) & MENU ASLI MYSQL */}
+        {/* KOLOM KANAN: RINGKASAN PESANAN (STICKY) */}
         <div className="lg:col-span-5">
           <CartSummary
             items={items}
@@ -205,14 +191,22 @@ function CheckoutContent() {
             taxAmount={taxAmount}
             totalAmount={totalAmount}
             isSubmitting={isSubmitting}
-            availableProducts={availableProducts}
             onUpdateQuantity={updateQuantity}
             onRemoveItem={removeItem}
             onClearCart={clearCart}
-            onAddProduct={handleAddRealProduct}
+            onEditItem={handleEditItem}
           />
         </div>
       </form>
+
+      {/* Modal Edit Varian Pesanan dari Ringkasan */}
+      {editingTarget && (
+        <ProductDetail
+          product={editingTarget.product}
+          initialCartItemId={editingTarget.cartItemId}
+          onClose={() => setEditingTarget(null)}
+        />
+      )}
     </div>
   );
 }

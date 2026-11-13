@@ -18,29 +18,59 @@ export function ProductDetail({
   product,
   onClose,
   onAdded,
+  initialCartItemId,
 }: {
   product: Product;
   onClose: () => void;
   onAdded?: (message: string) => void;
+  initialCartItemId?: string;
 }) {
   const { items, addItem, updateItem, updateQuantity } = useCart();
   const existingItems = items.filter((it) => it.productId === product.id);
 
+  // Jika item keranjang spesifik dioper untuk diedit, cari datanya
+  const initialCartItem = initialCartItemId
+    ? existingItems.find((it) => it.id === initialCartItemId) || items.find((it) => it.id === initialCartItemId)
+    : undefined;
+
   // Jika produk sudah ada di keranjang, buka tampilan riwayat & "Make another" (seperti GrabFood)
+  // Kecuali jika initialCartItem diberikan, maka langsung buka mode "customize" untuk mengeditnya
   const [viewMode, setViewMode] = useState<"manage" | "customize">(
-    existingItems.length > 0 ? "manage" : "customize",
+    initialCartItem ? "customize" : existingItems.length > 0 ? "manage" : "customize",
   );
 
   // ID item keranjang yang sedang diedit (null jika membuat varian baru)
-  const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
-
-  const [selected, setSelected] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(
-      product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
-    ),
+  const [editingCartItemId, setEditingCartItemId] = useState<string | null>(
+    initialCartItem ? initialCartItem.id : null,
   );
-  const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState("");
+
+  const [selected, setSelected] = useState<Record<string, string[]>>(() => {
+    if (initialCartItem) {
+      const initialSelected: Record<string, string[]> = {};
+      product.options.forEach((g) => {
+        const matchedIds = g.items
+          .filter((item) =>
+            initialCartItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
+          )
+          .map((item) => item.id);
+
+        if (matchedIds.length > 0) {
+          initialSelected[g.id] = matchedIds;
+        } else if (g.type === "single" && g.required && g.items.length > 0) {
+          initialSelected[g.id] = [g.items[0].id];
+        } else {
+          initialSelected[g.id] = [];
+        }
+      });
+      return initialSelected;
+    }
+
+    return Object.fromEntries(
+      product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
+    );
+  });
+  const [quantity, setQuantity] = useState(initialCartItem ? initialCartItem.quantity : 1);
+  const [note, setNote] = useState(initialCartItem ? initialCartItem.itemNotes || "" : "");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

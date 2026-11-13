@@ -1,8 +1,19 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { sampleProducts } from "@/lib/menu-data";
+import { sampleProducts, Product } from "@/lib/menu-data";
+import { getCatalog } from "@/lib/catalog";
 import { AvailableProduct } from "./types";
+
+export async function getCatalogProducts(): Promise<Product[]> {
+  try {
+    const catalog = await getCatalog();
+    return catalog.products;
+  } catch (err: any) {
+    console.warn("Gagal getCatalogProducts:", err?.message);
+    return sampleProducts;
+  }
+}
 
 export async function getAvailableProducts(): Promise<AvailableProduct[]> {
   try {

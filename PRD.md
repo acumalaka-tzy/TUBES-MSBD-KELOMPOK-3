@@ -499,10 +499,9 @@ src/
 │   └── index.ts                     # Barrel export terpadu (@/actions)
 ├── components/                      # Lapisan Komponen UI Modular
 │   ├── checkout/                    # Sub-komponen Khusus Halaman Checkout
-│   │   ├── CustomerForm.tsx         # Form pemesan, tipe layanan (Dine In/Takeaway), & meja
+│   │   ├── CustomerForm.tsx         # Form pemesan, tipe layanan (Dine In dropdown meja scalable / Takeaway)
 │   │   ├── PaymentSelector.tsx      # Selector metode pembayaran (QRIS, Tunai, VA)
-│   │   ├── ProductPicker.tsx        # Selector produk langsung dari database MySQL
-│   │   └── CartSummary.tsx          # Ringkasan keranjang, kontrol kuantitas, & kalkulasi PB1
+│   │   └── CartSummary.tsx          # Ringkasan keranjang, tombol Edit text-only langsung membuka modal varian, & kalkulasi PB1
 │   ├── orders/                      # Sub-komponen Khusus Halaman Pelacakan Pesanan
 │   │   ├── OrderStatusStepper.tsx   # Visual progress stepper 5 status pesanan
 │   │   ├── PaymentInstructions.tsx  # Countdown timer, QRIS canvas, & panduan kasir

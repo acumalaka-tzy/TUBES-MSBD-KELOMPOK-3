@@ -3,8 +3,6 @@
 import React from "react";
 import { ShoppingBag, Plus, Minus, Trash2, ArrowRight } from "lucide-react";
 import { CartItem } from "@/context/cart-context";
-import { ProductPicker } from "./ProductPicker";
-import { AvailableProduct } from "@/actions/types";
 
 interface CartSummaryProps {
   items: CartItem[];
@@ -13,11 +11,10 @@ interface CartSummaryProps {
   taxAmount: number;
   totalAmount: number;
   isSubmitting: boolean;
-  availableProducts: AvailableProduct[];
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemoveItem: (id: string) => void;
   onClearCart: () => void;
-  onAddProduct: (product: AvailableProduct) => void;
+  onEditItem: (item: CartItem) => void;
 }
 
 export function CartSummary({
@@ -27,11 +24,10 @@ export function CartSummary({
   taxAmount,
   totalAmount,
   isSubmitting,
-  availableProducts,
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
-  onAddProduct,
+  onEditItem,
 }: CartSummaryProps) {
   return (
     <div className="bg-card border border-border rounded-2xl p-6 shadow-xs sticky top-24">
@@ -52,20 +48,36 @@ export function CartSummary({
       </div>
 
       {/* Daftar Item Pesanan */}
-      <div className="space-y-3 max-h-72 overflow-y-auto divide-y divide-border/60 pr-1">
+      <div className="space-y-3 max-h-80 overflow-y-auto divide-y divide-border/60 pr-1">
         {items.length === 0 ? (
-          <div className="py-6 text-center space-y-2">
+          <div className="py-8 text-center space-y-2">
             <p className="text-xs text-muted-foreground">
-              Keranjang masih kosong. Silakan pilih menu di bawah.
+              Keranjang pesanan masih kosong.
             </p>
+            <a
+              href="/menu"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+            >
+              Pilih dari Katalog Menu &rarr;
+            </a>
           </div>
         ) : (
           items.map((item) => (
             <div key={item.id} className="py-3 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-foreground leading-snug truncate">
-                  {item.name}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-bold text-foreground leading-snug">
+                    {item.name}
+                  </p>
+                  {/* Tombol Edit: teks tanpa background */}
+                  <button
+                    type="button"
+                    onClick={() => onEditItem(item)}
+                    className="text-xs font-bold text-primary hover:underline hover:text-primary-hover transition-colors shrink-0 bg-transparent border-0 p-0 cursor-pointer"
+                  >
+                    Edit
+                  </button>
+                </div>
 
                 {item.options && item.options.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -82,6 +94,12 @@ export function CartSummary({
                   </div>
                 )}
 
+                {item.itemNotes && (
+                  <p className="text-[11px] text-muted-foreground italic mt-0.5 line-clamp-1">
+                    &ldquo;{item.itemNotes}&rdquo;
+                  </p>
+                )}
+
                 <p className="text-xs font-bold text-primary mt-1 font-mono">
                   Rp {(item.unitPrice * item.quantity).toLocaleString("id-ID")}
                 </p>
@@ -94,6 +112,7 @@ export function CartSummary({
                     type="button"
                     onClick={() => onUpdateQuantity(item.id, -1)}
                     className="p-1 hover:bg-border/60 rounded-l-lg transition-colors text-muted-foreground hover:text-foreground"
+                    title="Kurangi"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
@@ -104,6 +123,7 @@ export function CartSummary({
                     type="button"
                     onClick={() => onUpdateQuantity(item.id, 1)}
                     className="p-1 hover:bg-border/60 rounded-r-lg transition-colors text-muted-foreground hover:text-foreground"
+                    title="Tambah"
                   >
                     <Plus className="w-3 h-3" />
                   </button>
@@ -113,6 +133,7 @@ export function CartSummary({
                   type="button"
                   onClick={() => onRemoveItem(item.id)}
                   className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Hapus"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -121,9 +142,6 @@ export function CartSummary({
           ))
         )}
       </div>
-
-      {/* DAFTAR MENU ASLI LANGSUNG DARI DATABASE MYSQL */}
-      <ProductPicker products={availableProducts} onAddProduct={onAddProduct} />
 
       {/* Rincian Kalkulasi Harga */}
       {items.length > 0 && (
