@@ -168,39 +168,39 @@ export function ProductDetail({
         className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:max-h-[88dvh] md:max-w-lg md:rounded-3xl"
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-border md:hidden" aria-hidden />
-        
-        {/* Tombol Tutup */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Tutup detail"
-          className="absolute right-3.5 top-3.5 z-20 flex size-9 items-center justify-center rounded-full bg-white/90 shadow hover:bg-white"
-        >
-          <X className="size-4" aria-hidden />
-        </button>
 
         {/* =========================================================================
             TAMPILAN 1: MANAGE / MAKE ANOTHER (GAYA GRABFOOD)
            ========================================================================= */}
         {viewMode === "manage" ? (
           <div className="flex flex-col h-full overflow-hidden">
-            {/* Header Produk Ringkas */}
-            <div className="p-5 pb-3 border-b border-border pr-12">
-              <div className="flex items-center justify-between gap-2">
-                <h2 id="product-detail-title" className="text-xl font-black text-foreground">
+            {/* Header Produk Ringkas (Tombol silang diletakkan terpisah rapi di kanan, tidak menutupi teks) */}
+            <div className="flex items-start justify-between gap-3 p-5 pb-3.5 border-b border-border">
+              <div className="min-w-0 flex-1">
+                <h2 id="product-detail-title" className="text-xl font-black text-foreground truncate">
                   {product.name}
                 </h2>
-                <div className="text-right shrink-0">
-                  <span className="block font-mono text-base font-black text-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Harga dasar:{" "}
+                  <strong className="font-mono text-xs font-black text-foreground">
                     {formatRupiah(product.basePrice)}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">Harga dasar</span>
-                </div>
+                  </strong>
+                </p>
               </div>
+
+              {/* Tombol Tutup (Di dalam header, tidak menutupi teks) */}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Tutup detail"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary-bg hover:bg-border/60 text-foreground transition-colors"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
             </div>
 
-            {/* List Item yang Sudah Berada di Keranjang */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* List Item yang Sudah Berada di Keranjang (Scrollbar disembunyikan / no-scrollbar) */}
+            <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4">
               <div className="flex items-center justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
                   <ShoppingBag className="w-3.5 h-3.5 text-primary" />
@@ -246,7 +246,7 @@ export function ProductDetail({
                       </div>
                     </div>
 
-                    {/* Quantity Control Pill (Gaya GrabFood) */}
+                    {/* Quantity Control Pill */}
                     <div
                       onClick={(e) => e.stopPropagation()}
                       className="flex items-center border border-border rounded-full bg-white p-0.5 shadow-2xs shrink-0"
@@ -293,7 +293,7 @@ export function ProductDetail({
              ========================================================================= */
           <div className="flex flex-col h-full overflow-hidden">
             {/* Header Navigasi jika sebelumnya sudah ada item di keranjang */}
-            {existingItems.length > 0 && (
+            {existingItems.length > 0 ? (
               <div className="px-5 py-3 border-b border-border flex items-center justify-between">
                 <button
                   type="button"
@@ -308,15 +308,36 @@ export function ProductDetail({
                     {editingCartItemId ? "Batal Ubah" : `Kembali ke Pilihan (${existingItems.length})`}
                   </span>
                 </button>
-                {editingCartItemId && (
-                  <span className="text-[11px] font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10">
-                    Mode Edit Varian
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {editingCartItemId && (
+                    <span className="text-[11px] font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10">
+                      Mode Edit Varian
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Tutup detail"
+                    className="flex size-7 items-center justify-center rounded-full bg-secondary-bg hover:bg-border/60 text-foreground transition-colors"
+                  >
+                    <X className="size-3.5" aria-hidden />
+                  </button>
+                </div>
               </div>
+            ) : (
+              /* Tombol Tutup jika item belum pernah ditambahkan ke keranjang */
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Tutup detail"
+                className="absolute right-3.5 top-3.5 z-20 flex size-9 items-center justify-center rounded-full bg-white/90 shadow hover:bg-white text-foreground"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
             )}
 
-            <div className="overflow-y-auto flex-1">
+            {/* Kontainer Form Varian (Scrollbar disembunyikan / no-scrollbar) */}
+            <div className="overflow-y-auto no-scrollbar flex-1">
               <ProductImage
                 product={product}
                 className="aspect-[16/10]"
