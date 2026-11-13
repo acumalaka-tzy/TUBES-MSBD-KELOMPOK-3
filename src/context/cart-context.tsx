@@ -22,6 +22,7 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "id" | "subtotal">) => void;
+  updateItem: (oldId: string, item: Omit<CartItem, "id" | "subtotal">) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
   clearCart: () => void;
@@ -103,6 +104,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const updateItem = (oldId: string, item: Omit<CartItem, "id" | "subtotal">) => {
+    const newId = `${item.productId}-${JSON.stringify(item.options)}-${item.itemNotes || ""}`;
+    const subtotal = calculateItemSubtotal(
+      item.unitPrice,
+      item.options,
+      item.quantity
+    );
+
+    setItems((prev) => {
+      const remaining = prev.filter((i) => i.id !== oldId);
+      const existing = remaining.find((i) => i.id === newId);
+      if (existing) {
+        const newQty = existing.quantity + item.quantity;
+        return remaining.map((i) =>
+          i.id === newId
+            ? {
+                ...i,
+                quantity: newQty,
+                subtotal: calculateItemSubtotal(i.unitPrice, i.options, newQty),
+              }
+            : i
+        );
+      }
+      return [...remaining, { ...item, id: newId, subtotal }];
+    });
+  };
+
   const removeItem = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
@@ -172,6 +200,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       value={{
         items,
         addItem,
+        updateItem,
         removeItem,
         updateQuantity,
         clearCart,

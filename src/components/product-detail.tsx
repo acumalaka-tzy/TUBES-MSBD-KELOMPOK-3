@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Minus, Plus, ShoppingBag, X } from "lucide-react";
-import { useCart } from "@/context/cart-context";
+import { ArrowLeft, Edit3, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { useCart, type CartItem } from "@/context/cart-context";
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
 import { getStockStatus, type Product } from "@/lib/menu-data";
@@ -10,8 +10,9 @@ import { cn, formatRupiah } from "@/lib/utils";
 
 /**
  * Detail produk & Alur GrabFood (PRD 5.3):
- * 1. Mode "manage": Menampilkan varian yang sudah ada di keranjang + tombol "Make another".
- * 2. Mode "customize": Form pemilihan opsi/varian baru.
+ * 1. Mode "manage": Menampilkan varian yang sudah ada di keranjang + tombol "+ Buat Varian Baru".
+ *    Mengklik salah satu kartu pesanan akan masuk ke mode edit varian tersebut.
+ * 2. Mode "customize": Form pemilihan opsi/varian (Bisa untuk varian baru atau edit varian yang ada).
  */
 export function ProductDetail({
   product,
@@ -22,13 +23,16 @@ export function ProductDetail({
   onClose: () => void;
   onAdded?: (message: string) => void;
 }) {
-  const { items, addItem, updateQuantity } = useCart();
+  const { items, addItem, updateItem, updateQuantity } = useCart();
   const existingItems = items.filter((it) => it.productId === product.id);
 
   // Jika produk sudah ada di keranjang, buka tampilan riwayat & "Make another" (seperti GrabFood)
   const [viewMode, setViewMode] = useState<"manage" | "customize">(
     existingItems.length > 0 ? "manage" : "customize",
   );
+
+  // ID item keranjang yang sedang diedit (null jika membuat varian baru)
+  const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Record<string, string[]>>(() =>
     Object.fromEntries(
@@ -52,6 +56,7 @@ export function ProductDetail({
   // Jika semua item dari produk ini dihapus saat di mode manage, alihkan ke mode customize
   useEffect(() => {
     if (viewMode === "manage" && existingItems.length === 0) {
+      setEditingCartItemId(null);
       setViewMode("customize");
     }
   }, [existingItems.length, viewMode]);
@@ -80,7 +85,8 @@ export function ProductDetail({
     });
   }
 
-  function handleResetCustomization() {
+  function handleStartNew() {
+    setEditingCartItemId(null);
     setSelected(
       Object.fromEntries(
         product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
@@ -88,18 +94,66 @@ export function ProductDetail({
     );
     setQuantity(1);
     setNote("");
+    setViewMode("customize");
   }
 
-  function submitNew() {
-    addItem({
-      productId: product.id,
-      name: product.name,
-      unitPrice: product.basePrice,
-      quantity,
-      options: chosen.map((i) => ({ groupName: i.group, optionName: i.name, priceAdjustment: i.price })),
-      itemNotes: note.trim() || undefined,
+  function handleStartEdit(cartItem: CartItem) {
+    setEditingCartItemId(cartItem.id);
+
+    // Cari opsi yang sesuai dengan cartItem.options
+    const newSelected: Record<string, string[]> = {};
+    product.options.forEach((g) => {
+      const matchedIds = g.items
+        .filter((item) =>
+          cartItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
+        )
+        .map((item) => item.id);
+
+      if (matchedIds.length > 0) {
+        newSelected[g.id] = matchedIds;
+      } else if (g.type === "single" && g.required && g.items.length > 0) {
+        newSelected[g.id] = [g.items[0].id];
+      } else {
+        newSelected[g.id] = [];
+      }
     });
-    onAdded?.(`${quantity}× ${product.name} varian baru ditambahkan ke keranjang`);
+
+    setSelected(newSelected);
+    setQuantity(cartItem.quantity);
+    setNote(cartItem.itemNotes || "");
+    setViewMode("customize");
+  }
+
+  function handleSubmit() {
+    const formattedOptions = chosen.map((i) => ({
+      groupName: i.group,
+      optionName: i.name,
+      priceAdjustment: i.price,
+    }));
+
+    if (editingCartItemId) {
+      // Perbarui item yang sudah ada di keranjang
+      updateItem(editingCartItemId, {
+        productId: product.id,
+        name: product.name,
+        unitPrice: product.basePrice,
+        quantity,
+        options: formattedOptions,
+        itemNotes: note.trim() || undefined,
+      });
+      onAdded?.(`Pesanan ${product.name} berhasil diperbarui`);
+    } else {
+      // Tambah sebagai varian baru
+      addItem({
+        productId: product.id,
+        name: product.name,
+        unitPrice: product.basePrice,
+        quantity,
+        options: formattedOptions,
+        itemNotes: note.trim() || undefined,
+      });
+      onAdded?.(`${quantity}× ${product.name} varian baru ditambahkan ke keranjang`);
+    }
     onClose();
   }
 
@@ -147,25 +201,35 @@ export function ProductDetail({
 
             {/* List Item yang Sudah Berada di Keranjang */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <ShoppingBag className="w-3.5 h-3.5 text-primary" />
-                <span>Pilihan yang Sedang di Keranjang ({existingItems.length})</span>
-              </p>
+              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-primary" />
+                  <span>Pilihan yang Sedang di Keranjang ({existingItems.length})</span>
+                </span>
+                <span className="text-[10px] lowercase font-normal italic text-muted-foreground">
+                  (klik item untuk edit varian)
+                </span>
+              </div>
 
               <div className="space-y-3">
                 {existingItems.map((cartItem) => (
                   <div
                     key={cartItem.id}
-                    className="flex items-start justify-between gap-3 p-4 rounded-2xl border border-border bg-secondary-bg/50 hover:bg-white transition-colors"
+                    onClick={() => handleStartEdit(cartItem)}
+                    className="group flex items-start justify-between gap-3 p-4 rounded-2xl border border-border bg-secondary-bg/50 hover:bg-white hover:border-primary/50 hover:shadow-xs transition-all cursor-pointer"
+                    title="Klik untuk mengubah varian/catatan pesanan ini"
                   >
                     <div className="flex items-start gap-3 min-w-0 flex-1">
                       <div className="size-14 rounded-xl overflow-hidden shrink-0 border border-border bg-white flex items-center justify-center">
                         <ProductImage product={product} className="size-full" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-sm text-foreground truncate">
-                          {cartItem.name}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                            {cartItem.name}
+                          </p>
+                          <Edit3 className="size-3 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                        </div>
                         {cartItem.options && cartItem.options.length > 0 && (
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                             {cartItem.options.map((o) => `${o.optionName}`).join(", ")}
@@ -183,7 +247,10 @@ export function ProductDetail({
                     </div>
 
                     {/* Quantity Control Pill (Gaya GrabFood) */}
-                    <div className="flex items-center border border-border rounded-full bg-white p-0.5 shadow-2xs shrink-0">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center border border-border rounded-full bg-white p-0.5 shadow-2xs shrink-0"
+                    >
                       <button
                         type="button"
                         onClick={() => updateQuantity(cartItem.id, -1)}
@@ -213,10 +280,7 @@ export function ProductDetail({
             <div className="border-t border-border bg-white p-4">
               <button
                 type="button"
-                onClick={() => {
-                  handleResetCustomization();
-                  setViewMode("customize");
-                }}
+                onClick={handleStartNew}
                 className="h-12 w-full rounded-2xl bg-primary hover:bg-primary-hover text-white font-extrabold text-sm transition-all shadow-md flex items-center justify-center gap-2"
               >
                 <span>+ Buat Varian Baru</span>
@@ -225,20 +289,30 @@ export function ProductDetail({
           </div>
         ) : (
           /* =========================================================================
-              TAMPILAN 2: CUSTOMIZE (FORM PEMILIHAN VARIAN/OPSI)
+              TAMPILAN 2: CUSTOMIZE (FORM PEMILIHAN VARIAN/OPSI - EDIT / BARU)
              ========================================================================= */
           <div className="flex flex-col h-full overflow-hidden">
             {/* Header Navigasi jika sebelumnya sudah ada item di keranjang */}
             {existingItems.length > 0 && (
-              <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => setViewMode("manage")}
+                  onClick={() => {
+                    setEditingCartItemId(null);
+                    setViewMode("manage");
+                  }}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <ArrowLeft className="size-3.5" />
-                  <span>Kembali ke Pilihan ({existingItems.length})</span>
+                  <span>
+                    {editingCartItemId ? "Batal Ubah" : `Kembali ke Pilihan (${existingItems.length})`}
+                  </span>
                 </button>
+                {editingCartItemId && (
+                  <span className="text-[11px] font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10">
+                    Mode Edit Varian
+                  </span>
+                )}
               </div>
             )}
 
@@ -314,7 +388,7 @@ export function ProductDetail({
               </div>
             </div>
 
-            {/* Bottom Bar: Jumlah & Tombol Tambah ke Keranjang */}
+            {/* Bottom Bar: Jumlah & Tombol Simpan Perubahan / Tambah ke Keranjang */}
             <div className="flex items-center gap-3 border-t border-border bg-white p-4">
               <div className="flex items-center rounded-full border border-border">
                 <button
@@ -339,11 +413,15 @@ export function ProductDetail({
               </div>
               <button
                 type="button"
-                onClick={submitNew}
+                onClick={handleSubmit}
                 disabled={missingRequired}
                 className="h-11 flex-1 rounded-full bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
               >
-                Tambah · {formatRupiah(unitPrice * quantity)}
+                {editingCartItemId ? (
+                  <span>Simpan Perubahan · {formatRupiah(unitPrice * quantity)}</span>
+                ) : (
+                  <span>Tambah · {formatRupiah(unitPrice * quantity)}</span>
+                )}
               </button>
             </div>
           </div>
