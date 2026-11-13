@@ -5,12 +5,18 @@ import { Check, Flame, Plus } from "lucide-react";
 import { ProductDetail } from "@/components/product-detail";
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
+import { useCart } from "@/context/cart-context";
 import { getStockStatus, type Product } from "@/lib/menu-data";
 import { cn, formatRupiah } from "@/lib/utils";
 
 export function ProductCard({ product }: { product: Product }) {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const { items } = useCart();
+
+  const cartItemsForProduct = items.filter((it) => it.productId === product.id);
+  const totalQtyInCart = cartItemsForProduct.reduce((sum, it) => sum + it.quantity, 0);
+
   const status = getStockStatus(product.availableQty, product.minThreshold);
   const soldOut = status === "OUT_OF_STOCK";
 
@@ -23,16 +29,30 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <>
       <article
+        onClick={() => {
+          if (!soldOut) setOpen(true);
+        }}
         className={cn(
-          "group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xs transition-all",
+          "group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xs transition-all cursor-pointer",
           !soldOut && "hover:border-primary/50 hover:shadow-md",
         )}
       >
         <div className="relative">
           <ProductImage product={product} className={cn("aspect-[4/3]", soldOut && "grayscale")} />
+          
           {product.bestSeller && !soldOut && (
             <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
               <Flame className="h-3 w-3" aria-hidden /> Best Seller
+            </span>
+          )}
+
+          {/* Indikator Badge Jumlah di Keranjang (Gaya GrabFood) */}
+          {totalQtyInCart > 0 && (
+            <span
+              title={`${totalQtyInCart} item ada di keranjang`}
+              className="absolute right-2.5 top-2.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-black text-white shadow-md ring-2 ring-white animate-in zoom-in-75 duration-200"
+            >
+              {totalQtyInCart}
             </span>
           )}
         </div>
@@ -63,12 +83,32 @@ export function ProductCard({ product }: { product: Product }) {
               <span className="rounded-lg bg-error/10 px-2.5 py-1 text-xs font-bold text-error">
                 Habis
               </span>
-            ) : (
+            ) : totalQtyInCart > 0 ? (
+              /* Tombol dengan indikator jumlah (Sudah ada di keranjang) */
               <button
                 type="button"
-                onClick={() => setOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(true);
+                }}
+                aria-label={`Kelola ${product.name} (${totalQtyInCart} di keranjang)`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-emerald-700"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-emerald-700 text-[11px] font-black">
+                  {totalQtyInCart}
+                </span>
+                <span>Atur</span>
+              </button>
+            ) : (
+              /* Tombol Tambah default */
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(true);
+                }}
                 aria-label={`Pilih ${product.name}`}
-                className="inline-flex h-9 items-center gap-1 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-2xs transition-colors after:absolute after:inset-0 hover:bg-primary-hover"
+                className="inline-flex h-9 items-center gap-1 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-primary-hover"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
                 <span>Tambah</span>
