@@ -3,7 +3,11 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/context/cart-context";
-import { createOrder, getTablesList } from "@/app/actions/checkout";
+import {
+  createOrder,
+  getTablesList,
+  getAvailableProducts,
+} from "@/app/actions/checkout";
 import {
   ShoppingBag,
   CreditCard,
@@ -17,6 +21,8 @@ import {
   Sparkles,
   AlertCircle,
   ArrowRight,
+  Database,
+  Coffee,
 } from "lucide-react";
 
 function CheckoutContent() {
@@ -26,10 +32,10 @@ function CheckoutContent() {
 
   const {
     items,
+    addItem,
     updateQuantity,
     removeItem,
     clearCart,
-    loadSampleItems,
     subtotal,
     taxAmount,
     totalAmount,
@@ -43,6 +49,7 @@ function CheckoutContent() {
   );
   const [tableNumber, setTableNumber] = useState(urlTable || "01");
   const [tables, setTables] = useState<{ id: string; table_number: string; name: string }[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "QRIS" | "VIRTUAL_ACCOUNT">("QRIS");
   const [notes, setNotes] = useState("");
 
@@ -50,20 +57,51 @@ function CheckoutContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    // Ambil data meja dinamis dari database MySQL
     getTablesList().then((data) => {
       setTables(data);
       if (urlTable && data.some((t) => t.table_number === urlTable)) {
         setTableNumber(urlTable);
       }
     });
+
+    // Ambil data menu produk asli dari database MySQL
+    getAvailableProducts().then((prods) => {
+      setAvailableProducts(prods);
+    });
   }, [urlTable]);
+
+  const handleAddRealProduct = (product: any) => {
+    // Format opsi default jika produk memiliki grup varian
+    const defaultOptions = product.option_groups?.flatMap((g: any) => {
+      if (g.is_required && g.items?.length > 0) {
+        return [
+          {
+            groupName: g.name,
+            optionName: g.items[0].name,
+            priceAdjustment: g.items[0].price_adjustment || 0,
+          },
+        ];
+      }
+      return [];
+    }) || [];
+
+    addItem({
+      productId: product.id,
+      name: product.name,
+      unitPrice: product.base_price,
+      quantity: 1,
+      options: defaultOptions,
+      itemNotes: "",
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
     if (items.length === 0) {
-      setErrorMessage("Keranjang pesanan masih kosong. Silakan tambahkan menu terlebih dahulu.");
+      setErrorMessage("Keranjang pesanan masih kosong. Silakan pilih menu di bawah.");
       return;
     }
     if (!customerName.trim()) {
@@ -381,13 +419,13 @@ function CheckoutContent() {
           </div>
         </div>
 
-        {/* KOLOM KANAN: RINGKASAN PESANAN (STICKY) */}
-        <div className="lg:col-span-5">
+        {/* KOLOM KANAN: RINGKASAN PESANAN (STICKY) & PILIHAN MENU ASLI DARI DATABASE */}
+        <div className="lg:col-span-5 space-y-6">
           <div className="bg-white border border-border rounded-2xl p-6 shadow-sm sticky top-24">
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 text-primary" />
-                Ringkasan Pesanan ({itemCount})
+                Keranjang Pesanan ({itemCount})
               </h2>
               {items.length > 0 && (
                 <button
@@ -401,28 +439,18 @@ function CheckoutContent() {
             </div>
 
             {/* List Item Keranjang */}
-            <div className="divide-y divide-border max-h-72 overflow-y-auto my-3 pr-1">
+            <div className="divide-y divide-border max-h-64 overflow-y-auto my-3 pr-1">
               {items.length === 0 ? (
-                <div className="py-8 text-center">
-                  <ShoppingBag className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-foreground">Keranjang Anda Kosong</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 mb-4">
-                    Belum ada menu yang dipilih untuk dicheckout.
+                <div className="py-6 text-center">
+                  <ShoppingBag className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-foreground">Keranjang Anda Kosong</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Pilih menu asli dari daftar database di bawah ini untuk menambahkan.
                   </p>
-
-                  {/* Tombol Isi Otomatis untuk Pengujian Mandiri */}
-                  <button
-                    type="button"
-                    onClick={loadSampleItems}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-all"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Isi Menu Uji Coba (Indomie & Sanger)
-                  </button>
                 </div>
               ) : (
                 items.map((item) => (
-                  <div key={item.id} className="py-3.5 flex items-start justify-between gap-3">
+                  <div key={item.id} className="py-3 flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-foreground leading-snug truncate">
                         {item.name}
@@ -448,7 +476,7 @@ function CheckoutContent() {
                     </div>
 
                     {/* Quantity Controls */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <div className="flex items-center border border-border rounded-lg bg-secondary-bg">
                         <button
                           type="button"
@@ -457,7 +485,7 @@ function CheckoutContent() {
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="w-6 text-center text-xs font-bold font-mono">
+                        <span className="w-5 text-center text-xs font-bold font-mono">
                           {item.quantity}
                         </span>
                         <button
@@ -480,6 +508,37 @@ function CheckoutContent() {
                   </div>
                 ))
               )}
+            </div>
+
+            {/* DAFTAR MENU ASLI LANGSUNG DARI DATABASE MYSQL */}
+            <div className="pt-3 border-t border-border">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground mb-2">
+                <Database className="w-3.5 h-3.5 text-primary" />
+                <span>Pilih Menu Asli dari Database MySQL:</span>
+              </div>
+
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {availableProducts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between p-2 rounded-xl bg-secondary-bg hover:bg-border/60 transition-colors text-xs"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <p className="font-bold text-foreground truncate">{p.name}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">
+                        Rp {p.base_price.toLocaleString("id-ID")} • Sisa: {p.available_qty} porsi
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddRealProduct(p)}
+                      className="px-2.5 py-1 bg-white hover:bg-primary hover:text-white border border-border text-foreground text-xs font-bold rounded-lg transition-all shadow-2xs shrink-0"
+                    >
+                      + Tambah
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Rincian Kalkulasi Harga */}
@@ -507,7 +566,7 @@ function CheckoutContent() {
             )}
 
             {/* Tombol Buat Pesanan */}
-            <div className="mt-6">
+            <div className="mt-5">
               <button
                 type="submit"
                 disabled={isSubmitting || items.length === 0}
@@ -516,18 +575,18 @@ function CheckoutContent() {
                 {isSubmitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Memproses Pesanan...</span>
+                    <span>Menyimpan ke MySQL...</span>
                   </>
                 ) : (
                   <>
-                    <span>Konfirmasi & Buat Pesanan</span>
+                    <span>Konfirmasi & Simpan Pesanan</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
 
-              <p className="text-[11px] text-center text-muted-foreground mt-2.5">
-                Stok porsi Anda akan otomatis dikunci sementara saat pesanan dibuat.
+              <p className="text-[11px] text-center text-muted-foreground mt-2">
+                Data pesanan akan disimpan langsung ke tabel <strong>orders</strong> MySQL Anda.
               </p>
             </div>
           </div>
