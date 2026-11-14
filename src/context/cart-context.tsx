@@ -2,6 +2,16 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { sampleProducts } from "@/lib/menu-data";
+import { getPublicStoreSettingsAction } from "@/app/actions/store";
+import type { PublicStoreSettings } from "@/lib/admin/types";
+
+const DEFAULT_STORE_SETTINGS: PublicStoreSettings = {
+  isWebOrderingOpen: true,
+  taxEnabled: true,
+  taxPercentage: 10,
+  digitalExpiryMinutes: 15,
+  cashExpiryMinutes: 30,
+};
 
 export interface CartOption {
   groupName: string;
@@ -49,6 +59,9 @@ interface CartContextType {
   setServiceType: (type: ServiceTypeOption) => void;
   orderNotes: string;
   setOrderNotes: (notes: string) => void;
+  storeSettings: PublicStoreSettings;
+  taxLabel: string;
+  refreshStoreSettings: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -391,52 +404,81 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         id: buildCartItemId(
           "prd-bangladesh-06",
           [
+            { groupName: "Pilihan Porsi & Puding", optionName: "Bangladesh Puding Ayam", priceAdjustment: 5000 },
             { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-            { groupName: "Tambahan Topping", optionName: "Tambah Telur Setengah Matang", priceAdjustment: 4000 },
           ],
           "Kuah nyemek pas, pedas nendang"
         ),
         productId: "prd-bangladesh-06",
-        name: "Indomie Bangladesh Spesial",
-        unitPrice: 18000,
+        name: "Indomie Bangladesh",
+        unitPrice: 15000,
         quantity: 2,
         options: [
+          { groupName: "Pilihan Porsi & Puding", optionName: "Bangladesh Puding Ayam", priceAdjustment: 5000 },
           { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-          { groupName: "Tambahan Topping", optionName: "Tambah Telur Setengah Matang", priceAdjustment: 4000 },
         ],
         itemNotes: "Kuah nyemek pas, pedas nendang",
-        subtotal: 44000, // (18000 + 4000) * 2
+        subtotal: 40000, // (15000 + 5000) * 2
       }),
       enrichCartItemMeta({
         id: buildCartItemId(
           "prd-sanger-01",
           [
-            { groupName: "Suhu Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
+            { groupName: "Varian & Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
             { groupName: "Tingkat Manis", optionName: "Manis Normal", priceAdjustment: 0 },
           ],
           "Es batu jangan kebanyakan"
         ),
         productId: "prd-sanger-01",
-        name: "Kopi Sanger Espresso",
-        unitPrice: 14000,
+        name: "Kopi Sanger",
+        unitPrice: 12000,
         quantity: 2,
         options: [
-          { groupName: "Suhu Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
+          { groupName: "Varian & Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
           { groupName: "Tingkat Manis", optionName: "Manis Normal", priceAdjustment: 0 },
         ],
         itemNotes: "Es batu jangan kebanyakan",
-        subtotal: 32000, // (14000 + 2000) * 2
+        subtotal: 28000, // (12000 + 2000) * 2
       }),
     ];
     setItems(sampleItems);
   };
 
-  const openCart = useCallback(() => setIsCartOpen(true), []);
+  const [storeSettings, setStoreSettings] = useState<PublicStoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  const refreshStoreSettings = useCallback(async () => {
+    try {
+      const fresh = await getPublicStoreSettingsAction();
+      setStoreSettings(fresh);
+    } catch {
+      // Abaikan jika server sedang restart; tetap pakai state terakhir
+    }
+  }, []);
+
+  const openCart = useCallback(() => {
+    setIsCartOpen(true);
+    void refreshStoreSettings();
+  }, [refreshStoreSettings]);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
 
+  useEffect(() => {
+    let active = true;
+    getPublicStoreSettingsAction()
+      .then((fresh) => {
+        if (active) setStoreSettings(fresh);
+      })
+      .catch(() => {
+        // Abaikan jika server belum siap; pakai nilai bawaan
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const taxAmount = Math.round(subtotal * 0.1); // PB1 10%
-  const totalAmount = subtotal + taxAmount;
+  const taxAmount = 0;
+  const taxLabel = "";
+  const totalAmount = subtotal;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -464,6 +506,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setServiceType,
         orderNotes,
         setOrderNotes,
+        storeSettings,
+        taxLabel,
+        refreshStoreSettings,
       }}
     >
       {children}

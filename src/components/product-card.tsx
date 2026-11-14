@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Eye, Flame, Plus, ShoppingBag } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { ProductDetail } from "@/components/product-detail";
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
@@ -12,11 +12,13 @@ import { cn, formatRupiah } from "@/lib/utils";
 export function ProductCard({ product }: { product: Product }) {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const { getProductCartQuantity, openCart } = useCart();
+  const { items, openCart } = useCart();
+
+  const cartItemsForProduct = items.filter((it) => it.productId === product.id);
+  const totalQtyInCart = cartItemsForProduct.reduce((sum, it) => sum + it.quantity, 0);
 
   const status = getStockStatus(product.availableQty, product.minThreshold);
   const soldOut = status === "OUT_OF_STOCK";
-  const inCartQty = getProductCartQuantity(product.id);
 
   useEffect(() => {
     if (!notice) return;
@@ -27,10 +29,12 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <>
       <article
+        onClick={() => {
+          if (!soldOut) setOpen(true);
+        }}
         className={cn(
-          "group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-2xs transition-all",
-          inCartQty > 0 ? "border-primary/40 ring-1 ring-primary/15" : "border-border",
-          !soldOut && "hover:border-primary/50 hover:shadow-md",
+          "group relative flex flex-col overflow-hidden rounded-xl border border-border bg-white transition-all cursor-pointer",
+          !soldOut && "hover:border-primary/60 hover:shadow-sm",
         )}
       >
         <div className="relative">
@@ -43,19 +47,18 @@ export function ProductCard({ product }: { product: Product }) {
             )}
           />
           {product.bestSeller && !soldOut && (
-            <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
-              <Flame className="h-3 w-3" aria-hidden /> Best Seller
+            <span className="absolute left-2.5 top-2.5 rounded-md bg-foreground/85 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-background">
+              Favorit
             </span>
           )}
-          {inCartQty > 0 && (
-            <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-foreground/90 px-2.5 py-1 font-mono text-[11px] font-bold text-white shadow-sm backdrop-blur">
-              <ShoppingBag className="h-3 w-3 text-primary" aria-hidden />
-              {inCartQty}×
-            </span>
-          )}
-          {product.options.length > 0 && !soldOut && (
-            <span className="absolute bottom-2 left-2.5 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-foreground/80 shadow-2xs backdrop-blur">
-              {product.options.length} grup varian
+
+          {/* Indikator Badge Jumlah di Keranjang */}
+          {totalQtyInCart > 0 && (
+            <span
+              title={`${totalQtyInCart} item ada di keranjang`}
+              className="absolute right-2.5 top-2.5 inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-primary px-1.5 text-xs font-bold text-white shadow-sm ring-2 ring-white"
+            >
+              {totalQtyInCart}
             </span>
           )}
         </div>
@@ -73,40 +76,54 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-muted-foreground">
             {product.description}
           </p>
-          <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2.5">
+          <div className="mt-auto flex flex-col items-stretch gap-2 border-t border-border/60 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <span className="font-mono text-sm font-extrabold text-foreground">
+              <span className="block font-mono text-sm font-extrabold text-foreground">
                 {formatRupiah(product.basePrice)}
               </span>
               {!soldOut ? (
-                <span className="block font-mono text-[10px] text-muted-foreground">
+                <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">
                   Sisa: {product.availableQty} porsi
                 </span>
               ) : (
-                <span className="block font-mono text-[10px] text-error font-semibold">
+                <span className="mt-0.5 block font-mono text-[10px] text-error font-semibold">
                   Stok: 0 porsi
                 </span>
               )}
             </div>
             {soldOut ? (
+              <span className=" rounded-lg bg-error/10 px-2.5 py-1.5 text-center text-xs font-bold text-error sm:py-1">
+                Habis
+              </span>
+            ) : totalQtyInCart > 0 ? (
+              /* Tombol dengan indikator jumlah (Sudah ada di keranjang - Hanya angka saja) */
               <button
                 type="button"
-                onClick={() => setOpen(true)}
-                aria-label={`Lihat detail ${product.name} (Habis)`}
-                className="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-secondary-bg px-2.5 text-xs font-bold text-muted-foreground transition-colors after:absolute after:inset-0 hover:bg-border/60 hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(true);
+                }}
+                aria-label={`${totalQtyInCart} ${product.name} di keranjang`}
+                className="inline-flex h-9 w-full min-w-9 items-center justify-center rounded-xl bg-primary px-3 text-xs font-black text-white shadow-2xs transition-colors hover:bg-primary-hover sm:w-auto"
               >
-                <Eye className="h-3.5 w-3.5" aria-hidden />
-                <span>Habis</span>
+                <span>
+                  {totalQtyInCart}
+                  <span className="sm:hidden"> di Keranjang</span>
+                </span>
               </button>
             ) : (
+              /* Tombol Tambah default */
               <button
                 type="button"
-                onClick={() => setOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(true);
+                }}
                 aria-label={`Pilih ${product.name}`}
-                className="inline-flex h-9 items-center gap-1 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-2xs transition-colors after:absolute after:inset-0 hover:bg-primary-hover"
+                className="inline-flex h-9 w-full items-center justify-center gap-1 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-primary-hover sm:w-auto"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
-                <span>{inCartQty > 0 ? "Tambah Lagi" : "Tambah"}</span>
+                <span>Tambah</span>
               </button>
             )}
           </div>
