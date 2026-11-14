@@ -252,7 +252,7 @@ function createStore(): AdminMemoryStore {
     });
   });
 
-  const defaultTables = [
+  const initialTables = [
     { number: "01", name: "Meja 1", capacity: 4 },
     { number: "02", name: "Meja 2", capacity: 4 },
     { number: "03", name: "Meja 3", capacity: 6 },
@@ -260,6 +260,19 @@ function createStore(): AdminMemoryStore {
     { number: "05", name: "Meja 5", capacity: 4 },
     { number: "06", name: "Meja 6", capacity: 8 },
   ];
+
+  const defaultTables = Array.from({ length: 40 }, (_, index) => {
+    const existing = initialTables[index];
+    if (existing) return existing;
+
+    const num = index + 1;
+    const padded = String(num).padStart(2, "0");
+    return {
+      number: padded,
+      name: `Meja ${num}`,
+      capacity: num % 10 === 0 ? 8 : num % 5 === 0 ? 6 : num % 4 === 0 ? 2 : 4,
+    };
+  });
 
   const tables = new Map<string, MemTable>();
   const tableQrCodes = new Map<string, MemTableQrCode[]>();

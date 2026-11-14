@@ -40,17 +40,17 @@ function Banner() {
 
   return (
     <div className="bg-primary text-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-2 text-xs sm:text-sm font-medium">
-        <div className="flex items-center gap-2 mx-auto">
-          <QrCode className="size-4" aria-hidden />
-          <span>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs font-medium sm:text-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          <QrCode className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">
             Anda memesan untuk: <strong className="font-bold">Meja {table}</strong>
           </span>
         </div>
         <button
           type="button"
           onClick={handleClear}
-          className="inline-flex items-center gap-1 text-[11px] bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded-md transition-colors ml-auto"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-white/25"
           title="Hapus sesi meja"
         >
           <X className="size-3" />

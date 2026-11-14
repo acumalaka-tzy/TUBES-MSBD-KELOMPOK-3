@@ -28,7 +28,7 @@ const links = [
   { href: "/", label: "Beranda", icon: Home },
   { href: "/menu", label: "Katalog Menu", icon: UtensilsCrossed },
   { href: "/lacak", label: "Lacak Pesanan", icon: Compass },
-  { href: "/#info", label: "Info Restoran", icon: Coffee },
+  { href: "/info", label: "Info Restoran", icon: Coffee },
 ];
 
 function NavbarContent() {
@@ -67,16 +67,16 @@ function NavbarContent() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-          <Link href="/" className="flex items-center gap-2.5" onClick={() => setMobileMenuOpen(false)}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground font-bold text-background">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5" onClick={() => setMobileMenuOpen(false)}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground font-bold text-background">
               <Coffee className="h-4.5 w-4.5" aria-hidden />
             </div>
-            <div>
-              <span className="block text-base font-extrabold leading-tight tracking-tight text-foreground">
+            <div className="min-w-0">
+              <span className="block truncate text-base font-extrabold leading-tight tracking-tight text-foreground">
                 Warkop Agam
               </span>
-              <span className="block text-[11px] font-medium text-muted-foreground">Padang Bulan · Medan</span>
+              <span className="block truncate text-[11px] font-medium text-muted-foreground">Padang Bulan · Medan</span>
             </div>
           </Link>
 
@@ -237,12 +237,18 @@ function NavbarContent() {
           <nav aria-label="Navigasi mobile" className="border-t border-border bg-white px-4 py-3 md:hidden">
             {links.map((l) => {
               const Icon = l.icon;
+              const active = pathname === l.href;
               return (
                 <Link
                   key={l.href}
                   href={l.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex h-11 items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-foreground hover:bg-secondary-bg"
+                  className={cn(
+                    "flex h-11 items-center gap-2.5 rounded-xl px-3 text-sm font-semibold transition-colors",
+                    active
+                      ? "bg-secondary-bg text-primary"
+                      : "text-foreground hover:bg-secondary-bg",
+                  )}
                 >
                   <Icon className="h-4 w-4 text-primary" aria-hidden />
                   {l.label}

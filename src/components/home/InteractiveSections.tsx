@@ -5,23 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  Check,
-  Clock,
-  Copy,
   Map as MapIcon,
   MapPin,
-  MessageCircle,
-  Navigation,
-  Phone,
-  PlugZap,
-  QrCode,
   Search,
-  UtensilsCrossed,
-  Wifi,
 } from "lucide-react";
-import { OpenStatus } from "@/components/open-status";
+import { OutletLocationGrid } from "@/components/restaurant/OutletLocationGrid";
 import { useRecentOrders } from "@/lib/active-table";
-import { formatWhatsapp, type RestaurantInfo } from "@/lib/menu-data";
+import { type RestaurantInfo } from "@/lib/menu-data";
+import { buildOutletLinks } from "@/lib/restaurant-profile";
 import { formatRupiah } from "@/lib/utils";
 
 const ORDER_STEPS = [
@@ -190,35 +181,8 @@ export function QuickTrackBanner() {
   );
 }
 
-const FACILITIES = [
-  { icon: Wifi, label: "Wi-Fi Gratis" },
-  { icon: QrCode, label: "Order QR Meja" },
-  { icon: PlugZap, label: "Stop Kontak Tiap Meja" },
-  { icon: UtensilsCrossed, label: "Dine In & Takeaway" },
-];
-
 export function RestaurantInfoSection({ restaurant }: { restaurant: RestaurantInfo }) {
-  const [copiedField, setCopiedField] = useState<"address" | "whatsapp" | null>(null);
-
-  async function handleCopy(field: "address" | "whatsapp", value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField((prev) => (prev === field ? null : prev)), 2500);
-    } catch {
-      // Clipboard diblokir browser
-    }
-  }
-
-  const mapsQuery = encodeURIComponent(`Warkop Agam, ${restaurant.address}`);
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
-  const mapsEmbedUrl = `https://maps.google.com/maps?hl=id&q=${mapsQuery}&t=m&z=16&ie=UTF8&iwloc=&output=embed`;
-
-  const waMessage = encodeURIComponent(
-    `Halo ${restaurant.name}, saya ingin bertanya terkait pesanan atau ketersediaan meja.`,
-  );
-  const waUrl = `https://wa.me/${restaurant.whatsapp}?text=${waMessage}`;
-  const formattedWa = formatWhatsapp(restaurant.whatsapp);
+  const { mapsUrl } = buildOutletLinks(restaurant);
 
   return (
     <section id="info" className="scroll-mt-20 border-t border-border bg-secondary-bg">
@@ -233,7 +197,7 @@ export function RestaurantInfoSection({ restaurant }: { restaurant: RestaurantIn
               Lokasi &amp; Outlet Kami
             </h2>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              Temukan posisi outlet langsung di peta Google Maps atau hubungi kasir via WhatsApp.
+              Temukan posisi Warkop Agam Berdikari langsung di Google Maps, lihat foto outlet, atau hubungi kasir via WhatsApp.
             </p>
           </div>
 
@@ -248,147 +212,8 @@ export function RestaurantInfoSection({ restaurant }: { restaurant: RestaurantIn
           </a>
         </div>
 
-        <div className="mt-6 grid gap-5 lg:grid-cols-12">
-          {/* Kartu Informasi Outlet */}
-          <div className="flex flex-col justify-between rounded-xl border border-border bg-white p-6 shadow-xs lg:col-span-5">
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center rounded-md bg-secondary-bg px-2.5 py-1 text-[11px] font-bold text-foreground">
-                  Outlet Berdikari · Padang Bulan
-                </span>
-                <OpenStatus
-                  openingHours={restaurant.openingHours}
-                  forceClosed={!restaurant.isWebOrderingOpen}
-                />
-              </div>
-
-              <h3 className="mt-3.5 text-xl font-extrabold tracking-tight text-foreground">
-                {restaurant.name}
-              </h3>
-
-              <div className="mt-1.5 flex items-start justify-between gap-2">
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {restaurant.address}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handleCopy("address", restaurant.address)}
-                  aria-label="Salin alamat"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-secondary-bg px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:border-primary cursor-pointer"
-                >
-                  {copiedField === "address" ? (
-                    <>
-                      <Check className="h-3 w-3 text-success" aria-hidden />
-                      <span className="text-success">Disalin</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" aria-hidden />
-                      <span>Salin</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="mt-5 space-y-3 border-t border-border pt-4 text-xs">
-                <div className="flex items-center gap-2.5 text-foreground">
-                  <Clock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  <span className="font-semibold">{restaurant.openingHours}</span>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <a
-                    href={waUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2.5 font-semibold text-foreground transition-colors hover:text-primary"
-                  >
-                    <Phone className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                    <span>WhatsApp: {formattedWa}</span>
-                  </a>
-                  <div className="flex items-center gap-1.5">
-                    <a
-                      href={waUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-md bg-secondary-bg px-2 py-1 text-[11px] font-bold text-primary transition-colors hover:bg-primary hover:text-white"
-                    >
-                      <MessageCircle className="h-3 w-3" aria-hidden />
-                      <span>Chat</span>
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy("whatsapp", formattedWa)}
-                      aria-label="Salin nomor WhatsApp"
-                      className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary-bg px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:border-primary cursor-pointer"
-                    >
-                      {copiedField === "whatsapp" ? (
-                        <>
-                          <Check className="h-3 w-3 text-success" aria-hidden />
-                          <span className="text-success">Disalin</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3" aria-hidden />
-                          <span>Salin</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 border-t border-border pt-4">
-                <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-                  Fasilitas Outlet
-                </p>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {FACILITIES.map((f) => {
-                    const Icon = f.icon;
-                    return (
-                      <span
-                        key={f.label}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary-bg px-2.5 py-1.5 text-[11px] font-medium text-foreground"
-                      >
-                        <Icon className="h-3.5 w-3.5 text-primary" aria-hidden />
-                        <span>{f.label}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-white transition-colors hover:bg-primary-hover"
-              >
-                <Navigation className="h-3.5 w-3.5" aria-hidden />
-                <span>Petunjuk Arah Menuju Lokasi</span>
-              </a>
-            </div>
-          </div>
-
-          {/* Embed Google Maps Asli Sesuai Alamat (Klik langsung membuka Google Maps) */}
-          <div className="relative min-h-[340px] overflow-hidden rounded-xl border border-border bg-white shadow-xs lg:col-span-7">
-            <iframe
-              title={`Lokasi ${restaurant.name} di Google Maps`}
-              src={mapsEmbedUrl}
-              referrerPolicy="no-referrer-when-downgrade"
-              className="pointer-events-none h-full min-h-[340px] w-full border-0"
-            />
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Tekan untuk membuka lokasi di Google Maps"
-              aria-label={`Buka lokasi ${restaurant.name} di Google Maps (${restaurant.address})`}
-              className="absolute inset-0 z-10 block bg-transparent transition-colors hover:bg-black/[0.03]"
-            />
-          </div>
+        <div className="mt-6">
+          <OutletLocationGrid restaurant={restaurant} showStorefrontPreview />
         </div>
       </div>
     </section>

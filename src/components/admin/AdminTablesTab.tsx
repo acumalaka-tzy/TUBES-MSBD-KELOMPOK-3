@@ -334,9 +334,9 @@ export function AdminTablesTab({
       </div>
 
       {/* Toolbar & Filter */}
-      <div className="flex flex-col gap-3 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-1 flex-col gap-2.5 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78716c]" />
             <input
               type="text"
@@ -347,11 +347,11 @@ export function AdminTablesTab({
             />
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-[#E7E5E3] bg-[#F6F4F2]/60 p-1 text-xs font-medium">
+          <div className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-[#E7E5E3] bg-[#F6F4F2]/60 p-1 text-xs font-medium no-scrollbar sm:w-auto">
             <button
               type="button"
               onClick={() => setFilter("ALL")}
-              className={`rounded-md px-2.5 py-1.5 transition ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 transition ${
                 filter === "ALL" ? "bg-white text-[#272727] shadow-sm font-semibold" : "text-[#78716c] hover:text-[#272727]"
               }`}
             >
@@ -360,7 +360,7 @@ export function AdminTablesTab({
             <button
               type="button"
               onClick={() => setFilter("AVAILABLE")}
-              className={`rounded-md px-2.5 py-1.5 transition ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 transition ${
                 filter === "AVAILABLE" ? "bg-emerald-600 text-white font-semibold" : "text-[#78716c] hover:text-[#272727]"
               }`}
             >
@@ -369,7 +369,7 @@ export function AdminTablesTab({
             <button
               type="button"
               onClick={() => setFilter("OCCUPIED")}
-              className={`rounded-md px-2.5 py-1.5 transition ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 transition ${
                 filter === "OCCUPIED" ? "bg-amber-600 text-white font-semibold" : "text-[#78716c] hover:text-[#272727]"
               }`}
             >
@@ -378,7 +378,7 @@ export function AdminTablesTab({
             <button
               type="button"
               onClick={() => setFilter("INACTIVE")}
-              className={`rounded-md px-2.5 py-1.5 transition ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 transition ${
                 filter === "INACTIVE" ? "bg-stone-700 text-white font-semibold" : "text-[#78716c] hover:text-[#272727]"
               }`}
             >
@@ -395,7 +395,7 @@ export function AdminTablesTab({
             setCapacity("4");
             setIsAddOpen(true);
           }}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#F16F62] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d85e52]"
+          className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#F16F62] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d85e52] lg:w-auto"
         >
           <Plus className="h-4 w-4" />
           Tambah Meja
@@ -412,7 +412,7 @@ export function AdminTablesTab({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredTables.map((table) => {
             const isAvailable = table.isActive && table.status === "AVAILABLE";
             const isOccupied = table.status === "OCCUPIED";
@@ -647,7 +647,7 @@ export function AdminTablesTab({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-semibold text-[#272727] uppercase tracking-wider">
                   Kapasitas
@@ -709,7 +709,7 @@ export function AdminTablesTab({
             {/* Area Stiker Meja Siap Cetak (Diberi id untuk print) */}
             <div
               id="printable-qr-sticker"
-              className="mx-auto max-w-sm rounded-2xl border-2 border-dashed border-[#272727] bg-white p-6 text-center shadow-md print:border-none print:shadow-none"
+              className="mx-auto max-w-sm rounded-2xl border-2 border-dashed border-[#272727] bg-white p-4 text-center shadow-md sm:p-6 print:border-none print:shadow-none"
             >
               <div className="flex items-center justify-center gap-2">
                 <span className="text-lg font-black tracking-widest text-[#F16F62] uppercase">
@@ -721,7 +721,7 @@ export function AdminTablesTab({
               </p>
 
               <div className="my-3 border-y border-stone-200 py-2">
-                <span className="text-3xl font-black text-[#272727] tracking-tight">
+                <span className="text-2xl font-black tracking-tight text-[#272727] sm:text-3xl">
                   MEJA {printTable.tableNumber}
                 </span>
                 <p className="text-xs text-stone-600 font-medium mt-0.5">
@@ -735,10 +735,10 @@ export function AdminTablesTab({
                   <img
                     src={qrDataUrl}
                     alt={`QR Code Meja ${printTable.tableNumber}`}
-                    className="h-56 w-56 rounded-xl border border-stone-200 p-2 shadow-inner"
+                    className="h-44 w-44 rounded-xl border border-stone-200 p-2 shadow-inner sm:h-56 sm:w-56"
                   />
                 ) : (
-                  <div className="flex h-56 w-56 items-center justify-center rounded-xl bg-stone-100 text-stone-400">
+                  <div className="flex h-44 w-44 items-center justify-center rounded-xl bg-stone-100 text-stone-400 sm:h-56 sm:w-56">
                     Membuat QR Code...
                   </div>
                 )}
@@ -786,11 +786,11 @@ export function AdminTablesTab({
               </p>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
               <button
                 type="button"
                 onClick={handleDownloadQr}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#E7E5E3] bg-white px-3 py-2 text-xs font-semibold text-[#272727] hover:bg-stone-50"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#E7E5E3] bg-white px-3 py-2 text-xs font-semibold text-[#272727] hover:bg-stone-50 sm:w-auto"
               >
                 <Download className="h-3.5 w-3.5" />
                 Unduh PNG
@@ -799,7 +799,7 @@ export function AdminTablesTab({
               <button
                 type="button"
                 onClick={handlePrintSticker}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#272727] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-black"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#272727] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-black sm:w-auto"
               >
                 <Printer className="h-3.5 w-3.5" />
                 Cetak Stiker Meja (Print)

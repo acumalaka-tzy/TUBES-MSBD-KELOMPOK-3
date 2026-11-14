@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createHash } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import {
   sampleCategories,
@@ -12,7 +13,17 @@ const prisma = new PrismaClient();
 const RESTAURANT_SETTING_ID = "set-main-001";
 const TAX_PERCENTAGE = 0;
 
-const SEED_TABLES = [
+const TOTAL_TABLES = 40;
+
+type SeedTableSpec = {
+  id: string;
+  table_number: string;
+  name: string;
+  capacity: number;
+  qr_token: string;
+};
+
+const INITIAL_SEED_TABLES: readonly SeedTableSpec[] = [
   {
     id: "tbl-01",
     table_number: "01",
@@ -55,7 +66,32 @@ const SEED_TABLES = [
     capacity: 8,
     qr_token: "qr_tok_agam_m06_8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d",
   },
-] as const;
+];
+
+/** Builds table seed specs up to `total`, keeping initial tables & QR tokens intact. */
+function buildSeedTables(total: number): SeedTableSpec[] {
+  return Array.from({ length: total }, (_, index) => {
+    const existing = INITIAL_SEED_TABLES[index];
+    if (existing) return existing;
+
+    const num = index + 1;
+    const padded = String(num).padStart(2, "0");
+    const tokenDigest = createHash("sha256")
+      .update(`warkop-agam-table-${padded}`)
+      .digest("hex")
+      .slice(0, 32);
+
+    return {
+      id: `tbl-${padded}`,
+      table_number: padded,
+      name: `Meja ${num}`,
+      capacity: num % 10 === 0 ? 8 : num % 5 === 0 ? 6 : num % 4 === 0 ? 2 : 4,
+      qr_token: `qr_tok_agam_m${padded}_${tokenDigest}`,
+    };
+  });
+}
+
+const SEED_TABLES = buildSeedTables(TOTAL_TABLES);
 
 type SeedOrderSpec = {
   id: string;
@@ -735,10 +771,9 @@ async function main() {
     });
 
     await prisma.tableQrCode.upsert({
-      where: { id: `qr-${tbl.id}` },
+      where: { token: tbl.qr_token },
       update: {
         table_id: tbl.id,
-        token: tbl.qr_token,
         is_active: true,
         generated_by: "usr-admin-001",
       },
@@ -933,7 +968,7 @@ async function main() {
           entity_name: "Table",
           entity_id: "ALL",
           action: "SEED_TABLES_QR",
-          reason: "Aktivasi 6 meja dan kode QR pemesanan",
+          reason: `Aktivasi ${SEED_TABLES.length} meja dan kode QR pemesanan`,
         },
       ],
     });

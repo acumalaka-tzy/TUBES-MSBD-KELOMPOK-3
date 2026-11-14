@@ -75,24 +75,24 @@ export function OrderStatusStepper({ status, notes }: OrderStatusStepperProps) {
         {/* Garis penghubung horizontal di belakang lingkaran tahap */}
         <div
           aria-hidden
-          className="absolute left-[10%] right-[10%] top-5 h-1 rounded-full bg-border"
+          className="absolute left-[10%] right-[10%] top-4 h-1 rounded-full bg-border sm:top-5"
         />
         <div
           aria-hidden
-          className="absolute left-[10%] top-5 h-1 rounded-full bg-gradient-to-r from-emerald-600 to-primary transition-all duration-500"
+          className="absolute left-[10%] top-4 h-1 rounded-full bg-gradient-to-r from-emerald-600 to-primary transition-all duration-500 sm:top-5"
           style={{ width: `${progressPercent * 0.8}%` }}
         />
 
-        <div className="relative grid grid-cols-5 gap-2">
+        <div className="relative grid grid-cols-5 gap-1 sm:gap-2">
           {steps.map((st, idx) => {
             const Icon = st.icon;
             const isCurrent = idx === safeIndex;
             const isPassed = idx < safeIndex;
 
             return (
-              <div key={st.key} className="flex flex-col items-center text-center">
+              <div key={st.key} className="flex min-w-0 flex-col items-center text-center">
                 <div
-                  className={`relative z-10 mb-2 flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                  className={`relative z-10 mb-1.5 flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all sm:mb-2 sm:h-10 sm:w-10 ${
                     isPassed
                       ? "bg-emerald-600 text-white shadow-xs"
                       : isCurrent
@@ -100,10 +100,10 @@ export function OrderStatusStepper({ status, notes }: OrderStatusStepperProps) {
                         : "border border-border bg-secondary-bg text-muted-foreground"
                   }`}
                 >
-                  <Icon className="h-4 w-4" aria-hidden />
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
                 </div>
                 <span
-                  className={`text-[11px] font-semibold leading-tight ${
+                  className={`w-full break-words text-[10px] font-semibold leading-tight sm:text-[11px] ${
                     isCurrent
                       ? "font-bold text-primary"
                       : isPassed

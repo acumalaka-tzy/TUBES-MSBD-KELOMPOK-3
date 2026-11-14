@@ -654,7 +654,7 @@ export function CashierPosTab({
               <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                 Tipe Layanan Pesanan
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => setServiceType("DINE_IN")}
@@ -685,7 +685,7 @@ export function CashierPosTab({
             {/* Pilihan Meja jika Dine In (Format Dropdown Sesuai Sisi Customer) */}
             {serviceType === "DINE_IN" && (
               <div className="space-y-2 rounded-2xl border border-border bg-[#F4F7F6]/80 p-3.5">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
                   <label
                     htmlFor="pos-table-number-select"
                     className="block text-xs font-bold uppercase tracking-wider text-muted-foreground"

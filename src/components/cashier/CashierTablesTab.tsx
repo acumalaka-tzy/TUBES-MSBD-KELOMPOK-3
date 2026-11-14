@@ -236,9 +236,9 @@ export function CashierTablesTab({
                               {act.paymentStatus === "PAID" ? "LUNAS" : "BELUM BAYAR"}
                             </span>
                           </div>
-                          <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-                            <span className="font-bold text-foreground">{act.customerName}</span>
-                            <span className="font-mono font-extrabold text-[#0E2A2E]">
+                          <div className="mt-1 flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-muted-foreground">
+                            <span className="min-w-0 truncate font-bold text-foreground">{act.customerName}</span>
+                            <span className="shrink-0 font-mono font-extrabold text-[#0E2A2E]">
                               {formatRupiah(act.totalAmount)}
                             </span>
                           </div>
@@ -306,7 +306,7 @@ export function CashierTablesTab({
                     </button>
                   </>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => onCreatePosOrderAtTable(table.tableNumber)}

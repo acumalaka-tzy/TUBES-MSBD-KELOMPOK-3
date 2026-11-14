@@ -39,7 +39,7 @@ export function CustomerForm({
   onClearCurrentUser,
 }: CustomerFormProps) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-6">
+    <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-xs space-y-5 sm:space-y-6">
       <div className="border-b border-border pb-4">
         <h2 className="text-base font-bold text-foreground flex items-center gap-2">
           <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
@@ -54,21 +54,21 @@ export function CustomerForm({
 
       {/* Banner Status Akun / Guest Checkout */}
       {currentUser ? (
-        <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <UserCheck className="h-5 w-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold text-foreground">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <p className="truncate text-xs font-bold text-foreground">
                   Masuk sebagai: {currentUser.name}
                 </p>
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
                   {currentUser.role}
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="truncate text-[11px] text-muted-foreground">
                 {currentUser.phone} • {currentUser.email || "Pesanan tersimpan di akun Anda"}
               </p>
             </div>
@@ -77,19 +77,19 @@ export function CustomerForm({
             <button
               type="button"
               onClick={onClearCurrentUser}
-              className="text-[11px] font-bold text-muted-foreground hover:text-primary underline ml-2"
+              className="shrink-0 text-[11px] font-bold text-muted-foreground hover:text-primary underline"
             >
               Pesan Tamu Lain
             </button>
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between rounded-xl border border-border bg-secondary-bg/70 p-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary-bg/70 p-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
               <Zap className="h-4 w-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-bold text-foreground">
                 Guest Checkout Didukung
               </p>
@@ -100,7 +100,7 @@ export function CustomerForm({
           </div>
           <Link
             href="/login?redirect=/checkout"
-            className="shrink-0 text-xs font-bold text-primary hover:underline ml-2"
+            className="shrink-0 text-xs font-bold text-primary hover:underline"
           >
             Punya Akun? Masuk
           </Link>
@@ -143,8 +143,8 @@ export function CustomerForm({
 
       {/* Pilihan Meja (Hanya tampil jika Dine In) */}
       {serviceType === "DINE_IN" && (
-        <div className="p-4 rounded-xl bg-secondary-bg/60 border border-border space-y-2.5">
-          <div className="flex items-center justify-between">
+        <div className="p-3.5 sm:p-4 rounded-xl bg-secondary-bg/60 border border-border space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
             <label
               htmlFor="table-number-select"
               className="block text-xs font-bold text-muted-foreground uppercase tracking-wider"
