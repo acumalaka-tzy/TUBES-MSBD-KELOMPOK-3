@@ -404,8 +404,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         id: buildCartItemId(
           "prd-bangladesh-06",
           [
+            { groupName: "Cara Masak", optionName: "Nyemek (Becek)", priceAdjustment: 0 },
             { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-            { groupName: "Tambahan Topping", optionName: "Tambah Telur Setengah Matang", priceAdjustment: 4000 },
+            { groupName: "Tambahan Topping", optionName: "Telur 1/2 Matang", priceAdjustment: 4000 },
           ],
           "Kuah nyemek pas, pedas nendang"
         ),
@@ -414,8 +415,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         unitPrice: 18000,
         quantity: 2,
         options: [
+          { groupName: "Cara Masak", optionName: "Nyemek (Becek)", priceAdjustment: 0 },
           { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-          { groupName: "Tambahan Topping", optionName: "Tambah Telur Setengah Matang", priceAdjustment: 4000 },
+          { groupName: "Tambahan Topping", optionName: "Telur 1/2 Matang", priceAdjustment: 4000 },
         ],
         itemNotes: "Kuah nyemek pas, pedas nendang",
         subtotal: 44000, // (18000 + 4000) * 2

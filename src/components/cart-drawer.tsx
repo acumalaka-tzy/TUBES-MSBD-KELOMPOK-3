@@ -6,12 +6,14 @@ import {
   AlertCircle,
   ArrowRight,
   Check,
+  Copy,
   Edit3,
   FileText,
   Minus,
   Package,
   Plus,
   QrCode,
+  RotateCcw,
   ShoppingBag,
   SlidersHorizontal,
   Sparkles,
@@ -19,12 +21,17 @@ import {
   Utensils,
   X,
 } from "lucide-react";
-import { useCart, type CartItem } from "@/context/cart-context";
+import { useCart, type CartItem, type CartOption } from "@/context/cart-context";
+import { CartRecommendations } from "@/components/cart/CartRecommendations";
 import { ProductDetail } from "@/components/product-detail";
 import { ProductImage } from "@/components/product-image";
 import { useActiveTable } from "@/lib/active-table";
 import { sampleProducts, type Product } from "@/lib/menu-data";
 import { cn, formatRupiah } from "@/lib/utils";
+
+const ITEM_NOTE_CHIPS = ["Less Sugar", "Es Terpisah", "Pedas Sedang", "Tanpa Bawang"];
+const ORDER_NOTE_CHIPS = ["Sajikan bersamaan", "Minta sendok & tisu", "Bungkus rapi terpisah"];
+const QUICK_TABLES = ["01", "02", "03", "04", "05", "06"];
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const {
@@ -50,38 +57,36 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   } = useCart();
 
   const table = useActiveTable();
+  const [quickTable, setQuickTable] = useState<string>("");
   const [confirmClear, setConfirmClear] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [showOrderNotes, setShowOrderNotes] = useState(false);
+  const [lastRemovedItem, setLastRemovedItem] = useState<CartItem | null>(null);
+  const [copiedSummary, setCopiedSummary] = useState(false);
   const [editingCartItem, setEditingCartItem] = useState<{
     product: Product;
     item: CartItem;
   } | null>(null);
-  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
+  const [previewState, setPreviewState] = useState<{
+    product: Product;
+    presetOptions?: CartOption[];
+  } | null>(null);
 
   const effectiveServiceType = table ? "DINE_IN" : serviceType;
+  const activeTableDisplay = table || (effectiveServiceType === "DINE_IN" ? quickTable : "");
   const checkoutHref = useMemo(() => {
     const params = new URLSearchParams();
-    if (table) params.set("table", table);
+    if (activeTableDisplay) params.set("table", activeTableDisplay);
     params.set("service", effectiveServiceType);
     const qs = params.toString();
     return qs ? `/checkout?${qs}` : "/checkout";
-  }, [table, effectiveServiceType]);
-
-  // Rekomendasi menu pendamping yang belum ada di keranjang
-  const recommendations = useMemo(() => {
-    const inCartIds = new Set(items.map((i) => i.productId));
-    return sampleProducts
-      .filter((p) => p.availableQty > 0 && !inCartIds.has(p.id))
-      .sort((a, b) => b.popularity - a.popularity)
-      .slice(0, 3);
-  }, [items]);
+  }, [activeTableDisplay, effectiveServiceType]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !editingCartItem && !previewProduct) {
+      if (e.key === "Escape" && !editingCartItem && !previewState) {
         onClose();
       }
     };
@@ -92,7 +97,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [open, onClose, editingCartItem, previewProduct]);
+  }, [open, onClose, editingCartItem, previewState]);
 
   function startEditNote(item: CartItem) {
     setEditingNoteId(item.id);
@@ -124,24 +129,70 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     setEditingCartItem({ product: productObj, item });
   }
 
-  function handleQuickAddRecommendation(product: Product) {
-    // Jika produk memiliki opsi wajib, langsung pilihkan default atau buka modal
-    const defaultOptions = product.options.flatMap((g) =>
-      g.required && g.items[0]
-        ? [{ groupName: g.name, optionName: g.items[0].name, priceAdjustment: g.items[0].price }]
-        : [],
-    );
-    addItem({
+  function handleAddRecommendation(product: Product, chosenOptions: CartOption[]) {
+    return addItem({
       productId: product.id,
       name: product.name,
       unitPrice: product.basePrice,
       quantity: 1,
-      options: defaultOptions,
+      options: chosenOptions,
       imageUrl: product.imageUrl,
       emoji: product.emoji,
       categoryName: product.categoryName,
       maxStock: product.availableQty,
     });
+  }
+
+  function handleRemoveWithUndo(item: CartItem) {
+    setLastRemovedItem(item);
+    removeItem(item.id);
+    setTimeout(() => {
+      setLastRemovedItem((prev) => (prev?.id === item.id ? null : prev));
+    }, 5500);
+  }
+
+  function handleUndoRemove() {
+    if (!lastRemovedItem) return;
+    addItem({
+      productId: lastRemovedItem.productId,
+      name: lastRemovedItem.name,
+      unitPrice: lastRemovedItem.unitPrice,
+      quantity: lastRemovedItem.quantity,
+      options: lastRemovedItem.options,
+      itemNotes: lastRemovedItem.itemNotes,
+      imageUrl: lastRemovedItem.imageUrl,
+      emoji: lastRemovedItem.emoji,
+      categoryName: lastRemovedItem.categoryName,
+      maxStock: lastRemovedItem.maxStock,
+    });
+    setLastRemovedItem(null);
+  }
+
+  function appendChip(current: string, chip: string): string {
+    const clean = current.trim();
+    if (!clean) return chip;
+    if (clean.toLowerCase().includes(chip.toLowerCase())) return clean;
+    return `${clean}, ${chip}`.slice(0, 255);
+  }
+
+  async function handleCopySummary() {
+    const lines = [
+      `Pesanan Warkop Agam (${effectiveServiceType === "DINE_IN" ? `Dine In${activeTableDisplay ? ` Meja ${activeTableDisplay}` : ""}` : "Takeaway"})`,
+      ...items.map((it) => {
+        const opts = it.options.length > 0 ? ` [${it.options.map((o) => o.optionName).join(", ")}]` : "";
+        return `- ${it.quantity}x ${it.name}${opts}: ${formatRupiah(it.subtotal)}`;
+      }),
+      `Subtotal: ${formatRupiah(subtotal)}`,
+      `${taxLabel}: ${formatRupiah(taxAmount)}`,
+      `Total: ${formatRupiah(totalAmount)}`,
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 2500);
+    } catch {
+      // Clipboard diblokir browser
+    }
   }
 
   if (!open) return null;
@@ -165,19 +216,19 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           {/* Handle Bar Mobile */}
           <div className="mx-auto mt-2.5 h-1.5 w-12 shrink-0 rounded-full bg-border md:hidden" aria-hidden />
 
-          {/* Header Keranjang */}
-          <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          {/* Header Keranjang Espresso */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-[#231712] to-[#36231C] px-5 py-4 text-white">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
                 <ShoppingBag className="size-5" aria-hidden />
               </span>
               <div>
-                <h2 id="cart-drawer-title" className="text-base font-extrabold leading-tight text-foreground">
+                <h2 id="cart-drawer-title" className="text-base font-extrabold leading-tight text-white">
                   Keranjang Belanja
                 </h2>
-                <p className="text-xs text-muted-foreground">
-                  <strong className="font-bold text-foreground">{itemCount} porsi</strong> ({items.length}{" "}
-                  menu){table ? ` • Meja ${table}` : ""}
+                <p className="text-xs text-white/75">
+                  <strong className="font-bold text-white">{itemCount} porsi</strong> ({items.length}{" "}
+                  menu){activeTableDisplay ? ` • Meja ${activeTableDisplay}` : ""}
                 </p>
               </div>
             </div>
@@ -187,7 +238,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                 <button
                   type="button"
                   onClick={() => setConfirmClear(true)}
-                  className="rounded-xl px-2.5 py-1.5 text-xs font-bold text-error transition-colors hover:bg-error/10"
+                  className="rounded-xl px-2.5 py-1.5 text-xs font-bold text-[#FFB4AB] transition-colors hover:bg-white/10 cursor-pointer"
                 >
                   Kosongkan
                 </button>
@@ -196,7 +247,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                 type="button"
                 onClick={onClose}
                 aria-label="Tutup"
-                className="flex size-9 items-center justify-center rounded-xl border border-border text-foreground transition-colors hover:bg-secondary-bg"
+                className="flex size-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20 cursor-pointer"
               >
                 <X className="size-4" aria-hidden />
               </button>
@@ -269,20 +320,61 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   <QrCode className="size-3.5 shrink-0" aria-hidden />
                   <span>Identitas meja terkunci otomatis dari QR Meja {table}.</span>
                 </p>
+              ) : effectiveServiceType === "DINE_IN" ? (
+                <div className="mt-2">
+                  <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+                    Pilih nomor meja cepat (opsional, bisa diubah di Checkout):
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_TABLES.map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setQuickTable((prev) => (prev === num ? "" : num))}
+                        className={cn(
+                          "rounded-lg border px-2 py-1 font-mono text-[11px] font-bold transition-colors cursor-pointer",
+                          quickTable === num
+                            ? "border-primary bg-primary text-white"
+                            : "border-border bg-white text-foreground hover:border-primary/50",
+                        )}
+                      >
+                        Meja {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  {effectiveServiceType === "DINE_IN"
-                    ? "Nomor meja akan dipilih/dikonfirmasi pada langkah Checkout."
-                    : "Pesanan dibungkus rapi — isi nama & WhatsApp saat Checkout."}
+                  Pesanan dibungkus rapi — isi nama &amp; WhatsApp saat Checkout.
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Banner Undo Hapus Item */}
+          {lastRemovedItem && (
+            <div
+              role="status"
+              className="flex items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-5 py-2.5 text-xs"
+            >
+              <span className="truncate font-medium text-amber-900">
+                <strong>{lastRemovedItem.name}</strong> dihapus dari keranjang
+              </span>
+              <button
+                type="button"
+                onClick={handleUndoRemove}
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-800 cursor-pointer"
+              >
+                <RotateCcw className="size-3" aria-hidden />
+                <span>Urungkan</span>
+              </button>
             </div>
           )}
 
           {/* Daftar Item Keranjang */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {items.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center py-8 text-center">
+              <div className="flex flex-col items-center py-6 text-center">
                 <div className="flex size-16 items-center justify-center rounded-2xl bg-secondary-bg text-primary">
                   <ShoppingBag className="size-7" aria-hidden />
                 </div>
@@ -290,10 +382,10 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   Keranjang Anda masih kosong
                 </p>
                 <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
-                  Pilih hidangan khas Aceh &amp; Medan di Katalog Menu atau muat contoh pesanan untuk
-                  langsung mencoba alur transaksi.
+                  Pilih hidangan khas Aceh &amp; Medan langsung dari rekomendasi di bawah atau buka
+                  Katalog Menu.
                 </p>
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
                   <Link
                     href="/menu"
                     onClick={onClose}
@@ -312,49 +404,17 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   </button>
                 </div>
 
-                {/* Rekomendasi Cepat Saat Kosong */}
-                {recommendations.length > 0 && (
-                  <div className="mt-8 w-full border-t border-border pt-5 text-left">
-                    <p className="mb-2.5 text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                      Rekomendasi Terpopuler
-                    </p>
-                    <div className="space-y-2">
-                      {recommendations.map((rec) => (
-                        <div
-                          key={rec.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary-bg/40 p-2.5"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setPreviewProduct(rec)}
-                            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-                          >
-                            <ProductImage
-                              product={rec}
-                              className="size-11 shrink-0 rounded-lg"
-                              emojiClassName="text-xl"
-                              sizes="44px"
-                            />
-                            <div className="min-w-0">
-                              <p className="truncate text-xs font-bold text-foreground">{rec.name}</p>
-                              <p className="font-mono text-[11px] font-bold text-primary">
-                                {formatRupiah(rec.basePrice)}
-                              </p>
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPreviewProduct(rec)}
-                            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 text-[11px] font-bold text-white hover:bg-primary-hover"
-                          >
-                            <Plus className="size-3" aria-hidden />
-                            <span>Pilih</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Rekomendasi Interaktif dengan Pemilih Varian Saat Kosong */}
+                <CartRecommendations
+                  items={items}
+                  isCartEmpty
+                  onQuickAdd={handleAddRecommendation}
+                  onOpenDetail={(product, presetOptions) =>
+                    setPreviewState({ product, presetOptions })
+                  }
+                  getProductCartQuantity={getProductCartQuantity}
+                  getProductMaxStock={getProductMaxStock}
+                />
               </div>
             ) : (
               <div className="space-y-3">
@@ -408,7 +468,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                             <button
                               type="button"
                               aria-label={`Hapus ${item.name}`}
-                              onClick={() => removeItem(item.id)}
+                              onClick={() => handleRemoveWithUndo(item)}
                               className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-error/10 hover:text-error"
                             >
                               <Trash2 className="size-3.5" aria-hidden />
@@ -473,6 +533,18 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                               <span>Simpan</span>
                             </button>
                           </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {ITEM_NOTE_CHIPS.map((chip) => (
+                              <button
+                                key={chip}
+                                type="button"
+                                onClick={() => setNoteDraft((prev) => appendChip(prev, chip))}
+                                className="rounded-md border border-border bg-white px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:border-primary hover:text-primary cursor-pointer"
+                              >
+                                + {chip}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       ) : (
                         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5">
@@ -515,7 +587,13 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                               <button
                                 type="button"
                                 aria-label={`Kurangi ${item.name}`}
-                                onClick={() => updateQuantity(item.id, -1)}
+                                onClick={() => {
+                                  if (item.quantity <= 1) {
+                                    handleRemoveWithUndo(item);
+                                  } else {
+                                    updateQuantity(item.id, -1);
+                                  }
+                                }}
                                 className="flex size-7 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-white hover:text-primary"
                               >
                                 <Minus className="size-3.5" aria-hidden />
@@ -584,6 +662,18 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                         placeholder="Contoh: Sajikan bersamaan, minta sendok & tisu tambahan..."
                         className="w-full resize-none rounded-xl border border-border bg-white px-3 py-2 text-xs outline-none focus:border-primary"
                       />
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {ORDER_NOTE_CHIPS.map((chip) => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => setOrderNotes(appendChip(orderNotes, chip))}
+                            className="rounded-md border border-border bg-white px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:border-primary hover:text-primary cursor-pointer"
+                          >
+                            + {chip}
+                          </button>
+                        ))}
+                      </div>
                       <p className="mt-1 text-right font-mono text-[10px] text-muted-foreground">
                         Otomatis diteruskan ke halaman Checkout ({orderNotes.length}/255)
                       </p>
@@ -591,54 +681,17 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   )}
                 </div>
 
-                {/* Rekomendasi Menu Pendamping (Cross-Sell Interaktif) */}
-                {recommendations.length > 0 && (
-                  <div className="pt-2">
-                    <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                      <Sparkles className="size-3.5 text-primary" aria-hidden />
-                      <span>Pas Ditambahkan ke Pesananmu</span>
-                    </p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {recommendations.map((rec) => (
-                        <div
-                          key={rec.id}
-                          className="flex items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary-bg/40 p-2 transition-colors hover:border-primary/30"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setPreviewProduct(rec)}
-                            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-                          >
-                            <ProductImage
-                              product={rec}
-                              className="size-10 shrink-0 rounded-lg"
-                              emojiClassName="text-lg"
-                              sizes="40px"
-                            />
-                            <div className="min-w-0">
-                              <p className="truncate text-xs font-bold text-foreground hover:text-primary">
-                                {rec.name}
-                              </p>
-                              <p className="font-mono text-[11px] text-muted-foreground">
-                                {formatRupiah(rec.basePrice)} • Sisa {rec.availableQty}
-                              </p>
-                            </div>
-                          </button>
-                          <div className="flex shrink-0 items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAddRecommendation(rec)}
-                              className="inline-flex h-8 items-center gap-1 rounded-lg bg-white px-2.5 text-[11px] font-bold text-primary border border-border shadow-2xs transition-colors hover:bg-primary hover:text-white hover:border-primary"
-                            >
-                              <Plus className="size-3" aria-hidden />
-                              <span>Tambah</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Rekomendasi Menu Pendamping dengan Pemilih Varian Langsung */}
+                <CartRecommendations
+                  items={items}
+                  isCartEmpty={false}
+                  onQuickAdd={handleAddRecommendation}
+                  onOpenDetail={(product, presetOptions) =>
+                    setPreviewState({ product, presetOptions })
+                  }
+                  getProductCartQuantity={getProductCartQuantity}
+                  getProductMaxStock={getProductMaxStock}
+                />
               </div>
             )}
           </div>
@@ -647,11 +700,30 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           {items.length > 0 && (
             <div className="border-t border-border bg-secondary-bg/70 p-5">
               <div className="space-y-1.5 text-xs text-muted-foreground">
-                <div className="flex justify-between">
+                <div className="flex items-center justify-between">
                   <span>Subtotal ({itemCount} porsi)</span>
-                  <span className="font-mono font-semibold text-foreground">
-                    {formatRupiah(subtotal)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopySummary}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-0.5 text-[10px] font-semibold text-foreground hover:border-primary hover:text-primary cursor-pointer"
+                    >
+                      {copiedSummary ? (
+                        <>
+                          <Check className="size-3 text-success" aria-hidden />
+                          <span className="text-success">Disalin</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3" aria-hidden />
+                          <span>Salin Rincian</span>
+                        </>
+                      )}
+                    </button>
+                    <span className="font-mono font-semibold text-foreground">
+                      {formatRupiah(subtotal)}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span>{taxLabel}</span>
@@ -704,11 +776,12 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         />
       )}
 
-      {/* Modal Preview Produk Rekomendasi */}
-      {previewProduct && (
+      {/* Modal Preview Produk Rekomendasi (Terisi Varian Terpilih) */}
+      {previewState && (
         <ProductDetail
-          product={previewProduct}
-          onClose={() => setPreviewProduct(null)}
+          product={previewState.product}
+          initialPresetOptions={previewState.presetOptions}
+          onClose={() => setPreviewState(null)}
         />
       )}
     </>
