@@ -374,7 +374,7 @@ function NavbarContent() {
               <button
                 type="button"
                 onClick={openCart}
-                className="inline-flex h-11 items-center rounded-xl border border-border bg-secondary-bg px-3 text-xs font-bold text-foreground hover:bg-border/60"
+                className="hidden h-11 items-center rounded-xl border border-border bg-secondary-bg px-3 text-xs font-bold text-foreground hover:bg-border/60 min-[420px]:inline-flex"
               >
                 Keranjang
               </button>

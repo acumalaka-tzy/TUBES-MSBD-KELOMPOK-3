@@ -393,11 +393,11 @@ export function CashierPosTab({
             />
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 -mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
             <button
               type="button"
               onClick={() => setSelectedCategoryId("ALL")}
-              className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
                 selectedCategoryId === "ALL"
                   ? "bg-[#0E2A2E] text-white shadow-2xs"
                   : "border border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
@@ -412,7 +412,7 @@ export function CashierPosTab({
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
+                  className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
                     active
                       ? "bg-[#0E2A2E] text-white shadow-2xs"
                       : "border border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
@@ -581,11 +581,11 @@ export function CashierPosTab({
             {/* Pemilih Nomor Meja jika Dine In */}
             {serviceType === "DINE_IN" && (
               <div>
-                <div className="mb-1.5 flex items-center justify-between">
+                <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                     Pilih Meja Pelanggan
                   </label>
-                  <span className="text-[11px] font-bold text-emerald-700">
+                  <span className="text-[10px] font-bold text-emerald-700 sm:text-[11px]">
                     Hijau = Kosong • Kuning = Terisi
                   </span>
                 </div>
@@ -705,7 +705,7 @@ export function CashierPosTab({
                         </p>
                       )}
 
-                      <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2">
+                      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2">
                         <input
                           type="text"
                           value={item.itemNotes}
@@ -718,10 +718,10 @@ export function CashierPosTab({
                             );
                           }}
                           placeholder="+ Catatan item..."
-                          className="w-36 rounded-lg border border-transparent bg-[#F4F7F6] px-2 py-1 text-[11px] text-foreground outline-none focus:border-primary focus:bg-white"
+                          className="min-w-0 flex-1 rounded-lg border border-transparent bg-[#F4F7F6] px-2 py-1 text-[11px] text-foreground outline-none focus:border-primary focus:bg-white sm:w-36 sm:flex-none"
                         />
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleUpdateCartQty(item.cartItemId, -1)}
@@ -779,7 +779,7 @@ export function CashierPosTab({
               {/* Kalkulator Nominal Tunai & Kembalian Otomatis */}
               {paymentMethod === "CASH" && totalAmount > 0 && (
                 <div className="space-y-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-950">
                       Input Bayar Tunai Cepat
                     </span>
@@ -789,7 +789,7 @@ export function CashierPosTab({
                   </div>
 
                   {/* Tombol Cepat: Uang Pas, Rp20.000, Rp50.000, Rp100.000 */}
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                     {quickCashButtons.map((btn) => {
                       const active = effectiveCashPaid === btn.value;
                       return (
@@ -973,7 +973,7 @@ export function CashierPosTab({
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-border bg-[#F4F7F6] px-5 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-border bg-[#F4F7F6] px-4 py-3.5 sm:px-5">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1005,9 +1005,9 @@ export function CashierPosTab({
               <button
                 type="button"
                 onClick={handleConfirmModalProduct}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover sm:flex-initial sm:px-5"
               >
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
                 <span>Masukkan ke Keranjang POS</span>
               </button>
             </div>

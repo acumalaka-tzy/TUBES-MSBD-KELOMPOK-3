@@ -280,9 +280,9 @@ export function CartRecommendations({
                       )}
                     </div>
                     <p className="mt-0.5 font-mono text-xs font-extrabold text-primary">
-                      {formatRupiah(effectivePrice)}
-                      <span className="ml-1.5 font-sans text-[10px] font-medium text-muted-foreground">
-                        • Sisa {maxStock}
+                      <span>{formatRupiah(effectivePrice)}</span>
+                      <span className="block font-sans text-[10px] font-medium text-muted-foreground sm:ml-1.5 sm:inline">
+                        <span className="hidden sm:inline">• </span>Sisa {maxStock} porsi
                       </span>
                     </p>
                   </div>

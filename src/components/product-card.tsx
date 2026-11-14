@@ -76,23 +76,23 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-muted-foreground">
             {product.description}
           </p>
-          <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2.5">
+          <div className="mt-auto flex flex-col items-stretch gap-2 border-t border-border/60 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <span className="font-mono text-sm font-extrabold text-foreground">
+              <span className="block font-mono text-sm font-extrabold text-foreground">
                 {formatRupiah(product.basePrice)}
               </span>
               {!soldOut ? (
-                <span className="block font-mono text-[10px] text-muted-foreground">
+                <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">
                   Sisa: {product.availableQty} porsi
                 </span>
               ) : (
-                <span className="block font-mono text-[10px] text-error font-semibold">
+                <span className="mt-0.5 block font-mono text-[10px] text-error font-semibold">
                   Stok: 0 porsi
                 </span>
               )}
             </div>
             {soldOut ? (
-              <span className="rounded-lg bg-error/10 px-2.5 py-1 text-xs font-bold text-error">
+              <span className=" rounded-lg bg-error/10 px-2.5 py-1.5 text-center text-xs font-bold text-error sm:py-1">
                 Habis
               </span>
             ) : totalQtyInCart > 0 ? (
@@ -104,9 +104,12 @@ export function ProductCard({ product }: { product: Product }) {
                   setOpen(true);
                 }}
                 aria-label={`${totalQtyInCart} ${product.name} di keranjang`}
-                className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-primary px-3 text-xs font-black text-white shadow-2xs transition-colors hover:bg-primary-hover"
+                className="inline-flex h-9 w-full min-w-9 items-center justify-center rounded-xl bg-primary px-3 text-xs font-black text-white shadow-2xs transition-colors hover:bg-primary-hover sm:w-auto"
               >
-                <span>{totalQtyInCart}</span>
+                <span>
+                  {totalQtyInCart}
+                  <span className="sm:hidden"> di Keranjang</span>
+                </span>
               </button>
             ) : (
               /* Tombol Tambah default */
@@ -117,7 +120,7 @@ export function ProductCard({ product }: { product: Product }) {
                   setOpen(true);
                 }}
                 aria-label={`Pilih ${product.name}`}
-                className="inline-flex h-9 items-center gap-1 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-primary-hover"
+                className="inline-flex h-9 w-full items-center justify-center gap-1 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-primary-hover sm:w-auto"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
                 <span>Tambah</span>

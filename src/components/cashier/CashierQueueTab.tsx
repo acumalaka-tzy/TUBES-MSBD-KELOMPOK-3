@@ -224,45 +224,45 @@ export function CashierQueueTab({
     count: number;
     badgeTone: string;
   }[] = [
-    {
-      key: "action",
-      label: "Perlu Tindakan",
-      count: counts.action,
-      badgeTone: "bg-amber-500 text-white",
-    },
-    {
-      key: "preparing",
-      label: "Sedang Disiapkan",
-      count: counts.preparing,
-      badgeTone: "bg-purple-600 text-white",
-    },
-    {
-      key: "ready",
-      label: "Siap Saji",
-      count: counts.ready,
-      badgeTone: "bg-emerald-600 text-white",
-    },
-    {
-      key: "done",
-      label: "Selesai",
-      count: counts.done,
-      badgeTone: "bg-neutral-500 text-white",
-    },
-    {
-      key: "all",
-      label: "Semua",
-      count: counts.all,
-      badgeTone: "bg-[#0E2A2E] text-white",
-    },
-  ];
+      {
+        key: "action",
+        label: "Perlu Tindakan",
+        count: counts.action,
+        badgeTone: "bg-amber-500 text-white",
+      },
+      {
+        key: "preparing",
+        label: "Sedang Disiapkan",
+        count: counts.preparing,
+        badgeTone: "bg-purple-600 text-white",
+      },
+      {
+        key: "ready",
+        label: "Siap Saji",
+        count: counts.ready,
+        badgeTone: "bg-emerald-600 text-white",
+      },
+      {
+        key: "done",
+        label: "Selesai",
+        count: counts.done,
+        badgeTone: "bg-neutral-500 text-white",
+      },
+      {
+        key: "all",
+        label: "Semua",
+        count: counts.all,
+        badgeTone: "bg-[#0E2A2E] text-white",
+      },
+    ];
 
   return (
     <div className="space-y-5">
       {/* Header Control Bar: Filter Tabs & Audio Alert Demo */}
-      <div className="rounded-2xl border border-border bg-white p-4 shadow-xs sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="rounded-2xl border border-border bg-white p-3.5 shadow-xs sm:p-5">
+        <div className="flex flex-col gap-3.5 lg:flex-row lg:items-center lg:justify-between">
           {/* Tab Filter Utama sesuai Checklist */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
             {filterTabs.map((tab) => {
               const active = activeFilter === tab.key;
               return (
@@ -270,17 +270,15 @@ export function CashierQueueTab({
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveFilter(tab.key)}
-                  className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-extrabold transition-all ${
-                    active
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-extrabold transition-all sm:px-3.5 sm:py-2.5 ${active
                       ? "bg-[#0E2A2E] text-white shadow-sm"
                       : "border border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
-                  }`}
+                    }`}
                 >
                   <span>{tab.label}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 font-mono text-[11px] font-black ${
-                      active ? "bg-primary text-white" : tab.badgeTone
-                    }`}
+                    className={`rounded-full px-2 py-0.5 font-mono text-[11px] font-black ${active ? "bg-primary text-white" : tab.badgeTone
+                      }`}
                   >
                     {tab.count}
                   </span>
@@ -290,7 +288,7 @@ export function CashierQueueTab({
           </div>
 
           {/* Filter Sumber & Tombol Simulasi Pesanan Web Masuk + Audio Alert */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-start">
             <div className="inline-flex rounded-xl border border-border bg-[#F4F7F6] p-1">
               {(
                 [
@@ -303,11 +301,10 @@ export function CashierQueueTab({
                   key={src.id}
                   type="button"
                   onClick={() => setSourceFilter(src.id)}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
-                    sourceFilter === src.id
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${sourceFilter === src.id
                       ? "bg-white text-[#0E2A2E] shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {src.label}
                 </button>
@@ -331,7 +328,7 @@ export function CashierQueueTab({
               type="button"
               onClick={handleSimulateWebOrder}
               disabled={isPending && pendingOrderNo === "SIMULATE"}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover disabled:opacity-50 sm:w-auto sm:py-2"
             >
               <BellRing className="h-3.5 w-3.5 animate-bounce" />
               <span>
@@ -376,37 +373,34 @@ export function CashierQueueTab({
             return (
               <div
                 key={order.id}
-                className={`flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-xs transition-all hover:shadow-md ${
-                  !isPaid && !isTerminal
+                className={`flex flex-col justify-between rounded-2xl border bg-white p-4 shadow-xs transition-all hover:shadow-md sm:p-5 ${!isPaid && !isTerminal
                     ? "border-amber-500/40 ring-1 ring-amber-500/15"
                     : order.status === "READY"
                       ? "border-emerald-500/40 ring-1 ring-emerald-500/15"
                       : "border-border"
-                }`}
+                  }`}
               >
                 <div>
                   {/* Baris Atas: Nomor Struk, Sumber, Tipe Layanan & Status */}
-                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/80 pb-3.5">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-base font-black text-[#0E2A2E]">
+                  <div className="flex flex-col gap-2.5 border-b border-border/80 pb-3.5 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <span className="font-mono text-sm font-black text-[#0E2A2E] sm:text-base">
                           {order.orderNumber}
                         </span>
                         <span
-                          className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${
-                            order.source === "WEB"
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${order.source === "WEB"
                               ? "bg-indigo-500/10 text-indigo-700"
                               : "bg-[#0E2A2E]/10 text-[#0E2A2E]"
-                          }`}
+                            }`}
                         >
                           {order.source === "WEB" ? "WEB • QR" : "POS KASIR"}
                         </span>
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-extrabold ${
-                            order.serviceType === "DINE_IN"
+                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-extrabold ${order.serviceType === "DINE_IN"
                               ? "bg-primary/15 text-primary"
                               : "bg-amber-500/15 text-amber-800"
-                          }`}
+                            }`}
                         >
                           {order.serviceType === "DINE_IN" ? (
                             <>
@@ -422,7 +416,7 @@ export function CashierQueueTab({
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1 font-bold text-foreground">
                           <User className="h-3.5 w-3.5 text-muted-foreground" />
                           {order.customerName}
@@ -441,7 +435,7 @@ export function CashierQueueTab({
                     </div>
 
                     {/* Badge Status Pesanan & Pembayaran */}
-                    <div className="flex flex-col items-end gap-1.5">
+                    <div className="flex flex-row flex-wrap items-center gap-1.5 sm:shrink-0 sm:flex-col sm:items-end">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${statusMeta.badgeClass}`}
                       >
@@ -450,11 +444,10 @@ export function CashierQueueTab({
                       </span>
 
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${
-                          isPaid
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${isPaid
                             ? "bg-emerald-500/15 text-emerald-800"
                             : "bg-amber-500/20 text-amber-900"
-                        }`}
+                          }`}
                       >
                         {order.payment.method} • {isPaid ? "LUNAS" : "BELUM BAYAR"}
                       </span>
@@ -538,17 +531,17 @@ export function CashierQueueTab({
                   </div>
 
                   {/* Baris Tombol Cepat 1-2 Klik */}
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                       {/* 1. Tombol Pembayaran Tunai atau Webhook Digital */}
                       {!isPaid && !isTerminal && isCash && (
                         <button
                           type="button"
                           onClick={() => onOpenCashModal(order)}
                           disabled={isOrderBusy}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50 sm:w-auto sm:py-2"
                         >
-                          <Banknote className="h-4 w-4" />
+                          <Banknote className="h-4 w-4 shrink-0" />
                           <span>Terima Tunai &amp; Kembalian</span>
                         </button>
                       )}
@@ -558,36 +551,36 @@ export function CashierQueueTab({
                           type="button"
                           onClick={() => handleSimulateWebhookPaid(order.orderNumber)}
                           disabled={isOrderBusy}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-xs font-extrabold text-indigo-800 transition hover:bg-indigo-500/20 disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 py-2.5 text-xs font-extrabold text-indigo-800 transition hover:bg-indigo-500/20 disabled:opacity-50 sm:w-auto sm:py-2"
                           title="Sesuai PRD 6.4: Pembayaran digital diverifikasi oleh webhook gateway"
                         >
-                          <QrCode className="h-3.5 w-3.5" />
+                          <QrCode className="h-3.5 w-3.5 shrink-0" />
                           <span>Simulasi Webhook Lunas ({order.payment.method})</span>
                         </button>
                       )}
 
                       {/* 2. Tombol Progres Status 1-2 Klik */}
                       {order.status === "PENDING" && (
-                        <>
+                        <div className="grid grid-cols-2 gap-2 sm:contents">
                           <button
                             type="button"
                             onClick={() => handleQuickStatusUpdate(order.orderNumber, "CONFIRMED")}
                             disabled={isOrderBusy}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50 sm:px-3.5 sm:py-2"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                             <span>Konfirmasi</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleQuickStatusUpdate(order.orderNumber, "PREPARING")}
                             disabled={isOrderBusy}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-purple-600/40 bg-purple-600/10 px-3 py-2 text-xs font-extrabold text-purple-800 transition hover:bg-purple-600/20 disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-purple-600/40 bg-purple-600/10 px-3 py-2.5 text-xs font-extrabold text-purple-800 transition hover:bg-purple-600/20 disabled:opacity-50 sm:py-2"
                           >
-                            <ChefHat className="h-3.5 w-3.5" />
+                            <ChefHat className="h-3.5 w-3.5 shrink-0" />
                             <span>Langsung Masak</span>
                           </button>
-                        </>
+                        </div>
                       )}
 
                       {order.status === "CONFIRMED" && (
@@ -595,11 +588,11 @@ export function CashierQueueTab({
                           type="button"
                           onClick={() => handleQuickStatusUpdate(order.orderNumber, "PREPARING")}
                           disabled={isOrderBusy}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-purple-700 disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-purple-700 disabled:opacity-50 sm:w-auto sm:py-2"
                         >
-                          <ChefHat className="h-4 w-4" />
+                          <ChefHat className="h-4 w-4 shrink-0" />
                           <span>Mulai Siapkan (Preparing)</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                         </button>
                       )}
 
@@ -608,11 +601,11 @@ export function CashierQueueTab({
                           type="button"
                           onClick={() => handleQuickStatusUpdate(order.orderNumber, "READY")}
                           disabled={isOrderBusy}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover disabled:opacity-50 sm:w-auto sm:py-2"
                         >
-                          <Sparkles className="h-4 w-4" />
+                          <Sparkles className="h-4 w-4 shrink-0" />
                           <span>Tandai Siap Saji (Ready)</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                         </button>
                       )}
 
@@ -623,9 +616,9 @@ export function CashierQueueTab({
                             handleQuickStatusUpdate(order.orderNumber, "COMPLETED", true)
                           }
                           disabled={isOrderBusy}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-[#0E2A2E] px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#163d42] disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0E2A2E] px-3.5 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#163d42] disabled:opacity-50 sm:w-auto sm:py-2"
                         >
-                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
                           <span>
                             Selesaikan Pesanan
                             {order.serviceType === "DINE_IN" ? " & Kosongkan Meja" : ""}
@@ -635,15 +628,15 @@ export function CashierQueueTab({
                     </div>
 
                     {/* 3. Tombol Cetak Struk & Batalkan */}
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-end gap-2 sm:gap-1.5">
                       <button
                         type="button"
                         onClick={() => onOpenReceiptModal(order)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:border-primary/40 hover:bg-muted"
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:border-primary/40 hover:bg-muted sm:flex-initial"
                         title="Cetak Struk Termal 58mm / 80mm"
                       >
                         <Printer className="h-3.5 w-3.5 text-primary" />
-                        <span>Struk</span>
+                        <span>Cetak Struk</span>
                       </button>
 
                       {!isTerminal && (
@@ -673,11 +666,11 @@ export function CashierQueueTab({
                               type="button"
                               onClick={() => setConfirmCancelOrderNo(order.orderNumber)}
                               disabled={isOrderBusy}
-                              className="inline-flex items-center gap-1 rounded-xl border border-border bg-white px-2.5 py-2 text-xs font-bold text-red-600 transition hover:border-red-500/30 hover:bg-red-50"
+                              className="inline-flex items-center justify-center gap-1 rounded-xl border border-border bg-white px-3 py-2 text-xs font-bold text-red-600 transition hover:border-red-500/30 hover:bg-red-50 sm:px-2.5"
                               title="Batalkan pesanan & kembalikan reservasi stok"
                             >
                               <XCircle className="h-3.5 w-3.5" />
-                              <span className="hidden sm:inline">Batal</span>
+                              <span>Batal</span>
                             </button>
                           )}
                         </>
