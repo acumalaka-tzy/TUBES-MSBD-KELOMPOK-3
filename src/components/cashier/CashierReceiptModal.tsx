@@ -265,51 +265,56 @@ export function CashierReceiptModal({
         </div>
 
         {/* Toolbar Pilihan Ukuran Kertas */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-[#F4F7F6] px-6 py-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2.5 border-b border-border bg-[#F4F7F6] px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-6">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
             <span className="text-xs font-bold text-muted-foreground">Ukuran Kertas:</span>
-            <button
-              type="button"
-              onClick={() => setPaperSize("58MM")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition ${
-                paperSize === "58MM"
-                  ? "bg-[#0E2A2E] text-white shadow-xs"
-                  : "border border-border bg-white text-foreground hover:bg-muted"
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span>Thermal 58mm (Standar)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaperSize("80MM")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition ${
-                paperSize === "80MM"
-                  ? "bg-[#0E2A2E] text-white shadow-xs"
-                  : "border border-border bg-white text-foreground hover:bg-muted"
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span>Thermal 80mm (Lebar)</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <button
+                type="button"
+                onClick={() => setPaperSize("58MM")}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition sm:px-3.5 ${
+                  paperSize === "58MM"
+                    ? "bg-[#0E2A2E] text-white shadow-xs"
+                    : "border border-border bg-white text-foreground hover:bg-muted"
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                <span>Thermal 58mm</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize("80MM")}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition sm:px-3.5 ${
+                  paperSize === "80MM"
+                    ? "bg-[#0E2A2E] text-white shadow-xs"
+                    : "border border-border bg-white text-foreground hover:bg-muted"
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                <span>Thermal 80mm</span>
+              </button>
+            </div>
           </div>
+          <span className="self-start rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[11px] font-bold text-emerald-700 sm:self-auto">
+            CSS Print &amp; PDF Ready
+          </span>
         </div>
 
         {printSuccessMsg && (
-          <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-800">
+          <div className="mx-4 mt-3 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-800 sm:mx-6 sm:mt-4">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
             <span>{printSuccessMsg}</span>
           </div>
         )}
 
         {/* Pratinjau Kertas Struk Termal */}
-        <div className="flex-1 overflow-y-auto bg-neutral-200/70 p-6">
+        <div className="flex-1 overflow-x-auto overflow-y-auto bg-neutral-200/70 p-3 sm:p-6">
           <div
             id="warkop-thermal-receipt-area"
-            className={`mx-auto rounded-md border border-neutral-300 bg-white font-mono text-black shadow-lg transition-all ${
+            className={`mx-auto max-w-full rounded-md border border-neutral-300 bg-white font-mono text-black shadow-lg transition-all ${
               paperSize === "58MM"
                 ? "w-[260px] p-4 text-[11px] leading-snug"
-                : "w-[350px] p-5 text-[12px] leading-normal"
+                : "w-[350px] p-4 text-[12px] leading-normal sm:p-5"
             }`}
           >
             {/* Header Toko */}
@@ -454,29 +459,37 @@ export function CashierReceiptModal({
         </div>
 
         {/* Footer Aksi */}
-        <div className="flex items-center justify-end gap-2.5 border-t border-border bg-white px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-foreground transition hover:bg-muted"
-          >
-            Tutup
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={isPending || !isPaid}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-primary-hover disabled:opacity-50"
-          >
-            <Printer className="h-4 w-4" />
+        <div className="flex flex-col gap-3 border-t border-border bg-white px-4 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Sparkles className="h-4 w-4 shrink-0 text-primary" />
             <span>
-              {!isPaid
-                ? "Pesanan Belum Lunas"
-                : isPending
+              Pilih printer termal atau <strong>Save as PDF</strong> pada jendela cetak.
+            </span>
+          </div>
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-foreground transition hover:bg-muted sm:w-auto"
+            >
+              Tutup
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={isPending || !isPaid}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-primary-hover disabled:opacity-50 sm:w-auto"
+            >
+              <Printer className="h-4 w-4 shrink-0" />
+              <span>
+                {!isPaid
+                  ? "Pesanan Belum Lunas"
+                  : isPending
                   ? "Menyiapkan Struk..."
                   : "Cetak Struk"}
-            </span>
-          </button>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ const styles: Record<StockStatus, string> = {
 
 export function StockBadge({ status, className }: { status: StockStatus; className?: string }) {
   return (
-    <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold", styles[status], className)}>
+    <span className={cn("inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold", styles[status], className)}>
       {stockLabel[status]}
     </span>
   );

@@ -546,7 +546,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+                        <div className="mt-2.5 flex flex-col gap-2 border-t border-border/60 pt-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                           {/* Tombol Ubah Varian & Ubah Catatan */}
                           <div className="flex flex-wrap items-center gap-1.5">
                             <button
@@ -577,7 +577,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                           </div>
 
                           {/* Stepper Jumlah & Subtotal Item */}
-                          <div className="flex items-center gap-2.5 ml-auto">
+                          <div className="flex w-full items-center justify-between gap-2.5 sm:ml-auto sm:w-auto sm:justify-end">
                             <span className="font-mono text-xs font-extrabold text-foreground">
                               {formatRupiah(item.subtotal)}
                             </span>
@@ -740,12 +740,12 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               <Link
                 href={checkoutHref}
                 onClick={onClose}
-                className="mt-4 flex h-12 w-full items-center justify-between rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary-hover"
+                className="mt-4 flex h-12 w-full items-center justify-between gap-2 rounded-xl bg-primary px-3.5 text-xs font-bold text-white shadow-md transition-colors hover:bg-primary-hover sm:px-5 sm:text-sm"
               >
-                <span>
+                <span className="truncate">
                   Lanjut ke Checkout ({effectiveServiceType === "DINE_IN" ? "Dine In" : "Takeaway"})
                 </span>
-                <span className="inline-flex items-center gap-1.5 font-mono font-extrabold">
+                <span className="inline-flex shrink-0 items-center gap-1.5 font-mono font-extrabold">
                   {formatRupiah(totalAmount)}
                   <ArrowRight className="size-4" aria-hidden />
                 </span>

@@ -90,11 +90,11 @@ export function CashierTablesTab({
           </h3>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           <button
             type="button"
             onClick={() => setStatusFilter("ALL")}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
               statusFilter === "ALL"
                 ? "bg-[#0E2A2E] text-white shadow-xs"
                 : "border border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
@@ -109,7 +109,7 @@ export function CashierTablesTab({
           <button
             type="button"
             onClick={() => setStatusFilter("AVAILABLE")}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
               statusFilter === "AVAILABLE"
                 ? "bg-emerald-600 text-white shadow-xs"
                 : "border border-emerald-500/30 bg-emerald-500/10 text-emerald-900 hover:bg-emerald-500/20"
@@ -125,7 +125,7 @@ export function CashierTablesTab({
           <button
             type="button"
             onClick={() => setStatusFilter("OCCUPIED")}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
               statusFilter === "OCCUPIED"
                 ? "bg-amber-600 text-white shadow-xs"
                 : "border border-amber-500/30 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20"

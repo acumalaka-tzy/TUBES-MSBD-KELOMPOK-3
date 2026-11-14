@@ -110,30 +110,30 @@ export function CustomerForm({
         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
           Tipe Layanan <span className="text-destructive">*</span>
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
           <button
             type="button"
             onClick={() => onServiceTypeChange("DINE_IN")}
-            className={`flex items-center justify-center gap-2.5 p-3.5 rounded-xl border-2 text-sm font-bold transition-all ${
+            className={`flex items-center justify-center gap-2.5 p-3 sm:p-3.5 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
               serviceType === "DINE_IN"
                 ? "border-primary bg-primary/5 text-primary shadow-xs"
                 : "border-border hover:bg-secondary-bg text-muted-foreground"
             }`}
           >
-            <Utensils className="w-4 h-4" />
+            <Utensils className="w-4 h-4 shrink-0" />
             <span>Makan di Tempat (Dine In)</span>
           </button>
 
           <button
             type="button"
             onClick={() => onServiceTypeChange("TAKEAWAY")}
-            className={`flex items-center justify-center gap-2.5 p-3.5 rounded-xl border-2 text-sm font-bold transition-all ${
+            className={`flex items-center justify-center gap-2.5 p-3 sm:p-3.5 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
               serviceType === "TAKEAWAY"
                 ? "border-primary bg-primary/5 text-primary shadow-xs"
                 : "border-border hover:bg-secondary-bg text-muted-foreground"
             }`}
           >
-            <Package className="w-4 h-4" />
+            <Package className="w-4 h-4 shrink-0" />
             <span>Bungkus (Takeaway)</span>
           </button>
         </div>

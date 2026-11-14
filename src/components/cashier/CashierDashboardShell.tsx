@@ -364,34 +364,133 @@ export function CashierDashboardShell({
        * =================================================================== */}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         {/* TOPBAR HEADER (Seragam dengan AdminDashboardShell) */}
-        <header className="sticky top-0 z-30 flex flex-col justify-between gap-4 border-b border-border/80 bg-white/95 px-4 py-3.5 backdrop-blur-md sm:px-6 md:flex-row md:items-center lg:px-8">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setMobileSidebarOpen(true)}
-              className="rounded-xl border border-border p-2 text-foreground lg:hidden"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+        <header className="sticky top-0 z-30 flex flex-col justify-between gap-3 border-b border-border/80 bg-white/95 px-4 py-3 backdrop-blur-md sm:gap-4 sm:px-6 sm:py-3.5 md:flex-row md:items-center lg:px-8">
+          <div className="flex items-start justify-between gap-3 sm:items-center">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileSidebarOpen(true)}
+                className="shrink-0 rounded-xl border border-border p-2 text-foreground lg:hidden"
+                aria-label="Buka menu navigasi kasir"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
 
-            <div>
-              <h2 className="text-base font-black tracking-tight text-foreground sm:text-lg">
-                Shift Operasional Kasir — {cashierUser.name}
-              </h2>
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-black tracking-tight text-foreground sm:text-lg">
+                  Shift Operasional Kasir — {cashierUser.name}
+                </h2>
+                <p className="line-clamp-1 text-[11px] text-muted-foreground sm:text-xs">
+                  Pantau antrean pesanan real-time, input POS manual, konfirmasi tunai, dan cetak struk.
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2.5">
+          {/* Pencarian khusus layar Mobile (< sm) agar tidak bertabrakan dengan deretan tombol */}
+          <div className="relative sm:hidden">
+            <input
+              type="text"
+              placeholder="Cari no. order, pelanggan, meja..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-full rounded-xl border border-border bg-secondary-bg/50 pr-3 pl-8 text-xs outline-none focus:border-primary focus:bg-white"
+            />
+            <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+
+          {/* Quick Actions & Search */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5">
+            {/* Search bar mini (sm ke atas) */}
+            <div className="relative hidden w-48 sm:block xl:w-60">
+              <input
+                type="text"
+                placeholder="Cari no. order, pelanggan, meja..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-full rounded-xl border border-border bg-secondary-bg/50 pr-3 pl-8 text-xs outline-none focus:border-primary focus:bg-white"
+              />
+              <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+
+            {/* Toggle Notifikasi Suara (Audio Alert) */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !audioEnabled;
+                setAudioEnabled(next);
+                if (next) {
+                  setTimeout(() => playAudioAlert(), 60);
+                }
+              }}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold shadow-2xs transition-all sm:px-3 sm:text-xs ${
+                audioEnabled
+                  ? "border-emerald-500/30 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                  : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              }`}
+              title="Aktifkan/Matikan Notifikasi Suara Pesanan Masuk"
+            >
+              {audioEnabled ? (
+                <Volume2 className="h-3.5 w-3.5 text-emerald-600" />
+              ) : (
+                <VolumeX className="h-3.5 w-3.5 text-neutral-500" />
+              )}
+              <span>Suara: {audioEnabled ? "ON" : "OFF"}</span>
+            </button>
+
+            {/* Tombol Sinkronisasi Real-Time */}
+            <button
+              type="button"
+              onClick={() => void refreshDashboardData()}
+              disabled={isSyncing}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-white px-2.5 py-1.5 text-[11px] font-bold text-foreground shadow-2xs transition hover:bg-secondary-bg disabled:opacity-60 sm:px-3 sm:text-xs"
+              title="Segarkan antrean sekarang (Auto-sync tiap 5 detik)"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-primary ${isSyncing ? "animate-spin" : ""}`} />
+              <span>Sync</span>
+            </button>
+
             {/* Link ke Web Publik */}
             <Link
               href="/"
               target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground shadow-2xs transition hover:bg-secondary-bg"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-2.5 py-1.5 text-[11px] font-bold text-foreground shadow-2xs hover:bg-secondary-bg sm:px-3 sm:text-xs"
             >
               <span>Web Menu</span>
               <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
             </Link>
+          </div>
+
+          {/* Navigasi Tab Cepat Horizontal khusus Mobile/Tablet (< lg) */}
+          <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto border-t border-border/60 px-4 pt-2.5 no-scrollbar sm:-mx-6 sm:px-6 lg:hidden">
+            {navMenuItems.map((item) => {
+              const active = activeTab === item.key;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActiveTab(item.key)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
+                    active
+                      ? "bg-[#0E2A2E] text-white shadow-2xs"
+                      : "border border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Icon className={`h-3.5 w-3.5 ${active ? "text-emerald-400" : "text-primary"}`} />
+                  <span>{item.label}</span>
+                  {item.badge !== undefined && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] font-black ${
+                        active ? "bg-primary text-white" : "bg-amber-500 text-white"
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </header>
 

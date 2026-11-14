@@ -275,12 +275,12 @@ export function CashierPaymentModal({
         </div>
 
         {/* Footer Tombol Konfirmasi */}
-        <div className="flex flex-wrap items-center justify-end gap-2.5 border-t border-border bg-[#F4F7F6] px-6 py-4">
+        <div className="flex flex-col-reverse gap-2 border-t border-border bg-[#F4F7F6] px-4 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2.5 sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-foreground transition hover:bg-muted disabled:opacity-50"
+            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-foreground transition hover:bg-muted disabled:opacity-50 sm:w-auto"
           >
             Batal
           </button>
@@ -288,18 +288,18 @@ export function CashierPaymentModal({
             type="button"
             onClick={() => handleConfirm(false)}
             disabled={isPending || !isSufficient}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-600 bg-white px-4 py-2.5 text-xs font-extrabold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-600 bg-white px-4 py-2.5 text-xs font-extrabold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50 sm:w-auto"
           >
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>{isPending ? "Memproses..." : "Tandai Lunas Saja"}</span>
           </button>
           <button
             type="button"
             onClick={() => handleConfirm(true)}
             disabled={isPending || !isSufficient}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50 sm:w-auto"
           >
-            <Printer className="h-4 w-4" />
+            <Printer className="h-4 w-4 shrink-0" />
             <span>
               {isPending ? "Memproses..." : "Konfirmasi Lunas & Cetak Struk"}
             </span>
