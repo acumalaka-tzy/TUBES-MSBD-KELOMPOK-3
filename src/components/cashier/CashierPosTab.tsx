@@ -1218,7 +1218,6 @@ export function CashierPosTab({
                 </button>
               </div>
             </div>
-            </div>
           </div>
         </div>
       )}
