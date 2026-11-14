@@ -53,10 +53,14 @@ function NavbarContent() {
 
   const checkoutHref = table ? `/checkout?table=${encodeURIComponent(table)}` : "/checkout";
   const showStickyMobileCart =
-    itemCount > 0 && pathname !== "/checkout" && !pathname.startsWith("/orders/") && !pathname.startsWith("/admin");
+    itemCount > 0 &&
+    pathname !== "/checkout" &&
+    !pathname.startsWith("/orders/") &&
+    !pathname.startsWith("/admin") &&
+    !pathname.startsWith("/cashier");
 
-  // Di rute Dashboard Admin, sembunyikan Navbar publik untuk tampilan dashboard dedicated
-  if (pathname.startsWith("/admin")) {
+  // Di rute Dashboard Admin & POS Kasir, sembunyikan Navbar publik untuk tampilan dashboard dedicated
+  if (pathname.startsWith("/admin") || pathname.startsWith("/cashier")) {
     return null;
   }
 
