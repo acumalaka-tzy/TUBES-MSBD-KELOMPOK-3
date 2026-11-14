@@ -162,17 +162,25 @@ export function CustomerForm({
               id="table-number-select"
               required
               value={tableNumber}
-              onChange={(e) => onTableNumberChange(e.target.value)}
+              onChange={(e) => {
+                const targetT = tables.find((t) => t.table_number === e.target.value);
+                if (targetT?.status === "OCCUPIED") return;
+                onTableNumberChange(e.target.value);
+              }}
               className="w-full pl-10 pr-10 py-3 bg-card border border-border rounded-xl text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer shadow-2xs"
             >
               <option value="" disabled>
                 -- Pilih Nomor Meja Anda --
               </option>
-              {tables.map((t) => (
-                <option key={t.id} value={t.table_number}>
-                  Meja {t.table_number} {t.name && t.name !== `Meja ${t.table_number}` ? `• ${t.name}` : ""}
-                </option>
-              ))}
+              {tables.map((t) => {
+                const isOccupied = t.status === "OCCUPIED";
+                const num = String(t.table_number).replace(/^0+/, "") || String(t.table_number);
+                return (
+                  <option key={t.id} value={t.table_number} disabled={isOccupied}>
+                    Meja {num}
+                  </option>
+                );
+              })}
             </select>
             <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -181,7 +189,10 @@ export function CustomerForm({
             <div className="flex items-center gap-2 pt-0.5 text-xs text-muted-foreground">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
               <span>
-                Pesanan akan disajikan ke <strong className="text-foreground">Meja {tableNumber}</strong>.
+                Pesanan akan disajikan ke{" "}
+                <strong className="text-foreground">
+                  Meja {String(tableNumber).replace(/^0+/, "") || String(tableNumber)}
+                </strong>.
               </span>
             </div>
           )}

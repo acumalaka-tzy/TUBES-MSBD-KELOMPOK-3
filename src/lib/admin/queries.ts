@@ -625,10 +625,11 @@ export async function listAdminTables() {
           ? `${appUrl}/menu?table=${encodeURIComponent(r.table_number)}&token=${encodeURIComponent(token)}`
           : null;
 
+        const cleanName = `Meja ${String(r.table_number).replace(/^0+/, "") || String(r.table_number)}`;
         return {
           id: r.id,
           tableNumber: r.table_number,
-          name: r.name,
+          name: cleanName,
           capacity: r.capacity,
           status: r.status as AdminTable["status"],
           isActive: r.is_active,
@@ -653,10 +654,11 @@ export async function listAdminTables() {
             ? `${appUrl}/menu?table=${encodeURIComponent(r.table_number)}&token=${encodeURIComponent(token)}`
             : null;
 
+          const cleanName = `Meja ${String(r.table_number).replace(/^0+/, "") || String(r.table_number)}`;
           return {
             id: r.id,
             tableNumber: r.table_number,
-            name: r.name,
+            name: cleanName,
             capacity: r.capacity,
             status: r.status,
             isActive: r.is_active,

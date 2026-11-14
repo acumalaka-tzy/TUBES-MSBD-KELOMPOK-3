@@ -26,6 +26,8 @@ import {
   UtensilsCrossed,
   Wallet,
   ShoppingBag,
+  Store,
+  ReceiptText,
   X,
   XCircle,
 } from "lucide-react";
@@ -52,6 +54,7 @@ import { AdminStockTab } from "./AdminStockTab";
 import { AdminTablesTab } from "./AdminTablesTab";
 import { AdminStaffTab } from "./AdminStaffTab";
 import { AdminReportsTab } from "./AdminReportsTab";
+import { AdminTransactionsTab } from "./AdminTransactionsTab";
 import { AdminSettingsTab } from "./AdminSettingsTab";
 import { AdminAuditLogTab } from "./AdminAuditLogTab";
 
@@ -172,6 +175,7 @@ export function AdminDashboardShell({
     },
     { key: "tables", label: "Meja & QR Code", icon: QrCode },
     { key: "staff", label: "Staf Kasir", icon: Users },
+    { key: "transactions", label: "Riwayat Transaksi", icon: ReceiptText },
     { key: "reports", label: "Laporan & Ekspor", icon: FileSpreadsheet },
     { key: "audit", label: "Audit Log", icon: ShieldCheck },
     { key: "settings", label: "Pengaturan Toko", icon: Settings },
@@ -252,15 +256,16 @@ export function AdminDashboardShell({
           </nav>
         </div>
 
-        {/* Sidebar Footer: Shortcut POS & User Profile Card */}
+        {/* Sidebar Footer: Shortcut Katalog & User Profile Card */}
         <div className="p-3 border-t border-white/10 space-y-3">
-          {/* Shortcut POS Kasir */}
+          {/* Shortcut Lihat Katalog Menu Publik */}
           <Link
-            href="/cashier"
+            href="/menu"
+            target="_blank"
             className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 active:scale-[0.99] cursor-pointer"
           >
-            <UtensilsCrossed className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Buka POS Kasir</span>
+            <Store className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Lihat Menu Pelanggan</span>
             <ExternalLink className="h-3 w-3 text-white/50" />
           </Link>
 
@@ -315,11 +320,8 @@ export function AdminDashboardShell({
 
             <div>
               <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground">
-                Selamat Datang Kembali, {adminUser.name}! 👋
+                Panel Administrator
               </h2>
-              <p className="text-xs text-muted-foreground">
-                Berikut ringkasan performa dan operasional Warkop Agam hari ini.
-              </p>
             </div>
           </div>
 
@@ -547,6 +549,10 @@ export function AdminDashboardShell({
                 onNotify={notify}
                 onRefresh={refreshData}
               />
+            )}
+
+            {activeTab === "transactions" && (
+              <AdminTransactionsTab transactions={detailedReport.recentTransactions} />
             )}
 
             {activeTab === "reports" && (

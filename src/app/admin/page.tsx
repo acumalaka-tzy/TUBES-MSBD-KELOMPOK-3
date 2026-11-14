@@ -24,6 +24,7 @@ const VALID_TABS: AdminTabKey[] = [
   "stock",
   "tables",
   "staff",
+  "transactions",
   "reports",
   "settings",
   "audit",

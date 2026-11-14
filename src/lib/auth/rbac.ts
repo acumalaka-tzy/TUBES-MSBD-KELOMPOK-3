@@ -16,7 +16,7 @@ export const PROTECTED_ROUTES: RoutePermission[] = [
   },
   {
     pathPrefix: "/cashier",
-    allowedRoles: ["CASHIER", "ADMIN"],
+    allowedRoles: ["CASHIER"],
     loginRedirect: "/login?redirect=/cashier",
     unauthorizedRedirect: "/unauthorized",
   },

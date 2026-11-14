@@ -53,10 +53,14 @@ function NavbarContent() {
 
   const checkoutHref = table ? `/checkout?table=${encodeURIComponent(table)}` : "/checkout";
   const showStickyMobileCart =
-    itemCount > 0 && pathname !== "/checkout" && !pathname.startsWith("/orders/") && !pathname.startsWith("/admin");
+    itemCount > 0 &&
+    pathname !== "/checkout" &&
+    !pathname.startsWith("/orders/") &&
+    !pathname.startsWith("/admin") &&
+    !pathname.startsWith("/cashier");
 
-  // Di rute Dashboard Admin, sembunyikan Navbar publik untuk tampilan dashboard dedicated
-  if (pathname.startsWith("/admin")) {
+  // Di rute Dashboard Admin & POS Kasir, sembunyikan Navbar publik untuk tampilan dashboard dedicated
+  if (pathname.startsWith("/admin") || pathname.startsWith("/cashier")) {
     return null;
   }
 
@@ -170,7 +174,7 @@ function NavbarContent() {
                         </Link>
                       )}
 
-                      {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
+                      {currentUser.role === "CASHIER" && (
                         <Link
                           href="/cashier"
                           onClick={() => setUserDropdownOpen(false)}
@@ -284,7 +288,7 @@ function NavbarContent() {
                     </Link>
                   )}
 
-                  {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
+                  {currentUser.role === "CASHIER" && (
                     <Link
                       href="/cashier"
                       onClick={() => setMobileMenuOpen(false)}
@@ -359,10 +363,7 @@ function NavbarContent() {
                   {items.length} menu dipilih • Ketuk rincian
                 </p>
                 <p className="font-mono text-sm font-extrabold text-foreground">
-                  {formatRupiah(totalAmount)}{" "}
-                  <span className="font-sans text-[10px] font-normal text-muted-foreground">
-                    {storeSettings.taxEnabled ? `(+PB1 ${storeSettings.taxPercentage}%)` : "(Tanpa Pajak)"}
-                  </span>
+                  {formatRupiah(totalAmount)}
                 </p>
               </div>
             </button>

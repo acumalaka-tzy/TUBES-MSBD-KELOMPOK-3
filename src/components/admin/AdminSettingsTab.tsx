@@ -8,6 +8,7 @@ import type { AdminSettings } from "@/lib/admin/types";
 import { formatDateTimeId } from "./admin-ui";
 
 interface AdminSettingsTabProps {
+  key?: React.Key;
   settings: AdminSettings;
   onNotify: (type: "success" | "error", text: string) => void;
   onRefresh: () => void;

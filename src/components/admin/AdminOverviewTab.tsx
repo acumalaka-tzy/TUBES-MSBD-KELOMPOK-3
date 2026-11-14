@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BarChart3,
+  Boxes,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -448,39 +449,32 @@ export function AdminOverviewTab({
 
             {/* Ringkasan Akumulasi Saldo / Total Kasir */}
             <div className="mt-5 pt-4 border-t border-border space-y-2 text-xs">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal Penjualan</span>
-                <span className="font-mono font-medium">{formatRupiah(summary.grossSales)}</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Pajak Restoran (PB1 10%)</span>
-                <span className="font-mono font-medium">{formatRupiah(summary.taxCollected)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-border text-foreground">
-                <span className="text-sm font-black">Total Net Sales</span>
+              <div className="flex justify-between items-center pt-2 text-foreground">
+                <span className="text-sm font-black">Total Penjualan Bersih</span>
                 <span className="font-mono text-lg font-black text-primary">
                   {formatRupiah(summary.netSales)}
                 </span>
               </div>
             </div>
 
-            {/* Tombol Aksi Cepat Bawah (Seperti Pay / Clear Cart di referensi) */}
+            {/* Tombol Aksi Cepat Bawah */}
             <div className="mt-5 space-y-2 pt-2 border-t border-border/80">
-              <Link
-                href="/cashier"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-xs font-bold text-white shadow-sm transition-all hover:bg-primary-hover active:scale-[0.99] cursor-pointer"
-              >
-                <UtensilsCrossed className="h-4 w-4" />
-                <span>Buka Layanan POS Kasir</span>
-              </Link>
-
               <button
                 type="button"
                 onClick={() => onNavigateTab("reports")}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-xs font-bold text-white shadow-sm transition-all hover:bg-primary-hover active:scale-[0.99] cursor-pointer"
+              >
+                <ReceiptText className="h-4 w-4" />
+                <span>Lihat Laporan Penjualan Lengkap</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigateTab("stock")}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary-bg py-2.5 text-xs font-bold text-foreground transition-all hover:bg-border/60 active:scale-[0.99] cursor-pointer"
               >
-                <ReceiptText className="h-3.5 w-3.5" />
-                <span>Lihat Laporan Transaksi Lengkap</span>
+                <Boxes className="h-3.5 w-3.5" />
+                <span>Kelola Stok Menu & Porsi</span>
               </button>
             </div>
 

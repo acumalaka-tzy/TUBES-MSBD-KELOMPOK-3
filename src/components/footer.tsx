@@ -8,8 +8,8 @@ import { Coffee } from "lucide-react";
 function FooterContent() {
   const pathname = usePathname();
 
-  // Jangan render footer konsumen di dashboard admin
-  if (pathname.startsWith("/admin")) {
+  // Jangan render footer konsumen di dashboard admin maupun POS kasir
+  if (pathname.startsWith("/admin") || pathname.startsWith("/cashier")) {
     return null;
   }
 

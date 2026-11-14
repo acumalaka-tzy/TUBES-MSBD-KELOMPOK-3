@@ -8,8 +8,6 @@ interface CartSummaryProps {
   items: CartItem[];
   itemCount: number;
   subtotal: number;
-  taxAmount: number;
-  taxLabel?: string;
   totalAmount: number;
   isSubmitting: boolean;
   isWebOrderingOpen?: boolean;
@@ -23,8 +21,6 @@ export function CartSummary({
   items,
   itemCount,
   subtotal,
-  taxAmount,
-  taxLabel = "Pajak Restoran (PB1 10%)",
   totalAmount,
   isSubmitting,
   isWebOrderingOpen = true,
@@ -157,15 +153,6 @@ export function CartSummary({
             </span>
           </div>
 
-          <div className="flex justify-between text-muted-foreground text-xs">
-            <span className="flex items-center gap-1">
-              {taxLabel}
-            </span>
-            <span className="font-mono text-foreground font-semibold">
-              Rp {taxAmount.toLocaleString("id-ID")}
-            </span>
-          </div>
-
           <div className="flex justify-between items-baseline pt-2 border-t border-border font-bold">
             <span className="text-foreground">Total Pembayaran</span>
             <span className="text-lg font-black text-primary font-mono">
@@ -180,24 +167,20 @@ export function CartSummary({
         <button
           type="submit"
           disabled={isSubmitting || items.length === 0 || !isWebOrderingOpen}
-          className="w-full py-3.5 px-4 bg-primary hover:bg-primary-hover disabled:bg-muted-foreground/30 text-white font-bold rounded-xl transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
+          className="w-full py-3.5 px-4 bg-primary hover:bg-primary-hover disabled:bg-muted-foreground/30 text-white font-bold rounded-xl transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed cursor-pointer"
         >
           {isSubmitting ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Menyimpan ke MySQL...</span>
+              <span>Memproses Pesanan...</span>
             </>
           ) : (
             <>
-              <span>Konfirmasi & Simpan Pesanan</span>
+              <span>Konfirmasi Pesanan</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
-
-        <p className="text-[11px] text-center text-muted-foreground mt-2">
-          Data pesanan akan disimpan langsung ke tabel <strong>orders</strong> MySQL Anda.
-        </p>
       </div>
     </div>
   );
