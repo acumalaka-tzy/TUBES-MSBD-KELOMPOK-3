@@ -136,16 +136,18 @@ function memoryCatalog(): Catalog {
     emoji: emojiForCategory(c.slug),
   }));
 
+  const scoreMap = new Map<string, number>();
   const products: Product[] = Array.from(store.products.values())
     .filter((p) => p.deleted_at === null && categoryMap.has(p.category_id))
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map((p) => {
+    .map((p, index) => {
       const cat = categoryMap.get(p.category_id)!;
       const stock = store.stocks.get(p.id);
       const rawQty = p.is_available ? (stock?.available_qty ?? 0) : 0;
       const minThreshold = stock?.min_threshold ?? 5;
       const base = sampleMap.get(p.id);
       const soldQty = soldByProduct.get(p.id) ?? 0;
+      scoreMap.set(p.id, (base?.popularity ?? 70) * 10 + soldQty);
       return {
         id: p.id,
         categoryId: p.category_id,
@@ -158,6 +160,7 @@ function memoryCatalog(): Catalog {
         availableQty: rawQty,
         minThreshold,
         popularity: soldQty > 0 ? Math.min(100, (base?.popularity ?? 70) + soldQty) : (base?.popularity ?? 70),
+        sortOrder: p.sort_order ?? index,
         options: p.option_groups.map((g) => ({
           id: g.id,
           name: g.name,
@@ -173,6 +176,22 @@ function memoryCatalog(): Catalog {
         })),
       };
     });
+
+  const availableRanked = [...products]
+    .filter((p) => p.availableQty > 0)
+    .sort(
+      (a, b) =>
+        (scoreMap.get(b.id) ?? b.popularity) - (scoreMap.get(a.id) ?? a.popularity) ||
+        (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+    );
+  const rankedSource =
+    availableRanked.length > 0
+      ? availableRanked
+      : [...products].sort(
+          (a, b) => (scoreMap.get(b.id) ?? b.popularity) - (scoreMap.get(a.id) ?? a.popularity),
+        );
+  const bestIds = new Set(rankedSource.slice(0, BEST_SELLER_COUNT).map((p) => p.id));
+  for (const p of products) p.bestSeller = bestIds.has(p.id);
 
   return {
     categories,
