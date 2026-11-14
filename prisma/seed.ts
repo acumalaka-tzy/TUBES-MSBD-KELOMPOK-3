@@ -702,6 +702,13 @@ async function main() {
       }
     }
   }
+  // Soft-delete produk lama yang tidak lagi ada di menu-data
+  const activeProductIds = sampleProducts.map((p) => p.id);
+  await prisma.product.updateMany({
+    where: { id: { notIn: activeProductIds } },
+    data: { is_available: false, deleted_at: new Date() },
+  });
+
   console.log(
     `- Products disinkronkan: ${sampleProducts.length}, OptionGroups: ${totalOptionGroups}, OptionItems: ${totalOptionItems}`
   );

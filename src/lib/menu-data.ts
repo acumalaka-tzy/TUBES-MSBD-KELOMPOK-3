@@ -1,5 +1,6 @@
 /**
- * Data katalog Warkop Agam (selaras dengan `prisma/seed.ts` & skema MySQL 17 tabel di PRD).
+ * Data katalog Warkop Agam Medan — Jl. Berdikari Baru No. 21 B, Padang Bulan
+ * (selaras dengan `prisma/seed.ts` & skema MySQL 17 tabel di PRD).
  * Dipakai sebagai:
  * 1. Definisi tipe untuk seluruh komponen Homepage & Katalog Menu.
  * 2. Fallback otomatis ketika database MySQL belum terkoneksi / belum di-seed.
@@ -37,7 +38,7 @@ export interface Product {
   description: string;
   basePrice: number;
   emoji: string;
-  /** Path foto di folder public/ (cth: /images/menu/kopi-sanger.webp atau /menu/prd-sanger-01.svg) */
+  /** Path foto di folder public/ (cth: /images/menu/prd-sanger-01.jpg) */
   imageUrl?: string;
   /** Sisa porsi tersedia (product_stocks.available_qty) */
   availableQty: number;
@@ -53,43 +54,36 @@ export const sampleCategories: Category[] = [
   {
     id: "cat-kopi-01",
     slug: "kopi-minuman-hangat",
-    name: "Kopi & Minuman Hangat",
-    description: "Racikan kopi saring khas Aceh-Medan dan teh tarik legendaris.",
+    name: "Kopi, TST & Racikan Susu",
+    description:
+      "Kopi Hitam, Kopi Sanger aneka rasa, TST ayam/bebek, Cappucino, Chocolatos, hingga Wedang Jahe Sereh.",
     emoji: "☕",
   },
   {
     id: "cat-dingin-02",
     slug: "minuman-dingin-segar",
-    name: "Minuman Dingin & Segar",
-    description: "Minuman dingin penyegar dahaga khas warkop.",
+    name: "Es Segar, Teh & Aneka Jus",
+    description:
+      "Teh Tarik, Thai Tea, Green Tea Latte, Milo, Soda Badak, Lemon Tea, serta Aneka Jus Buah segar.",
     emoji: "🧋",
   },
   {
     id: "cat-mie-03",
     slug: "mie-makanan-berat",
-    name: "Mie & Makanan Berat",
-    description: "Indomie Bangladesh, nasi goreng, dan hidangan mengenyangkan.",
+    name: "Mie, Nasi & Lauk Berat",
+    description:
+      "Indomie Bangladesh, Mie Aceh, Ifumie, Miehun, Mie Tiaw, Nasi Goreng, Ayam Penyet, Lele & Tumis Kangkung.",
     emoji: "🍜",
   },
   {
     id: "cat-camilan-04",
     slug: "roti-bakar-camilan",
-    name: "Roti Bakar & Camilan",
-    description: "Teman ngopi santai mulai dari roti bakar hingga martabak mie.",
-    emoji: "🍞",
+    name: "Roti Cane, Martabak & Camilan",
+    description:
+      "Roti Cane aneka topping, Mami (Martabak Mie), Martabak Telur, Mix Platter, Piscok & Gorengan.",
+    emoji: "🫓",
   },
 ];
-
-const optSuhu: OptionGroup = {
-  id: "og-suhu",
-  name: "Suhu Penyajian",
-  type: "single",
-  required: true,
-  items: [
-    { id: "oi-panas", name: "Panas", price: 0 },
-    { id: "oi-dingin", name: "Dingin (Es)", price: 2000 },
-  ],
-};
 
 const optManis: OptionGroup = {
   id: "og-gula",
@@ -97,43 +91,8 @@ const optManis: OptionGroup = {
   type: "single",
   required: true,
   items: [
-    { id: "oi-manis-normal", name: "Manis Normal", price: 0 },
-    { id: "oi-manis-less", name: "Less Sugar", price: 0 },
-  ],
-};
-
-const optEsLevel: OptionGroup = {
-  id: "og-es",
-  name: "Takaran Es",
-  type: "single",
-  required: true,
-  items: [
-    { id: "oi-es-normal", name: "Es Normal", price: 0 },
-    { id: "oi-es-sedikit", name: "Es Sedikit", price: 0 },
-  ],
-};
-
-const optGayaMieAceh: OptionGroup = {
-  id: "og-gaya-mie-aceh",
-  name: "Cara Masak",
-  type: "single",
-  required: true,
-  items: [
-    { id: "oi-mie-becek", name: "Becek (Nyemek)", price: 0 },
-    { id: "oi-mie-goreng", name: "Goreng", price: 0 },
-    { id: "oi-mie-kuah", name: "Kuah (Rebus)", price: 0 },
-  ],
-};
-
-const optGayaIndomie: OptionGroup = {
-  id: "og-gaya-indomie",
-  name: "Cara Masak",
-  type: "single",
-  required: true,
-  items: [
-    { id: "oi-indomie-nyemek", name: "Nyemek (Becek)", price: 0 },
-    { id: "oi-indomie-goreng", name: "Goreng", price: 0 },
-    { id: "oi-indomie-kuah", name: "Kuah", price: 0 },
+    { id: "oi-mn-n", name: "Manis Normal", price: 0 },
+    { id: "oi-mn-l", name: "Kurang Manis", price: 0 },
   ],
 };
 
@@ -143,219 +102,1039 @@ const optPedas: OptionGroup = {
   type: "single",
   required: true,
   items: [
-    { id: "oi-pedas-sedang", name: "Pedas Sedang", price: 0 },
-    { id: "oi-pedas-ekstra", name: "Pedas Ekstra", price: 0 },
-    { id: "oi-pedas-tidak", name: "Tidak Pedas", price: 0 },
+    { id: "oi-pd-s", name: "Pedas Sedang", price: 0 },
+    { id: "oi-pd-e", name: "Pedas Ekstra", price: 0 },
+    { id: "oi-pd-t", name: "Tidak Pedas", price: 0 },
   ],
 };
 
-const optToppingMie: OptionGroup = {
-  id: "og-topping",
-  name: "Tambahan Topping",
-  type: "multi",
-  required: false,
-  items: [
-    { id: "oi-top-telur", name: "Telur 1/2 Matang", price: 4000 },
-    { id: "oi-top-sosis", name: "Sosis Ayam", price: 5000 },
-    { id: "oi-top-keju", name: "Keju Parut", price: 4000 },
-  ],
-};
-
-const optPanggangRoti: OptionGroup = {
-  id: "og-roti-panggang",
-  name: "Tingkat Panggang",
+const optMasakMieAceh: OptionGroup = {
+  id: "og-masak",
+  name: "Cara Masak",
   type: "single",
   required: true,
   items: [
-    { id: "oi-roti-standar", name: "Panggang Standar", price: 0 },
-    { id: "oi-roti-garing", name: "Panggang Garing", price: 0 },
+    { id: "oi-ma-b", name: "Basah (Nyemek)", price: 0 },
+    { id: "oi-ma-g", name: "Goreng", price: 0 },
+    { id: "oi-ma-k", name: "Kuah", price: 0 },
   ],
 };
 
-const optToppingRoti: OptionGroup = {
-  id: "og-roti-topping",
-  name: "Tambahan Isi",
-  type: "multi",
-  required: false,
-  items: [
-    { id: "oi-roti-xkeju", name: "Extra Keju Parut", price: 4000 },
-    { id: "oi-roti-xcokelat", name: "Extra Cokelat Lumer", price: 3000 },
-  ],
-};
+function singleVariantGroup(
+  id: string,
+  name: string,
+  variants: Array<[string, number]>,
+  prefix = "oi-v",
+): OptionGroup {
+  return {
+    id,
+    name,
+    type: "single",
+    required: true,
+    items: variants.map(([label, price], idx) => ({
+      id: `${prefix}${idx + 1}`,
+      name: label,
+      price,
+    })),
+  };
+}
 
-const productList: Omit<Product, "categoryName">[] = [
+const productList: Array<Omit<Product, "categoryName">> = [
+  // =========================================================
+  // 1. KOPI, TST & RACIKAN SUSU (cat-kopi-01)
+  // =========================================================
   {
     id: "prd-sanger-01",
     categoryId: "cat-kopi-01",
-    name: "Kopi Sanger Espresso",
-    description: "Perpaduan kopi robusta saring kental dengan susu kental manis pas takaran.",
-    basePrice: 14000,
+    name: "Kopi Sanger",
+    description:
+      "Kopi saring khas Aceh dengan susu kental manis — tersedia Panas, Gelas Besar, Dingin, Bungkus, Jelly, serta varian Oreo, Chocolatos & Milo.",
+    basePrice: 12000,
     emoji: "☕",
     imageUrl: "/images/menu/prd-sanger-01.jpg",
-    availableQty: 50,
-    minThreshold: 5,
-    popularity: 98,
-    bestSeller: true,
-    options: [optSuhu, optManis],
-  },
-  {
-    id: "prd-tehtarik-02",
-    categoryId: "cat-kopi-01",
-    name: "Teh Tarik Aceh",
-    description: "Teh hitam pilihan ditarik berbusa lembut dengan susu creamy.",
-    basePrice: 13000,
-    emoji: "🫖",
-    imageUrl: "/images/menu/prd-tehtarik-02.jpg",
     availableQty: 45,
-    minThreshold: 5,
-    popularity: 92,
+    minThreshold: 8,
+    popularity: 100,
     bestSeller: true,
-    options: [optSuhu, optManis],
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Panas", 0],
+        ["Gelas Besar", 1000],
+        ["Dingin (Es)", 2000],
+        ["Chocolatos Panas", 2000],
+        ["Milo Panas", 2000],
+        ["Oreo Panas", 3000],
+        ["Bungkus", 3000],
+        ["Dingin Oreo", 3000],
+        ["Dingin Chocolatos", 3000],
+        ["Dingin Milo", 3000],
+        ["Jelly Dingin", 4000],
+      ]),
+      optManis,
+    ],
   },
   {
     id: "prd-kopihitam-03",
     categoryId: "cat-kopi-01",
-    name: "Kopi Hitam Ulee Kareng",
-    description: "Kopi hitam khas Aceh dengan aroma kuat dan rasa autentik, nikmat panas maupun dingin.",
-    basePrice: 10000,
+    name: "Kopi Hitam",
+    description:
+      "Seduhan kopi hitam pekat racikan Warkop Agam Medan, mantap disajikan panas, dingin, gelas besar, maupun bungkus.",
+    basePrice: 8000,
     emoji: "☕",
     imageUrl: "/images/menu/prd-kopihitam-03.jpg",
-    availableQty: 60,
-    minThreshold: 5,
-    popularity: 80,
-    options: [optSuhu, optManis],
+    availableQty: 50,
+    minThreshold: 8,
+    popularity: 92,
+    options: [
+      singleVariantGroup("og-suhu", "Ukuran & Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+        ["Gelas Besar", 2000],
+        ["Bungkus", 5000],
+        ["Jelly Dingin", 6000],
+      ]),
+      optManis,
+    ],
   },
   {
     id: "prd-kopijoss-09",
     categoryId: "cat-kopi-01",
-    name: "Kopi Susu Gula Aren",
-    description: "Espresso robusta dengan susu segar dan gula aren asli.",
-    basePrice: 16000,
-    emoji: "🥤",
+    name: "Kopi Susu",
+    description:
+      "Perpaduan kopi saring warkop dengan susu creamy seimbang, nikmat diseruput hangat maupun dingin dengan es.",
+    basePrice: 12000,
+    emoji: "☕",
     imageUrl: "/images/menu/prd-kopijoss-09.jpg",
-    availableQty: 3,
-    minThreshold: 5,
-    popularity: 84,
-    options: [optSuhu, optManis],
+    availableQty: 40,
+    minThreshold: 6,
+    popularity: 90,
+    options: [
+      singleVariantGroup("og-suhu", "Suhu Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+      ]),
+      optManis,
+    ],
   },
   {
-    id: "prd-milo-04",
-    categoryId: "cat-dingin-02",
-    name: "Es Milo Kepal Warkop",
-    description: "Es Milo kental dingin dengan taburan bubuk Milo melimpah.",
+    id: "prd-tst",
+    categoryId: "cat-kopi-01",
+    name: "TST (Teh Susu Telur)",
+    description:
+      "Ikon stamina Warkop Agam Medan: kocokan kuning telur ayam kampung atau bebek dengan teh kental & susu hangat atau es.",
     basePrice: 16000,
+    emoji: "🥚",
+    imageUrl: "/images/menu/prd-tst.jpg",
+    availableQty: 32,
+    minThreshold: 6,
+    popularity: 98,
+    bestSeller: true,
+    options: [
+      singleVariantGroup("og-suhu", "Varian Telur & Penyajian", [
+        ["TST Ayam (Panas)", 0],
+        ["TST + Es (Dingin)", 0],
+        ["TST Bebek", 1000],
+        ["TST Ayam Teh Hijau", 1000],
+        ["TST Bebek Teh Hijau", 2000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-kopikocok",
+    categoryId: "cat-kopi-01",
+    name: "Kopi Kocok Telur",
+    description:
+      "Kopi panas pekat dikocok bersama kuning telur hingga berbusa lembut, penambah tenaga favorit nongkrong malam.",
+    basePrice: 18000,
+    emoji: "☕",
+    imageUrl: "/images/menu/prd-tst.jpg",
+    availableQty: 25,
+    minThreshold: 5,
+    popularity: 83,
+    options: [optManis],
+  },
+  {
+    id: "prd-capp",
+    categoryId: "cat-kopi-01",
+    name: "Cappucino",
+    description:
+      "Racikan cappucino lembut ala warkop dengan pilihan polos, tambah susu, dingin, blended es, atau topping jelly.",
+    basePrice: 11000,
+    emoji: "☕",
+    imageUrl: "/images/menu/prd-capp.jpg",
+    availableQty: 38,
+    minThreshold: 6,
+    popularity: 88,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Panas", 0],
+        ["Susu Panas", 1000],
+        ["Dingin (Es)", 2000],
+        ["Susu Dingin", 3000],
+        ["Blended Dingin", 4000],
+        ["Jelly Dingin", 4000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-choco",
+    categoryId: "cat-kopi-01",
+    name: "Chocolatos",
+    description:
+      "Minuman cokelat Italia pekat dan creamy, tersedia versi hangat menenangkan atau dingin menyegarkan.",
+    basePrice: 11000,
+    emoji: "🍫",
+    imageUrl: "/images/menu/prd-choco.jpg",
+    availableQty: 35,
+    minThreshold: 6,
+    popularity: 84,
+    options: [
+      singleVariantGroup("og-suhu", "Suhu Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-matcha",
+    categoryId: "cat-kopi-01",
+    name: "Matcha Chocolatos",
+    description:
+      "Paduan matcha creamy dengan sentuhan cokelat putih yang lembut, bisa dipilih Panas, Dingin, atau Blend.",
+    basePrice: 12000,
+    emoji: "🍵",
+    imageUrl: "/images/menu/prd-matcha.jpg",
+    availableQty: 30,
+    minThreshold: 6,
+    popularity: 85,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 3000],
+        ["Blend Dingin", 3000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-susu",
+    categoryId: "cat-kopi-01",
+    name: "Susu Putih & Susu Coklat",
+    description:
+      "Susu segar manis hangat maupun dingin dengan pilihan rasa Susu Putih atau Susu Coklat klasik.",
+    basePrice: 10000,
+    emoji: "🥛",
+    imageUrl: "/images/menu/prd-choco.jpg",
+    availableQty: 36,
+    minThreshold: 6,
+    popularity: 78,
+    options: [
+      singleVariantGroup("og-suhu", "Rasa & Penyajian", [
+        ["Susu Putih Panas", 0],
+        ["Susu Coklat Panas", 2000],
+        ["Susu Putih Dingin", 3000],
+        ["Susu Coklat Dingin", 4000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-bangbang",
+    categoryId: "cat-kopi-01",
+    name: "Bang - Bang Drink",
+    description:
+      "Minuman karamel cokelat malt manis gurih favorit anak nongkrong, pas diminum panas maupun dingin.",
+    basePrice: 11000,
     emoji: "🥤",
-    imageUrl: "/menu/prd-milo-04.svg",
+    imageUrl: "/images/menu/prd-milo-04.jpg",
+    availableQty: 28,
+    minThreshold: 5,
+    popularity: 77,
+    options: [
+      singleVariantGroup("og-suhu", "Suhu Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-jahe",
+    categoryId: "cat-kopi-01",
+    name: "Wedang Jahe Sereh",
+    description:
+      "Seduhan jahe hangat beraroma sereh alami yang menghangatkan badan di segala suasana malam Medan.",
+    basePrice: 12000,
+    emoji: "🫖",
+    imageUrl: "/images/menu/prd-jahe.jpg",
     availableQty: 30,
     minThreshold: 5,
-    popularity: 86,
-    options: [optEsLevel, optManis],
+    popularity: 80,
+    options: [optManis],
+  },
+
+  // =========================================================
+  // 2. ES SEGAR, TEH & ANEKA JUS (cat-dingin-02)
+  // =========================================================
+  {
+    id: "prd-tehtarik-02",
+    categoryId: "cat-dingin-02",
+    name: "Teh Tarik",
+    description:
+      "Teh hitam pekat ditarik dengan susu hingga berbusa tebal — pilihan Susu Panas, Susu Dingin, atau Jelly Dingin.",
+    basePrice: 12000,
+    emoji: "🧋",
+    imageUrl: "/images/menu/prd-tehtarik-02.jpg",
+    availableQty: 42,
+    minThreshold: 8,
+    popularity: 95,
+    bestSeller: true,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Susu Panas", 0],
+        ["Susu Dingin (Es)", 2000],
+        ["Jelly Dingin", 3000],
+      ]),
+    ],
   },
   {
     id: "prd-badak-05",
     categoryId: "cat-dingin-02",
-    name: "Es Soda Susu Badak",
-    description: "Minuman legendaris Sumatera Utara: limun Sarsaparilla Badak dengan susu.",
-    basePrice: 15000,
+    name: "Soda Badak",
+    description:
+      "Legenda sarsaparila Siantar khas Sumatra Utara dengan es batu dingin atau racikan Badak + Susu + Es (Soda Gembira).",
+    basePrice: 12000,
+    emoji: "🥤",
+    imageUrl: "/images/menu/prd-badak-05.jpg",
+    availableQty: 36,
+    minThreshold: 6,
+    popularity: 93,
+    bestSeller: true,
+    options: [
+      singleVariantGroup("og-suhu", "Varian Sajian", [
+        ["Badak + Es (Dingin)", 0],
+        ["Badak + Susu + Es (Dingin)", 3000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-milo-04",
+    categoryId: "cat-dingin-02",
+    name: "Milo",
+    description:
+      "Milo cokelat malt kental racikan warkop: mulai dari Panas, Dingin, Susu, Double, Jelly Dingin, hingga Milo Blended.",
+    basePrice: 11000,
+    emoji: "🥤",
+    imageUrl: "/images/menu/prd-milo-04.jpg",
+    availableQty: 40,
+    minThreshold: 8,
+    popularity: 91,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Panas", 0],
+        ["Susu Panas", 1000],
+        ["Dingin (Es)", 2000],
+        ["Double", 3000],
+        ["Jelly Dingin", 3000],
+        ["Susu Dingin", 4000],
+        ["Blended Dingin", 4000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-thaitea",
+    categoryId: "cat-dingin-02",
+    name: "Thai Tea Susu",
+    description:
+      "Teh Thailand aromatik bercampur susu kental manis, segar dinikmati Panas, Dingin, atau tambah Jelly.",
+    basePrice: 13000,
+    emoji: "🧋",
+    imageUrl: "/images/menu/prd-thaitea.jpg",
+    availableQty: 32,
+    minThreshold: 6,
+    popularity: 87,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+        ["Jelly Dingin", 3000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-greentea",
+    categoryId: "cat-dingin-02",
+    name: "Green Tea Latte",
+    description:
+      "Latte teh hijau wangi dan lembut, tersedia Green Tea Latte Panas, Dingin, serta Jelly Dingin.",
+    basePrice: 13000,
+    emoji: "🍵",
+    imageUrl: "/images/menu/prd-matcha.jpg",
+    availableQty: 30,
+    minThreshold: 6,
+    popularity: 86,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+        ["Jelly Dingin", 3000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-tehhijau",
+    categoryId: "cat-dingin-02",
+    name: "Teh Hijau",
+    description:
+      "Seduhan teh hijau wangi yang ringan dan menyegarkan — Panas, Dingin, Jelly Dingin, atau Blended.",
+    basePrice: 8000,
+    emoji: "🍵",
+    imageUrl: "/images/menu/prd-matcha.jpg",
+    availableQty: 34,
+    minThreshold: 6,
+    popularity: 80,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+        ["Jelly Dingin", 5000],
+        ["Blended Dingin", 7000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-tehmanis",
+    categoryId: "cat-dingin-02",
+    name: "Teh Manis & Teh Tawar",
+    description:
+      "Minuman wajib pendamping makan: Teh Tawar, Teh Manis Hangat, Teh Manis Dingin, dan ukuran Jumbo.",
+    basePrice: 5000,
     emoji: "🧊",
-    imageUrl: "/menu/prd-badak-05.svg",
-    availableQty: 24,
-    minThreshold: 5,
-    popularity: 79,
-    options: [optEsLevel],
+    imageUrl: "/images/menu/prd-tehmanis.jpg",
+    availableQty: 60,
+    minThreshold: 10,
+    popularity: 92,
+    options: [
+      singleVariantGroup("og-suhu", "Pilihan Teh", [
+        ["Teh Tawar", 0],
+        ["Teh Manis Hangat", 1000],
+        ["Teh Manis Dingin", 2000],
+        ["Teh Manis Dingin Jumbo", 5000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-lemon",
+    categoryId: "cat-dingin-02",
+    name: "Lemon & Lemon Tea",
+    description:
+      "Perasan lemon segar atau paduan Lemon Tea nikmat, bisa dipilih versi Panas maupun Dingin (Es).",
+    basePrice: 10000,
+    emoji: "🍋",
+    imageUrl: "/images/menu/prd-lemontea.jpg",
+    availableQty: 35,
+    minThreshold: 6,
+    popularity: 82,
+    options: [
+      singleVariantGroup("og-suhu", "Varian & Suhu", [
+        ["Lemon Panas", 0],
+        ["Lemon Tea Panas", 1000],
+        ["Lemon Dingin (Es)", 2000],
+        ["Lemon Tea Dingin (Es)", 3000],
+      ]),
+    ],
   },
   {
     id: "prd-jeruk-10",
     categoryId: "cat-dingin-02",
-    name: "Es Jeruk Peras Murni",
-    description: "Perasan jeruk manis segar dengan es batu kristal tanpa pengawet.",
-    basePrice: 10000,
+    name: "Jeruk Peras",
+    description:
+      "Perasan jeruk asli tanpa pemanis buatan, kaya vitamin C dan menyegarkan tenggorokan.",
+    basePrice: 16000,
     emoji: "🍊",
-    imageUrl: "/menu/prd-jeruk-10.svg",
-    availableQty: 0,
-    minThreshold: 5,
-    popularity: 65,
-    options: [optEsLevel, optManis],
+    imageUrl: "/images/menu/prd-jeruk-10.jpg",
+    availableQty: 30,
+    minThreshold: 6,
+    popularity: 84,
+    options: [
+      singleVariantGroup("og-suhu", "Suhu Penyajian", [
+        ["Dingin (Es)", 0],
+        ["Hangat", 0],
+      ]),
+    ],
   },
+  {
+    id: "prd-nutrisari",
+    categoryId: "cat-dingin-02",
+    name: "Nutrisari Jeruk",
+    description:
+      "Minuman jeruk segar praktis ala warkop dengan pilihan sajian Panas atau Dingin (Es).",
+    basePrice: 8000,
+    emoji: "🍊",
+    imageUrl: "/images/menu/prd-jeruk-10.jpg",
+    availableQty: 40,
+    minThreshold: 6,
+    popularity: 76,
+    options: [
+      singleVariantGroup("og-suhu", "Suhu Penyajian", [
+        ["Panas", 0],
+        ["Dingin (Es)", 2000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-kuku",
+    categoryId: "cat-dingin-02",
+    name: "Kukubima / Extra Joss",
+    description:
+      "Minuman penyegar stamina dingin dengan es, tersedia varian original atau tambah susu kental manis.",
+    basePrice: 10000,
+    emoji: "⚡",
+    imageUrl: "/images/menu/prd-lemontea.jpg",
+    availableQty: 40,
+    minThreshold: 6,
+    popularity: 79,
+    options: [
+      singleVariantGroup("og-suhu", "Pilihan Racikan", [
+        ["Kukubima Dingin", 0],
+        ["Extra Joss Dingin", 0],
+        ["Kukubima Susu Dingin", 3000],
+        ["Extra Joss Susu Dingin", 3000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-amoz",
+    categoryId: "cat-dingin-02",
+    name: "Amoz & Es Kosong",
+    description:
+      "Pilihan air mineral Amoz (suhu ruang atau dengan es batu) serta gelas Es Kosong penyegar.",
+    basePrice: 3000,
+    emoji: "🧊",
+    imageUrl: "/images/menu/prd-tehmanis.jpg",
+    availableQty: 80,
+    minThreshold: 10,
+    popularity: 72,
+    options: [
+      singleVariantGroup("og-suhu", "Pilihan Sajian", [
+        ["Es Kosong (Dingin)", 0],
+        ["Amoz", 2000],
+        ["Amoz + Es (Dingin)", 3000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-jusmartabe",
+    categoryId: "cat-dingin-02",
+    name: "Jus Martabe, Markisah & Guava",
+    description:
+      "Jus buah khas Medan: Jus Markisah, Terong Belanda, perpaduan ikonik Jus Martabe, atau Jus Guava segar.",
+    basePrice: 16000,
+    emoji: "🧃",
+    imageUrl: "/images/menu/prd-jusmarkisa.jpg",
+    availableQty: 26,
+    minThreshold: 5,
+    popularity: 90,
+    options: [
+      singleVariantGroup("og-suhu", "Pilih Jus Buah", [
+        ["Jus Markisah", 0],
+        ["Jus Terong Belanda", 0],
+        ["Jus Martabe", 1000],
+        ["Jus Guava", 1000],
+      ]),
+      optManis,
+    ],
+  },
+  {
+    id: "prd-jusalp",
+    categoryId: "cat-dingin-02",
+    name: "Jus Alpukat",
+    description:
+      "Alpukat mentega diblender halus dan kental dengan kucuran susu kental manis cokelat.",
+    basePrice: 16000,
+    emoji: "🥑",
+    imageUrl: "/images/menu/prd-jusalp.jpg",
+    availableQty: 28,
+    minThreshold: 5,
+    popularity: 89,
+    options: [
+      singleVariantGroup("og-suhu", "Sajian", [
+        ["Dingin + Susu Coklat", 0],
+        ["Dingin Tanpa Susu Coklat", 0],
+      ]),
+    ],
+  },
+  {
+    id: "prd-jusmangga",
+    categoryId: "cat-dingin-02",
+    name: "Jus Mangga, Jeruk & Sirsak",
+    description:
+      "Pilihan jus buah tropis manis-asam menyegarkan: Jus Mangga, Jus Jeruk, Jus Sirsak, dan Jus Belimbing.",
+    basePrice: 16000,
+    emoji: "🥭",
+    imageUrl: "/images/menu/prd-jusmangga.jpg",
+    availableQty: 28,
+    minThreshold: 5,
+    popularity: 85,
+    options: [
+      singleVariantGroup("og-suhu", "Pilih Varian Jus", [
+        ["Jus Mangga", 0],
+        ["Jus Jeruk", 0],
+        ["Jus Sirsak", 0],
+        ["Jus Belimbing", 0],
+      ]),
+      optManis,
+    ],
+  },
+  {
+    id: "prd-jusnaga",
+    categoryId: "cat-dingin-02",
+    name: "Jus Naga, Semangka & Timun Serut",
+    description:
+      "Jus buah tinggi serat pelepas dahaga: Jus Naga merah, Jus Semangka, Jus Timun, atau Es Timun Serut khas Aceh.",
+    basePrice: 16000,
+    emoji: "🍉",
+    imageUrl: "/images/menu/prd-jusnaga.jpg",
+    availableQty: 26,
+    minThreshold: 5,
+    popularity: 83,
+    options: [
+      singleVariantGroup("og-suhu", "Pilih Varian Jus", [
+        ["Jus Naga", 0],
+        ["Jus Semangka", 0],
+        ["Jus Timun", 0],
+        ["Timun Serut", 0],
+      ]),
+      optManis,
+    ],
+  },
+  {
+    id: "prd-juswortel",
+    categoryId: "cat-dingin-02",
+    name: "Jus Wortel & Mix Segar",
+    description:
+      "Racikan jus sehat pilihan: Jus Wortel murni, Jus Wortel + Jeruk, Jus Sawi + Nenas, hingga Jus Wortel + Susu.",
+    basePrice: 16000,
+    emoji: "🥕",
+    imageUrl: "/images/menu/prd-jusmangga.jpg",
+    availableQty: 24,
+    minThreshold: 5,
+    popularity: 77,
+    options: [
+      singleVariantGroup("og-suhu", "Pilih Varian Mix", [
+        ["Jus Wortel", 0],
+        ["Jus Wortel + Jeruk", 0],
+        ["Jus Sawi + Nenas", 1000],
+        ["Jus Wortel + Susu", 2000],
+      ]),
+      optManis,
+    ],
+  },
+
+  // =========================================================
+  // 3. MIE, NASI & LAUK BERAT (cat-mie-03)
+  // =========================================================
   {
     id: "prd-bangladesh-06",
     categoryId: "cat-mie-03",
-    name: "Indomie Bangladesh Spesial",
-    description: "Mie nyemek racikan bumbu rempah rahasia Warkop Agam dengan telur setengah matang.",
-    basePrice: 18000,
+    name: "Indomie Bangladesh",
+    description:
+      "Menu andalan Warkop Agam: Indomie bumbu rempah khas Medan yang gurih berkaldu, dengan pilihan Puding Ayam atau porsi Jumbo.",
+    basePrice: 15000,
     emoji: "🍜",
     imageUrl: "/images/menu/prd-bangladesh-06.jpg",
     availableQty: 40,
-    minThreshold: 5,
-    popularity: 100,
+    minThreshold: 6,
+    popularity: 99,
     bestSeller: true,
-    options: [optGayaIndomie, optPedas, optToppingMie],
-  },
-  {
-    id: "prd-nasgor-07",
-    categoryId: "cat-mie-03",
-    name: "Nasi Goreng Kampung Agam",
-    description: "Nasi goreng bumbu terasi ringan, suwiran ayam, telur mata sapi, dan kerupuk.",
-    basePrice: 22000,
-    emoji: "🍳",
-    imageUrl: "/images/menu/prd-nasgor-07.jpg",
-    availableQty: 25,
-    minThreshold: 5,
-    popularity: 95,
-    bestSeller: true,
-    options: [optPedas, optToppingMie],
+    options: [
+      singleVariantGroup("og-porsi", "Pilihan Porsi & Puding", [
+        ["Bangladesh Biasa", 0],
+        ["Bangladesh Puding Ayam", 5000],
+        ["Bangladesh Jumbo", 5000],
+        ["Bangladesh Jumbo + Puding Ayam", 11000],
+      ]),
+      optPedas,
+    ],
   },
   {
     id: "prd-mieaceh-11",
     categoryId: "cat-mie-03",
-    name: "Mie Aceh Daging",
-    description: "Mie kuning tebal dimasak bumbu kari kental khas Aceh dengan irisan daging sapi (pilih Becek, Goreng, atau Kuah).",
-    basePrice: 26000,
-    emoji: "🍲",
-    imageUrl: "/menu/prd-mieaceh-11.svg",
-    availableQty: 18,
+    name: "Mie Aceh",
+    description:
+      "Mie kuning kenyal dengan bumbu rempah kari Aceh pekat — pilih Goreng, Basah (Nyemek), atau Kuah serta isian favorit.",
+    basePrice: 15000,
+    emoji: "🍜",
+    imageUrl: "/images/menu/prd-mieaceh-11.jpg",
+    availableQty: 32,
     minThreshold: 5,
-    popularity: 91,
-    options: [optGayaMieAceh, optPedas, optToppingMie],
+    popularity: 97,
+    bestSeller: true,
+    options: [
+      optMasakMieAceh,
+      singleVariantGroup("og-isian", "Pilihan Topping / Lauk", [
+        ["Mie Aceh Biasa", 0],
+        ["Telur Campur", 5000],
+        ["Telur Dadar", 5000],
+        ["Telur Mata Sapi", 5000],
+        ["Ayam", 10000],
+        ["Daging", 12000],
+        ["Udang", 12000],
+        ["Cumi", 12000],
+        ["Spesial (Udang + Daging)", 17000],
+        ["Spesial (Udang + Cumi)", 17000],
+      ]),
+      optPedas,
+    ],
   },
+  {
+    id: "prd-nasgor-07",
+    categoryId: "cat-mie-03",
+    name: "Nasi Goreng",
+    description:
+      "Nasi goreng wajan api besar bumbu warkop Medan: varian Biasa, Bangladesh, Jumbo, Ayam, Udang, Cumi, hingga Seafood.",
+    basePrice: 16000,
+    emoji: "🍳",
+    imageUrl: "/images/menu/prd-nasgor-07.jpg",
+    availableQty: 34,
+    minThreshold: 6,
+    popularity: 94,
+    bestSeller: true,
+    options: [
+      singleVariantGroup("og-isian", "Pilihan Varian", [
+        ["Nasi Goreng Biasa", 0],
+        ["Nasi Goreng Bangladesh", 0],
+        ["Nasi Goreng Jumbo", 3000],
+        ["Nasi Goreng Ayam", 8000],
+        ["Nasi Goreng Udang", 10000],
+        ["Nasi Goreng Cumi", 11000],
+        ["Seafood Nasi Goreng Seat", 12000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-indogoreng",
+    categoryId: "cat-mie-03",
+    name: "Indomie Goreng & Bumbu Aceh",
+    description:
+      "Indomie Goreng Biasa, Ori, maupun racikan Bumbu Aceh warkop, tersedia ukuran Jumbo dan tambahan Puding Ayam.",
+    basePrice: 15000,
+    emoji: "🍜",
+    imageUrl: "/images/menu/prd-bangladesh-06.jpg",
+    availableQty: 38,
+    minThreshold: 6,
+    popularity: 90,
+    options: [
+      singleVariantGroup("og-porsi", "Pilihan Varian & Porsi", [
+        ["Indomie Goreng Biasa", 0],
+        ["Indomie Goreng Ori", 0],
+        ["Indomie Bumbu Aceh", 0],
+        ["Indomie Goreng Jumbo", 5000],
+        ["Indomie Goreng Ori Jumbo", 5000],
+        ["Indomie Goreng Puding Ayam", 5000],
+        ["Indomie Goreng Jumbo + Puding Ayam", 11000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-indokuah",
+    categoryId: "cat-mie-03",
+    name: "Indomie Kuah",
+    description:
+      "Indomie rebus berkuah hangat mengepul — tersedia Biasa, Ori, Jumbo, dan paduan Puding Telur Ayam kampung.",
+    basePrice: 13000,
+    emoji: "🍲",
+    imageUrl: "/images/menu/prd-indomiekuah.jpg",
+    availableQty: 38,
+    minThreshold: 6,
+    popularity: 88,
+    options: [
+      singleVariantGroup("og-porsi", "Pilihan Varian & Porsi", [
+        ["Indomie Kuah Biasa", 0],
+        ["Indomie Kuah Ori", 0],
+        ["Indomie Kuah Jumbo", 5000],
+        ["Indomie Kuah Ori Jumbo", 5000],
+        ["Indomie Kuah + Puding Ayam", 5000],
+        ["Indomie Kuah Jumbo + Puding Ayam", 11000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-ifumie",
+    categoryId: "cat-mie-03",
+    name: "Ifumie",
+    description:
+      "Mie kering renyah disiram kuah kental atau tumisan goreng gurih dengan topping Biasa, Udang, Cumi, atau Seafood.",
+    basePrice: 15000,
+    emoji: "🍜",
+    imageUrl: "/images/menu/prd-ifumie.jpg",
+    availableQty: 26,
+    minThreshold: 5,
+    popularity: 87,
+    options: [
+      singleVariantGroup("og-isian", "Pilihan Cara Masak & Lauk", [
+        ["Ifumie Goreng Biasa", 0],
+        ["Ifumie Kuah Biasa", 0],
+        ["Ifumie Goreng Udang", 10000],
+        ["Ifumie Kuah Udang", 11000],
+        ["Ifumie Goreng Cumi", 11000],
+        ["Ifumie Kuah Cumi", 11000],
+        ["Ifumie Seafood", 12000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-miehun",
+    categoryId: "cat-mie-03",
+    name: "Miehun (Bihun)",
+    description:
+      "Miehun / bihun lembut dimasak goreng atau berkuah kaldu dengan pilihan Biasa, Udang, Cumi, hingga Seafood.",
+    basePrice: 15000,
+    emoji: "🍜",
+    imageUrl: "/images/menu/prd-kwetiau.jpg",
+    availableQty: 26,
+    minThreshold: 5,
+    popularity: 84,
+    options: [
+      singleVariantGroup("og-isian", "Pilihan Varian", [
+        ["Miehun Goreng Biasa", 0],
+        ["Miehun Kuah Biasa", 0],
+        ["Miehun Goreng Udang", 10000],
+        ["Miehun Kuah Udang", 10000],
+        ["Miehun Goreng Cumi", 11000],
+        ["Miehun Kuah Seafood", 11000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-mietiaw",
+    categoryId: "cat-mie-03",
+    name: "Mie Tiaw Goreng",
+    description:
+      "Kwetiau lebar tumis wajan panas beraroma smokey — pilihan Biasa, Udang, Cumi, atau komplit Seafood.",
+    basePrice: 15000,
+    emoji: "🍜",
+    imageUrl: "/images/menu/prd-ifumie.jpg",
+    availableQty: 26,
+    minThreshold: 5,
+    popularity: 85,
+    options: [
+      singleVariantGroup("og-isian", "Pilihan Topping", [
+        ["Mie Tiaw Goreng Biasa", 0],
+        ["Mie Tiaw Goreng Udang", 10000],
+        ["Mie Tiaw Goreng Cumi", 11000],
+        ["Mie Tiaw Goreng Seafood", 12000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-penyet",
+    categoryId: "cat-mie-03",
+    name: "Ayam Penyet",
+    description:
+      "Ayam goreng gurih dipenyet bersama sambal terasi pedas segar & lalapan, tersedia lauk saja atau paket dengan nasi hangat.",
+    basePrice: 13000,
+    emoji: "🍗",
+    imageUrl: "/images/menu/prd-penyet.jpg",
+    availableQty: 25,
+    minThreshold: 5,
+    popularity: 89,
+    options: [
+      singleVariantGroup("og-nasi", "Pilihan Paket", [
+        ["Ayam Penyet (Tanpa Nasi)", 0],
+        ["Ayam Penyet + Nasi", 6000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-lele",
+    categoryId: "cat-mie-03",
+    name: "Ikan Lele Goreng",
+    description:
+      "Lele goreng garing renyah disajikan bersama sambal & lalapan segar, pilih lauk saja atau paket nasi putih.",
+    basePrice: 10000,
+    emoji: "🐟",
+    imageUrl: "/images/menu/prd-lele.jpg",
+    availableQty: 24,
+    minThreshold: 5,
+    popularity: 82,
+    options: [
+      singleVariantGroup("og-nasi", "Pilihan Paket", [
+        ["Ikan Lele Goreng (Tanpa Nasi)", 0],
+        ["Ikan Lele Goreng + Nasi", 6000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-seafood",
+    categoryId: "cat-mie-03",
+    name: "Udang & Cumi Goreng",
+    description:
+      "Lauk seafood goreng garing berbumbu gurih — pilih seporsi Udang Goreng atau Cumi Goreng segar.",
+    basePrice: 15000,
+    emoji: "🍤",
+    imageUrl: "/images/menu/prd-seafood.jpg",
+    availableQty: 20,
+    minThreshold: 4,
+    popularity: 81,
+    options: [
+      singleVariantGroup("og-lauk", "Pilihan Lauk", [
+        ["Udang Goreng", 0],
+        ["Cumi Goreng", 0],
+      ]),
+    ],
+  },
+  {
+    id: "prd-kangkung",
+    categoryId: "cat-mie-03",
+    name: "Tumis Kangkung",
+    description:
+      "Cah kangkung segar ditumis bawang putih saus tiram gurih, pilihan Tumis Kangkung Biasa atau Seafood.",
+    basePrice: 12000,
+    emoji: "🥬",
+    imageUrl: "/images/menu/prd-kangkung.jpg",
+    availableQty: 25,
+    minThreshold: 5,
+    popularity: 79,
+    options: [
+      singleVariantGroup("og-var", "Pilihan Varian", [
+        ["Tumis Kangkung Biasa", 0],
+        ["Tumis Kangkung Seafood", 8000],
+      ]),
+      optPedas,
+    ],
+  },
+  {
+    id: "prd-telur",
+    categoryId: "cat-mie-03",
+    name: "Nasi Putih & Aneka Telur",
+    description:
+      "Pelengkap menu makan: Telur Dadar/Mata Sapi, Nasi Putih, Nasi + Telur, serta Puding Telur Ayam/Bebek setengah matang.",
+    basePrice: 5000,
+    emoji: "🍳",
+    imageUrl: "/images/menu/prd-telur.jpg",
+    availableQty: 50,
+    minThreshold: 8,
+    popularity: 76,
+    options: [
+      singleVariantGroup("og-var", "Pilihan Menu", [
+        ["Telur Dadar / Mata Sapi", 0],
+        ["Nasi Putih", 1000],
+        ["Puding Telur Ayam", 1000],
+        ["Puding Telur Bebek", 3000],
+        ["Puding 2 Telur Ayam", 7000],
+        ["Nasi + Telur", 8000],
+        ["Puding 2 Telur Bebek", 11000],
+      ]),
+    ],
+  },
+
+  // =========================================================
+  // 4. ROTI CANE, MARTABAK & CAMILAN (cat-camilan-04)
+  // =========================================================
   {
     id: "prd-rotibakar-08",
     categoryId: "cat-camilan-04",
-    name: "Roti Bakar Cokelat Keju",
-    description: "Roti panggang garing di luar lembut di dalam dengan isian cokelat lumer dan keju parut.",
-    basePrice: 15000,
-    emoji: "🍞",
-    imageUrl: "/images/menu/prd-rotibakar-08.jpg",
-    availableQty: 35,
-    minThreshold: 5,
-    popularity: 90,
-    options: [optPanggangRoti, optToppingRoti],
+    name: "Roti Cane",
+    description:
+      "Roti cane tipis berlapis renyah panggang mentega dengan pilihan taburan Gula, Susu, Coklat, Keju, Pisang, komplit, atau Kuah Kari.",
+    basePrice: 10000,
+    emoji: "🫓",
+    imageUrl: "/images/menu/prd-cane.jpg",
+    availableQty: 32,
+    minThreshold: 6,
+    popularity: 96,
+    bestSeller: true,
+    options: [
+      singleVariantGroup("og-top", "Pilihan Rasa / Kuah", [
+        ["Roti Cane Gula", 0],
+        ["Roti Cane Susu", 3000],
+        ["Roti Cane Coklat", 3000],
+        ["Roti Cane Keju", 3000],
+        ["Roti Cane Kari", 4000],
+        ["Roti Cane Pisang", 4000],
+        ["Roti Cane Coklat + Keju", 5000],
+        ["Roti Cane Pisang + Coklat + Keju", 8000],
+      ]),
+    ],
   },
   {
     id: "prd-martabak-12",
     categoryId: "cat-camilan-04",
-    name: "Martabak Mie Telur Bebek",
-    description: "Martabak mie goreng gurih tebal disajikan dengan kuah acar cabai rawit.",
-    basePrice: 17000,
+    name: "Martabak Telur & Mami",
+    description:
+      "Gorengan gurih renyah khas warkop: pilih Martabak Telur klasik atau Mami (Martabak Mie) lengkap dengan acar dan saus.",
+    basePrice: 13000,
     emoji: "🥞",
-    imageUrl: "/menu/prd-martabak-12.svg",
-    availableQty: 18,
+    imageUrl: "/images/menu/prd-martabak-12.jpg",
+    availableQty: 26,
     minThreshold: 5,
-    popularity: 77,
-    options: [optPedas, optToppingMie],
+    popularity: 89,
+    options: [
+      singleVariantGroup("og-var", "Pilihan Menu", [
+        ["Martabak Telur", 0],
+        ["Mami (Martabak Mie)", 5000],
+      ]),
+    ],
   },
   {
     id: "prd-pisang-13",
     categoryId: "cat-camilan-04",
-    name: "Pisang Goreng Srikaya",
-    description: "Pisang kepok goreng krispi disajikan hangat dengan selai srikaya pandan.",
-    basePrice: 12000,
+    name: "Piscok (Pisang Coklat)",
+    description:
+      "Gulungan kulit lumpia renyah berisi pisang manis dan cokelat lumer hangat — teman setia ngopi malam.",
+    basePrice: 15000,
     emoji: "🍌",
-    imageUrl: "/menu/prd-pisang-13.svg",
-    availableQty: 0,
+    imageUrl: "/images/menu/prd-pisang-13.jpg",
+    availableQty: 28,
     minThreshold: 5,
-    popularity: 70,
+    popularity: 85,
     options: [],
+  },
+  {
+    id: "prd-platter",
+    categoryId: "cat-camilan-04",
+    name: "Mix Platter & Gorengan",
+    description:
+      "Camilan renyah teman nongkrong: Kentang Goreng, Keripik Kentang Goreng, Sosis, Nuget, atau paket komplit Mix Platter.",
+    basePrice: 13000,
+    emoji: "🍟",
+    imageUrl: "/images/menu/prd-platter.jpg",
+    availableQty: 30,
+    minThreshold: 5,
+    popularity: 88,
+    options: [
+      singleVariantGroup("og-var", "Pilihan Camilan", [
+        ["Kentang Goreng", 0],
+        ["Keripik Kentang Goreng", 0],
+        ["Sosis Goreng", 0],
+        ["Nuget Goreng", 0],
+        ["Mix Platter (Kentang, Nuget, Sosis)", 5000],
+      ]),
+    ],
+  },
+  {
+    id: "prd-tempe",
+    categoryId: "cat-camilan-04",
+    name: "Tempe & Tahu Goreng",
+    description:
+      "Tempe goreng atau tahu goreng hangat bertepung tipis renyah lengkap dengan saus sambal.",
+    basePrice: 13000,
+    emoji: "🥢",
+    imageUrl: "/images/menu/prd-tempe.jpg",
+    availableQty: 30,
+    minThreshold: 5,
+    popularity: 77,
+    options: [
+      singleVariantGroup("og-var", "Pilihan Menu", [
+        ["Tempe Goreng", 0],
+        ["Tahu Goreng", 0],
+      ]),
+    ],
   },
 ];
 
@@ -363,7 +1142,7 @@ export const sampleProducts: Product[] = productList.map((p, index) => ({
   ...p,
   sortOrder: index,
   categoryName: sampleCategories.find((c) => c.id === p.categoryId)?.name ?? "",
-  imageUrl: p.imageUrl ?? `/menu/${p.id}.svg`,
+  imageUrl: p.imageUrl ?? `/images/menu/${p.id}.jpg`,
 }));
 
 export interface RestaurantInfo {
@@ -371,7 +1150,7 @@ export interface RestaurantInfo {
   address: string;
   /** Nomor WhatsApp format internasional tanpa +, cth: 6281361425142 */
   whatsapp: string;
-  /** Teks jam operasional, cth: "Senin - Minggu, 07.00 - 02.00 WIB" */
+  /** Teks jam operasional, cth: "Buka 24 Jam (Setiap Hari)" */
   openingHours: string;
   /** Saklar buka/tutup pemesanan web (restaurant_settings.is_web_ordering_open) */
   isWebOrderingOpen: boolean;
@@ -382,7 +1161,7 @@ export const sampleRestaurant: RestaurantInfo = {
   name: "Warkop Agam",
   address: "Jalan Berdikari Baru 21, 20155 Padang Bulan, North Sumatra",
   whatsapp: "6281361425142",
-  openingHours: "Senin - Minggu, 07.00 - 02.00 WIB",
+  openingHours: "Buka 24 Jam (Setiap Hari)",
   isWebOrderingOpen: true,
 };
 
@@ -408,7 +1187,7 @@ export function emojiForCategory(slug: string): string {
   if (/kopi|hangat/.test(slug)) return "☕";
   if (/dingin|minum/.test(slug)) return "🧋";
   if (/mie|makan|nasi/.test(slug)) return "🍜";
-  if (/roti|camilan/.test(slug)) return "🍞";
+  if (/roti|camilan/.test(slug)) return "🫓";
   return "🍽️";
 }
 
@@ -416,14 +1195,20 @@ export function emojiForCategory(slug: string): string {
 export function emojiForProduct(name: string, categorySlug: string): string {
   const n = name.toLowerCase();
   if (/nasi/.test(n)) return "🍳";
-  if (/indomie|mie/.test(n)) return "🍜";
-  if (/roti/.test(n)) return "🍞";
-  if (/martabak/.test(n)) return "🥞";
-  if (/pisang/.test(n)) return "🍌";
-  if (/jeruk/.test(n)) return "🍊";
-  if (/milo|soda|badak/.test(n)) return "🥤";
-  if (/teh/.test(n)) return "🫖";
-  if (/es /.test(n)) return "🧊";
-  if (/kopi|sanger/.test(n)) return "☕";
+  if (/indomie|mie|ifumie|bihun|tiaw/.test(n)) return "🍜";
+  if (/cane|roti/.test(n)) return "🫓";
+  if (/martabak|mami/.test(n)) return "🥞";
+  if (/pisang|piscok/.test(n)) return "🍌";
+  if (/jeruk|lemon|nutrisari/.test(n)) return "🍊";
+  if (/jus|martabe|alpukat|mangga|naga/.test(n)) return "🧃";
+  if (/milo|soda|badak|thai|matcha|green tea|capp|choco|bang/.test(n)) return "🥤";
+  if (/teh|jahe/.test(n)) return "🫖";
+  if (/ayam|penyet/.test(n)) return "🍗";
+  if (/lele/.test(n)) return "🐟";
+  if (/udang|cumi/.test(n)) return "🍤";
+  if (/kangkung/.test(n)) return "🥬";
+  if (/platter|kentang/.test(n)) return "🍟";
+  if (/es |amoz/.test(n)) return "🧊";
+  if (/kopi|sanger|tst/.test(n)) return "☕";
   return emojiForCategory(categorySlug);
 }
