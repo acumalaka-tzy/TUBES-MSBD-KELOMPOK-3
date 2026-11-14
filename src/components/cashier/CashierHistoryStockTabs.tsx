@@ -300,7 +300,7 @@ export function CashierStockTab({
                   product={{
                     id: product.id,
                     name: product.name,
-                    imageUrl: product.imageUrl,
+                    imageUrl: product.imageUrl || undefined,
                     emoji: "🍽️",
                   }}
                   className="size-full object-cover transition-transform duration-300 group-hover:scale-105"

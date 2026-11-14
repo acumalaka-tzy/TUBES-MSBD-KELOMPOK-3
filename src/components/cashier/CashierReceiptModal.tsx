@@ -137,7 +137,7 @@ export function CashierReceiptModal({
     <div class="subtitle">WA: ${settings.phoneWhatsapp || "0812-3456-7890"}</div>
     <div class="badge">${
       order.serviceType === "DINE_IN"
-        ? `DINE IN • MEJA ${order.tableNumber || "-"}`
+        ? `DINE IN • MEJA ${order.tableNumber ? (String(order.tableNumber).replace(/^0+/, "") || String(order.tableNumber)) : "-"}`
         : "TAKEAWAY / BUNGKUS"
     }</div>
   </div>
@@ -178,8 +178,6 @@ export function CashierReceiptModal({
 
   <div class="divider"></div>
 
-  <div class="row"><span>Subtotal</span><span>${formatRupiah(order.subtotal)}</span></div>
-  <div class="row"><span>PB1 (${settings.taxPercentage}%)</span><span>${formatRupiah(order.taxAmount)}</span></div>
   <div class="total-row"><span>TOTAL</span><span>${formatRupiah(order.totalAmount)}</span></div>
 
   <div class="divider"></div>
@@ -189,9 +187,7 @@ export function CashierReceiptModal({
     <span class="bold">${
       order.payment.method === "CASH"
         ? "TUNAI (CASH)"
-        : order.payment.method === "QRIS"
-          ? "QRIS"
-          : "VIRTUAL ACCOUNT"
+        : "NON-TUNAI (MIDTRANS)"
     }</span>
   </div>
   <div class="row">
@@ -329,7 +325,7 @@ export function CashierReceiptModal({
               </p>
               <div className="mt-2 inline-block border border-black px-2 py-0.5 text-[10px] font-extrabold uppercase">
                 {order.serviceType === "DINE_IN"
-                  ? `DINE IN • MEJA ${order.tableNumber || "-"}`
+                  ? `DINE IN • MEJA ${order.tableNumber ? (String(order.tableNumber).replace(/^0+/, "") || String(order.tableNumber)) : "-"}`
                   : "TAKEAWAY / BUNGKUS"}
               </div>
             </div>
@@ -402,14 +398,6 @@ export function CashierReceiptModal({
 
             {/* Rincian Harga */}
             <div className="space-y-1">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>{formatRupiah(order.subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>PB1 ({settings.taxPercentage}%)</span>
-                <span>{formatRupiah(order.taxAmount)}</span>
-              </div>
               <div className="flex justify-between pt-1 text-xs font-black">
                 <span>TOTAL TAGIHAN</span>
                 <span>{formatRupiah(order.totalAmount)}</span>
@@ -425,9 +413,7 @@ export function CashierReceiptModal({
                 <span className="font-bold">
                   {order.payment.method === "CASH"
                     ? "TUNAI (CASH)"
-                    : order.payment.method === "QRIS"
-                      ? "QRIS"
-                      : "VIRTUAL ACCOUNT"}
+                    : "NON-TUNAI (MIDTRANS)"}
                 </span>
               </div>
               <div className="flex justify-between">

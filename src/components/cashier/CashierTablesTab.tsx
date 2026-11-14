@@ -169,7 +169,9 @@ export function CashierTablesTab({
                       {table.tableNumber}
                     </div>
                     <div>
-                      <h4 className="font-extrabold text-foreground">{table.name}</h4>
+                      <h4 className="font-extrabold text-foreground">
+                        Meja {String(table.tableNumber).replace(/^0+/, "") || String(table.tableNumber)}
+                      </h4>
                       <p className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
                         <Users className="h-3.5 w-3.5" />
                         <span>Kapasitas {table.capacity} Kursi</span>
@@ -298,7 +300,9 @@ export function CashierTablesTab({
                       className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-[#F4F7F6] px-3 py-2 text-xs font-bold text-foreground transition hover:bg-muted"
                     >
                       <PlusCircle className="h-3.5 w-3.5 text-primary" />
-                      <span>Tambah Pesanan ke Meja {table.tableNumber}</span>
+                      <span>
+                        Tambah Pesanan ke Meja {String(table.tableNumber).replace(/^0+/, "") || String(table.tableNumber)}
+                      </span>
                     </button>
                   </>
                 ) : (

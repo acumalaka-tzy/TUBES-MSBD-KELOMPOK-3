@@ -363,10 +363,7 @@ function NavbarContent() {
                   {items.length} menu dipilih • Ketuk rincian
                 </p>
                 <p className="font-mono text-sm font-extrabold text-foreground">
-                  {formatRupiah(totalAmount)}{" "}
-                  <span className="font-sans text-[10px] font-normal text-muted-foreground">
-                    {storeSettings.taxEnabled ? `(+PB1 ${storeSettings.taxPercentage}%)` : "(Tanpa Pajak)"}
-                  </span>
+                  {formatRupiah(totalAmount)}
                 </p>
               </div>
             </button>

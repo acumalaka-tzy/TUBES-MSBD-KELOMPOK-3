@@ -53,7 +53,7 @@ function CheckoutContent() {
   const [tables, setTables] = useState<TableItem[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [editingTarget, setEditingTarget] = useState<{ product: Product; cartItemId: string } | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "QRIS" | "VIRTUAL_ACCOUNT">("QRIS");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MIDTRANS">("MIDTRANS");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -243,8 +243,6 @@ function CheckoutContent() {
             items={items}
             itemCount={itemCount}
             subtotal={subtotal}
-            taxAmount={taxAmount}
-            taxLabel={taxLabel}
             totalAmount={totalAmount}
             isSubmitting={isSubmitting}
             isWebOrderingOpen={storeSettings.isWebOrderingOpen}

@@ -178,7 +178,7 @@ function buildDemoOrders(): MemAnalyticsOrder[] {
         items.push({ product_id: p.id, name: p.name, quantity: qty, subtotal: p.basePrice * qty });
       }
       const subtotal = items.reduce((s, it) => s + it.subtotal, 0);
-      const tax = Math.round(subtotal * 0.1);
+      const tax = 0;
       const roll = rand();
       const cancelled = roll < 0.07;
       const refunded = !cancelled && roll < 0.09;
@@ -187,8 +187,8 @@ function buildDemoOrders(): MemAnalyticsOrder[] {
         status: cancelled ? "CANCELLED" : "COMPLETED",
         created_at: created,
         subtotal,
-        tax_amount: tax,
-        total_amount: subtotal + tax,
+        tax_amount: 0,
+        total_amount: subtotal,
         payment_method: rand() < 0.45 ? "CASH" : rand() < 0.8 ? "QRIS" : "VIRTUAL_ACCOUNT",
         payment_status: cancelled ? "UNPAID" : refunded ? "REFUNDED" : "PAID",
         items,
@@ -253,12 +253,12 @@ function createStore(): AdminMemoryStore {
   });
 
   const defaultTables = [
-    { number: "01", name: "Meja 01 (Indoor)", capacity: 4 },
-    { number: "02", name: "Meja 02 (Indoor)", capacity: 4 },
-    { number: "03", name: "Meja 03 (Indoor AC)", capacity: 6 },
-    { number: "04", name: "Meja 04 (Outdoor Depan)", capacity: 2 },
-    { number: "05", name: "Meja 05 (Outdoor Samping)", capacity: 4 },
-    { number: "06", name: "Meja 06 (Lesehan)", capacity: 8 },
+    { number: "01", name: "Meja 1", capacity: 4 },
+    { number: "02", name: "Meja 2", capacity: 4 },
+    { number: "03", name: "Meja 3", capacity: 6 },
+    { number: "04", name: "Meja 4", capacity: 2 },
+    { number: "05", name: "Meja 5", capacity: 4 },
+    { number: "06", name: "Meja 6", capacity: 8 },
   ];
 
   const tables = new Map<string, MemTable>();
@@ -303,8 +303,8 @@ function createStore(): AdminMemoryStore {
       phone_whatsapp: sampleRestaurant.whatsapp,
       opening_hours: sampleRestaurant.openingHours,
       is_web_ordering_open: sampleRestaurant.isWebOrderingOpen,
-      tax_enabled: true,
-      tax_percentage: 10,
+      tax_enabled: false,
+      tax_percentage: 0,
       digital_expiry_minutes: 15,
       cash_expiry_minutes: 30,
       receipt_footer_note: "Terima kasih telah berkunjung ke Warkop Agam!",

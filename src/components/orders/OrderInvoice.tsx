@@ -54,19 +54,7 @@ export function OrderInvoice({ order }: OrderInvoiceProps) {
 
       {/* Total Rincian */}
       <div className="pt-4 border-t border-border space-y-1.5 text-xs text-muted-foreground">
-        <div className="flex justify-between">
-          <span>Subtotal</span>
-          <span className="font-mono font-medium">
-            Rp {Number(order.subtotal).toLocaleString("id-ID")}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>Pajak Restoran (PB1)</span>
-          <span className="font-mono font-medium">
-            Rp {Number(order.tax_amount).toLocaleString("id-ID")}
-          </span>
-        </div>
-        <div className="flex justify-between text-foreground font-black text-base pt-2 border-t border-border">
+        <div className="flex justify-between text-foreground font-black text-base pt-1">
           <span>Total Pembayaran</span>
           <span className="font-mono text-primary text-lg">
             Rp {Number(order.total_amount).toLocaleString("id-ID")}

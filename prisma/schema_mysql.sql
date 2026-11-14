@@ -912,7 +912,7 @@ INSERT INTO restaurant_settings (
     'set-main-001', 'Warkop Agam',
     'Jl. H. Misbah No. 14, Medan Maimun, Kota Medan, Sumatera Utara',
     '6281260001001', 'Senin - Minggu, 07.00 - 02.00 WIB',
-    TRUE, TRUE, 10.00, 15, 30,
+    TRUE, FALSE, 0.00, 15, 30,
     'Terima kasih telah bersantai di Warkop Agam! WiFi: WarkopAgam_Guest',
     'usr-admin-001'
 );
@@ -974,12 +974,12 @@ SELECT
 FROM product_stocks;
 
 INSERT INTO tables (id, table_number, name, capacity, status, is_active) VALUES
-('tbl-01', '01', 'Meja 01 (Indoor)', 4, 'AVAILABLE', TRUE),
-('tbl-02', '02', 'Meja 02 (Indoor)', 4, 'AVAILABLE', TRUE),
-('tbl-03', '03', 'Meja 03 (Indoor)', 2, 'AVAILABLE', TRUE),
-('tbl-04', '04', 'Meja 04 (Teras)', 4, 'AVAILABLE', TRUE),
-('tbl-05', '05', 'Meja 05 (Teras)', 6, 'AVAILABLE', TRUE),
-('tbl-06', '06', 'Meja 06 (VIP)', 8, 'AVAILABLE', TRUE);
+('tbl-01', '01', 'Meja 1', 4, 'AVAILABLE', TRUE),
+('tbl-02', '02', 'Meja 2', 4, 'AVAILABLE', TRUE),
+('tbl-03', '03', 'Meja 3', 2, 'AVAILABLE', TRUE),
+('tbl-04', '04', 'Meja 4', 4, 'AVAILABLE', TRUE),
+('tbl-05', '05', 'Meja 5', 6, 'AVAILABLE', TRUE),
+('tbl-06', '06', 'Meja 6', 8, 'AVAILABLE', TRUE);
 
 INSERT INTO table_qr_codes (id, table_id, token, is_active, generated_by) VALUES
 ('qr-01', 'tbl-01', 'qr_tok_agam_m01_9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c', TRUE, 'usr-admin-001'),

@@ -108,7 +108,7 @@ export interface PosCreateOrderInput {
   customerPhone?: string;
   serviceType: "DINE_IN" | "TAKEAWAY";
   tableNumber?: string;
-  paymentMethod: "CASH" | "QRIS" | "VIRTUAL_ACCOUNT";
+  paymentMethod: "CASH" | "MIDTRANS" | "QRIS" | "VIRTUAL_ACCOUNT";
   amountPaid?: number;
   notes?: string;
   items: {

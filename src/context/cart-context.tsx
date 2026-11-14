@@ -478,13 +478,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const taxAmount = storeSettings.taxEnabled
-    ? Math.round(subtotal * (storeSettings.taxPercentage / 100))
-    : 0;
-  const taxLabel = storeSettings.taxEnabled
-    ? `Pajak Restoran (PB1 ${storeSettings.taxPercentage}%)`
-    : "Pajak Restoran (PB1 0% • Nonaktif)";
-  const totalAmount = subtotal + taxAmount;
+  const taxAmount = 0;
+  const taxLabel = "";
+  const totalAmount = subtotal;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (

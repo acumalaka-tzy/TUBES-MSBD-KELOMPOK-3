@@ -15,6 +15,7 @@ import {
   listAdminTables,
 } from "@/lib/admin/queries";
 import { memoryOrders } from "@/actions/helpers";
+import { cleanupExpiredOrders } from "@/actions/orders";
 import type { OrderDetailData } from "@/actions/types";
 import type {
   CashierDashboardPayload,
@@ -201,6 +202,7 @@ async function listCashierOrders(): Promise<{ orders: CashierOrder[]; source: "d
 
 export async function getCashierDashboardData(): Promise<CashierDashboardPayload> {
   await requireCashierOrAdmin();
+  await cleanupExpiredOrders().catch(() => {});
 
   const [ordersRes, settingsRes, categoriesRes, productsRes, tablesRes] = await Promise.all([
     listCashierOrders(),
@@ -745,6 +747,7 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
 }> {
   try {
     const staff = await requireCashierOrAdmin();
+    await cleanupExpiredOrders().catch(() => {});
 
     const customerName = input.customerName?.trim() || "Pelanggan Kasir";
     const customerPhone = input.customerPhone?.trim() || "-";
@@ -766,10 +769,8 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
       subtotal += (item.unitPrice + optSum) * item.quantity;
     }
 
-    const taxAmount = settings.taxEnabled
-      ? Math.round(subtotal * (settings.taxPercentage / 100))
-      : 0;
-    const totalAmount = subtotal + taxAmount;
+    const taxAmount = 0;
+    const totalAmount = subtotal;
 
     const isCashImmediate = input.paymentMethod === "CASH";
     const amountPaid = isCashImmediate
@@ -903,7 +904,7 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
             data: {
               order_id: order.id,
               cashier_id: dbActor?.id ?? null,
-              method: input.paymentMethod,
+              method: input.paymentMethod === "CASH" ? "CASH" : "QRIS",
               status: initialPaymentStatus,
               amount_due: totalAmount,
               amount_paid: amountPaid,
@@ -1294,8 +1295,8 @@ export async function simulateIncomingWebOrderAction(): Promise<{
     ];
 
     const subtotal = 22000 + 14000;
-    const taxAmount = 3600;
-    const totalAmount = 39600;
+    const taxAmount = 0;
+    const totalAmount = subtotal;
 
     if (await isDatabaseReady()) {
       try {

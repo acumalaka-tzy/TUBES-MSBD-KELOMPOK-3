@@ -19,13 +19,14 @@ import {
   User,
   Phone,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import type { CashierOrder, QueueFilterKey } from "@/lib/cashier/types";
 import {
   simulateIncomingWebOrderAction,
   updateOrderStatusCashierAction,
 } from "@/app/actions/cashier";
-import { simulatePaymentSuccess } from "@/actions/payments";
+import { simulatePaymentSuccess, checkMidtransStatusAction } from "@/actions/payments";
 
 interface CashierQueueTabProps {
   orders: CashierOrder[];
@@ -196,6 +197,30 @@ export function CashierQueueTab({
         await onRefreshData();
       } else {
         onNotify(res.error || "Gagal menyimulasikan webhook pembayaran.", "error");
+      }
+    });
+  };
+
+  const handleCheckMidtransStatus = (orderNumber: string) => {
+    setPendingOrderNo(orderNumber);
+    startTransition(async () => {
+      const res = await checkMidtransStatusAction(orderNumber);
+      setPendingOrderNo(null);
+      if (res.success) {
+        if (res.paymentStatus === "PAID") {
+          onNotify(
+            `Pembayaran Midtrans (${orderNumber}) LUNAS! Status pesanan otomatis CONFIRMED.`,
+            "success",
+          );
+          await onRefreshData();
+        } else {
+          onNotify(
+            `Status Midtrans (${orderNumber}): ${res.midtransStatus?.toUpperCase() || "PENDING"} (Belum Lunas).`,
+            "info",
+          );
+        }
+      } else {
+        onNotify(res.error || "Gagal mengecek status ke Midtrans.", "error");
       }
     });
   };
@@ -383,7 +408,9 @@ export function CashierQueueTab({
                           {order.serviceType === "DINE_IN" ? (
                             <>
                               <Utensils className="h-3 w-3" />
-                              <span>Dine In • Meja {order.tableNumber || "-"}</span>
+                              <span>
+                                Dine In • Meja {order.tableNumber ? (String(order.tableNumber).replace(/^0+/, "") || String(order.tableNumber)) : "-"}
+                              </span>
                             </>
                           ) : (
                             <>
@@ -487,9 +514,7 @@ export function CashierQueueTab({
                 <div className="space-y-3 border-t border-border/80 pt-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-xs text-muted-foreground">
-                      <span>Subtotal {formatRupiah(order.subtotal)}</span>
-                      <span className="mx-1.5">•</span>
-                      <span>PB1 {formatRupiah(order.taxAmount)}</span>
+                      <span>{order.items.reduce((s, i) => s + i.quantity, 0)} item</span>
                       {isPaid && order.payment.changeAmount > 0 && (
                         <>
                           <span className="mx-1.5">•</span>
@@ -528,13 +553,13 @@ export function CashierQueueTab({
                       {!isPaid && !isTerminal && !isCash && (
                         <button
                           type="button"
-                          onClick={() => handleSimulateWebhookPaid(order.orderNumber)}
+                          onClick={() => handleCheckMidtransStatus(order.orderNumber)}
                           disabled={isOrderBusy}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-xs font-extrabold text-indigo-800 transition hover:bg-indigo-500/20 disabled:opacity-50"
-                          title="Sesuai PRD 6.4: Pembayaran digital diverifikasi oleh webhook gateway"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-extrabold text-primary transition hover:bg-primary/20 disabled:opacity-50 cursor-pointer"
+                          title="Periksa konfirmasi pembayaran Midtrans secara realtime"
                         >
-                          <QrCode className="h-3.5 w-3.5" />
-                          <span>Simulasi Webhook Lunas ({order.payment.method})</span>
+                          <RefreshCw className={`h-3.5 w-3.5 ${isOrderBusy ? "animate-spin" : ""}`} />
+                          <span>Cek Status Midtrans</span>
                         </button>
                       )}
 
@@ -558,6 +583,16 @@ export function CashierQueueTab({
                           >
                             <ChefHat className="h-3.5 w-3.5" />
                             <span>Langsung Masak</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusUpdate(order.orderNumber, "CANCELLED")}
+                            disabled={isOrderBusy}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-extrabold text-red-700 hover:bg-red-500/20 disabled:opacity-50 cursor-pointer"
+                            title="Batalkan pesanan dan segera kosongkan meja"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            <span>Batal &amp; Kosongkan Meja</span>
                           </button>
                         </>
                       )}

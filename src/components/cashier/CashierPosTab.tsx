@@ -95,7 +95,7 @@ export function CashierPosTab({
   const [cart, setCart] = useState<PosCartItem[]>([]);
 
   // State Pembayaran Tunai & Kembalian
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "QRIS">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MIDTRANS">("CASH");
   const [cashPaidInput, setCashPaidInput] = useState<string>("");
   const [customCashTouched, setCustomCashTouched] = useState<boolean>(false);
 
@@ -203,10 +203,8 @@ export function CashierPosTab({
     return sum + (item.unitPrice + optDelta) * item.quantity;
   }, 0);
 
-  const taxAmount = settings.taxEnabled
-    ? Math.round(subtotal * (settings.taxPercentage / 100))
-    : 0;
-  const totalAmount = subtotal + taxAmount;
+  const taxAmount = 0;
+  const totalAmount = subtotal;
 
   // Nominal uang tunai diterima (default = Uang Pas jika kasir belum mengetik manual)
   const effectiveCashPaid = customCashTouched
@@ -718,10 +716,10 @@ export function CashierPosTab({
                       .filter((t) => t.isActive)
                       .map((tbl) => {
                         const isOccupied = tbl.status === "OCCUPIED";
+                        const num = String(tbl.tableNumber).replace(/^0+/, "") || String(tbl.tableNumber);
                         return (
                           <option key={tbl.id} value={tbl.tableNumber} disabled={isOccupied}>
-                            Meja {tbl.tableNumber} {tbl.name && tbl.name !== `Meja ${tbl.tableNumber}` ? `• ${tbl.name}` : ""}{" "}
-                            {isOccupied ? "(Sedang Terisi - Tidak Tersedia)" : "(Kosong)"}
+                            Meja {num}
                           </option>
                         );
                       })}
@@ -733,7 +731,10 @@ export function CashierPosTab({
                   <div className="flex items-center gap-2 pt-0.5 text-xs text-muted-foreground">
                     <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
                     <span>
-                      Pesanan akan disajikan ke <strong className="font-extrabold text-foreground">Meja {selectedTableNumber}</strong>.
+                      Pesanan akan disajikan ke{" "}
+                      <strong className="font-extrabold text-foreground">
+                        Meja {String(selectedTableNumber).replace(/^0+/, "") || String(selectedTableNumber)}
+                      </strong>.
                     </span>
                   </div>
                 )}
@@ -866,37 +867,25 @@ export function CashierPosTab({
               )}
             </div>
 
-            {/* 4. Metode Pembayaran & Kalkulator Tunai / Kembalian */}
+            {/* 4. Metode Pembayaran: Kasir Khusus Tunai (Cash) */}
             <div className="space-y-3 border-t border-border pt-3">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("CASH")}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-extrabold transition ${
-                    paymentMethod === "CASH"
-                      ? "border-emerald-600 bg-emerald-600 text-white shadow-2xs"
-                      : "border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Banknote className="h-4 w-4" />
-                  <span>Tunai (Cash)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("QRIS")}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-extrabold transition ${
-                    paymentMethod === "QRIS"
-                      ? "border-indigo-600 bg-indigo-600 text-white shadow-2xs"
-                      : "border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <QrCode className="h-4 w-4" />
-                  <span>QRIS Digital</span>
-                </button>
+              <div className="flex items-center justify-between rounded-xl border border-emerald-600/30 bg-emerald-500/10 p-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-600 text-white shrink-0">
+                    <Banknote className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-extrabold text-foreground">Pembayaran Kasir: Tunai (Cash)</p>
+                    <p className="text-[11px] text-muted-foreground">Non-tunai hanya melalui aplikasi pelanggan</p>
+                  </div>
+                </div>
+                <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase">
+                  Tunai
+                </span>
               </div>
 
               {/* Kalkulator Nominal Tunai & Kembalian Otomatis */}
-              {paymentMethod === "CASH" && totalAmount > 0 && (
+              {totalAmount > 0 && (
                 <div className="space-y-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-950">
@@ -971,21 +960,9 @@ export function CashierPosTab({
                 </div>
               )}
 
-              {/* Rincian Subtotal, Pajak & Total */}
+              {/* Rincian Total */}
               <div className="rounded-xl bg-[#F4F7F6] p-3.5 space-y-1.5 text-xs">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span className="font-mono font-bold text-foreground">
-                    {formatRupiah(subtotal)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Pajak PB1 ({settings.taxPercentage}%)</span>
-                  <span className="font-mono font-bold text-foreground">
-                    {formatRupiah(taxAmount)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t border-border pt-2 text-sm font-black text-[#0E2A2E]">
+                <div className="flex items-center justify-between text-sm font-black text-[#0E2A2E]">
                   <span>TOTAL TAGIHAN</span>
                   <span className="font-mono text-lg">{formatRupiah(totalAmount)}</span>
                 </div>
@@ -999,11 +976,7 @@ export function CashierPosTab({
               >
                 <Printer className="h-4 w-4" />
                 <span>
-                  {isPending
-                    ? "Memproses Transaksi POS..."
-                    : paymentMethod === "CASH"
-                      ? "Proses Lunas & Cetak Struk"
-                      : "Buat Pesanan QRIS & Cetak Struk"}
+                  {isPending ? "Memproses Transaksi POS..." : "Proses Lunas & Cetak Struk"}
                 </span>
               </button>
             </div>
@@ -1047,7 +1020,7 @@ export function CashierPosTab({
                 product={{
                   id: customizingProduct.id,
                   name: customizingProduct.name,
-                  imageUrl: customizingProduct.imageUrl,
+                  imageUrl: customizingProduct.imageUrl || undefined,
                   emoji: "🍽️",
                 }}
                 className="aspect-[16/10]"

@@ -183,7 +183,6 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         return `- ${it.quantity}x ${it.name}${opts}: ${formatRupiah(it.subtotal)}`;
       }),
       `Subtotal: ${formatRupiah(subtotal)}`,
-      `${taxLabel}: ${formatRupiah(taxAmount)}`,
       `Total: ${formatRupiah(totalAmount)}`,
     ];
     try {
@@ -724,12 +723,6 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                       {formatRupiah(subtotal)}
                     </span>
                   </div>
-                </div>
-                <div className="flex justify-between">
-                  <span>{taxLabel}</span>
-                  <span className="font-mono font-semibold text-foreground">
-                    {formatRupiah(taxAmount)}
-                  </span>
                 </div>
                 {!storeSettings.isWebOrderingOpen && (
                   <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">

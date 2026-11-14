@@ -49,8 +49,8 @@ export function CashierOverviewTab({
   const cashRevenue = paidOrders
     .filter((o) => o.payment.method === "CASH")
     .reduce((sum, o) => sum + (Number(o.totalAmount || o.payment?.amountPaid) || 0), 0);
-  const qrisRevenue = paidOrders
-    .filter((o) => o.payment.method === "QRIS")
+  const nonCashRevenue = paidOrders
+    .filter((o) => o.payment.method !== "CASH")
     .reduce((sum, o) => sum + (Number(o.totalAmount || o.payment?.amountPaid) || 0), 0);
 
   const activeTables = tables.filter((t) => t.isActive);
@@ -126,18 +126,18 @@ export function CashierOverviewTab({
           </span>
         </div>
 
-        {/* Penerimaan QRIS / Digital */}
+        {/* Penerimaan Non-Tunai / Midtrans */}
         <div className="rounded-2xl border border-border bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-bold">Penerimaan QRIS</span>
+            <span className="text-xs font-bold">Non-Tunai (Midtrans)</span>
             <div className="flex size-8 items-center justify-center rounded-xl bg-sky-500/10 text-sky-700">
-              <span className="font-mono text-[10px] font-black">QR</span>
+              <span className="font-mono text-[10px] font-black">PAY</span>
             </div>
           </div>
           <p className="mt-2 font-mono text-xl sm:text-2xl font-black text-sky-800">
-            {formatRupiah(qrisRevenue)}
+            {formatRupiah(nonCashRevenue)}
           </p>
-          <span className="text-[11px] text-muted-foreground">Settlement non-tunai</span>
+          <span className="text-[11px] text-muted-foreground">Settlement gateway Midtrans</span>
         </div>
 
         {/* Okupansi Meja Dine-In */}

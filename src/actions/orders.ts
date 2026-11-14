@@ -19,8 +19,267 @@ function generateTrackingToken(): string {
   return `trk_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 }
 
+/**
+ * Otomatis membersihkan pesanan PENDING yang telah melewati batas waktu expires_at,
+ * melepaskan reserved stok, dan mengosongkan meja kembali ke AVAILABLE.
+ */
+export async function cleanupExpiredOrders(): Promise<number> {
+  const now = new Date();
+  let expiredCount = 0;
+
+  // 1. Bersihkan di Database Prisma
+  try {
+    const expiredOrders = await prisma.order.findMany({
+      where: {
+        status: "PENDING",
+        expires_at: { lt: now },
+        payment: { status: { not: "PAID" } },
+      },
+      include: { items: true, table: true },
+    });
+
+    for (const order of expiredOrders) {
+      await prisma.$transaction(async (tx: any) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: "CANCELLED" },
+        });
+
+        await tx.payment.updateMany({
+          where: { order_id: order.id },
+          data: { status: "FAILED" },
+        });
+
+        for (const item of order.items) {
+          const stock = await tx.productStock.findUnique({
+            where: { product_id: item.product_id },
+          });
+          if (stock) {
+            const availAfter = stock.available_qty + item.quantity;
+            const resAfter = Math.max(0, stock.reserved_qty - item.quantity);
+            await tx.productStock.update({
+              where: { product_id: item.product_id },
+              data: { available_qty: availAfter, reserved_qty: resAfter },
+            });
+            await tx.stockMovement.create({
+              data: {
+                product_id: item.product_id,
+                order_id: order.id,
+                movement_type: "RELEASE_RESERVE",
+                qty_change: item.quantity,
+                available_before: stock.available_qty,
+                available_after: availAfter,
+                reserved_before: stock.reserved_qty,
+                reserved_after: resAfter,
+                reason: `Batas waktu pembayaran pesanan ${order.order_number} habis`,
+              },
+            });
+          }
+        }
+
+        if (order.table_id) {
+          const activeOthers = await tx.order.count({
+            where: {
+              table_id: order.table_id,
+              id: { not: order.id },
+              status: { in: ["CONFIRMED", "PREPARING", "READY"] },
+            },
+          });
+          if (activeOthers === 0) {
+            await tx.table.update({
+              where: { id: order.table_id },
+              data: { status: "AVAILABLE" },
+            });
+          }
+        }
+      });
+      expiredCount++;
+    }
+  } catch {
+    // Abaikan error DB
+  }
+
+  // 2. Bersihkan di Memory Fallback Store
+  try {
+    const mem = getMemoryStore();
+    for (const [orderNumber, order] of memoryOrders.entries()) {
+      if (
+        order.status === "PENDING" &&
+        order.payment?.status !== "PAID" &&
+        order.expires_at &&
+        new Date(order.expires_at) < now
+      ) {
+        order.status = "CANCELLED";
+        if (order.payment) order.payment.status = "FAILED";
+
+        for (const item of order.items) {
+          const prod = item.product_id
+            ? mem.products.get(item.product_id)
+            : [...mem.products.values()].find((p) => p.name === item.product_name_snapshot);
+          const st = prod ? mem.stocks.get(prod.id) : undefined;
+          if (prod && st) {
+            const availBefore = st.available_qty;
+            const resBefore = st.reserved_qty;
+            st.available_qty = availBefore + item.quantity;
+            st.reserved_qty = Math.max(0, resBefore - item.quantity);
+            st.updated_at = new Date();
+            if (st.available_qty > 0 && prod.deleted_at === null) {
+              prod.is_available = true;
+            }
+          }
+        }
+
+        if (order.table?.table_number) {
+          const targetTable = [...mem.tables.values()].find(
+            (t) => t.table_number === order.table?.table_number
+          );
+          if (targetTable) {
+            targetTable.status = "AVAILABLE";
+            targetTable.updated_at = new Date();
+          }
+        }
+        expiredCount++;
+      }
+    }
+  } catch {
+    // Abaikan
+  }
+
+  return expiredCount;
+}
+
+/**
+ * Batalkan pesanan PENDING (secara mandiri oleh customer atau kasir),
+ * langsung melepaskan stok dan mengosongkan meja.
+ */
+export async function cancelPendingOrderAction(orderNumber: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    // Coba di Prisma DB
+    try {
+      const order = await prisma.order.findUnique({
+        where: { order_number: orderNumber },
+        include: { items: true, payment: true },
+      });
+
+      if (order) {
+        if (order.status !== "PENDING" && order.payment?.status === "PAID") {
+          return { success: false, error: "Pesanan yang sudah lunas tidak dapat dibatalkan secara otomatis." };
+        }
+
+        await prisma.$transaction(async (tx: any) => {
+          await tx.order.update({
+            where: { id: order.id },
+            data: { status: "CANCELLED" },
+          });
+
+          await tx.payment.updateMany({
+            where: { order_id: order.id },
+            data: { status: "FAILED" },
+          });
+
+          for (const item of order.items) {
+            const stock = await tx.productStock.findUnique({
+              where: { product_id: item.product_id },
+            });
+            if (stock) {
+              const availAfter = stock.available_qty + item.quantity;
+              const resAfter = Math.max(0, stock.reserved_qty - item.quantity);
+              await tx.productStock.update({
+                where: { product_id: item.product_id },
+                data: { available_qty: availAfter, reserved_qty: resAfter },
+              });
+              await tx.stockMovement.create({
+                data: {
+                  product_id: item.product_id,
+                  order_id: order.id,
+                  movement_type: "RELEASE_RESERVE",
+                  qty_change: item.quantity,
+                  available_before: stock.available_qty,
+                  available_after: availAfter,
+                  reserved_before: stock.reserved_qty,
+                  reserved_after: resAfter,
+                  reason: `Pembatalan pesanan PENDING ${order.order_number}`,
+                },
+              });
+            }
+          }
+
+          if (order.table_id) {
+            const activeOthers = await tx.order.count({
+              where: {
+                table_id: order.table_id,
+                id: { not: order.id },
+                status: { in: ["CONFIRMED", "PREPARING", "READY"] },
+              },
+            });
+            if (activeOthers === 0) {
+              await tx.table.update({
+                where: { id: order.table_id },
+                data: { status: "AVAILABLE" },
+              });
+            }
+          }
+        });
+
+        return { success: true, message: "Pesanan dibatalkan dan meja telah dikosongkan." };
+      }
+    } catch {
+      // Fallback ke memory
+    }
+
+    // Fallback di memory
+    const fallback = memoryOrders.get(orderNumber);
+    if (fallback) {
+      if (fallback.status !== "PENDING" && fallback.payment?.status === "PAID") {
+        return { success: false, error: "Pesanan yang sudah lunas tidak dapat dibatalkan." };
+      }
+
+      fallback.status = "CANCELLED";
+      if (fallback.payment) fallback.payment.status = "FAILED";
+
+      const mem = getMemoryStore();
+      for (const item of fallback.items) {
+        const prod = item.product_id
+          ? mem.products.get(item.product_id)
+          : [...mem.products.values()].find((p) => p.name === item.product_name_snapshot);
+        const st = prod ? mem.stocks.get(prod.id) : undefined;
+        if (prod && st) {
+          st.available_qty += item.quantity;
+          st.reserved_qty = Math.max(0, st.reserved_qty - item.quantity);
+          st.updated_at = new Date();
+          if (st.available_qty > 0 && prod.deleted_at === null) {
+            prod.is_available = true;
+          }
+        }
+      }
+
+      if (fallback.table?.table_number) {
+        const targetTable = [...mem.tables.values()].find(
+          (t) => t.table_number === fallback.table?.table_number
+        );
+        if (targetTable) {
+          targetTable.status = "AVAILABLE";
+          targetTable.updated_at = new Date();
+        }
+      }
+
+      return { success: true, message: "Pesanan dibatalkan dan meja telah dikosongkan." };
+    }
+
+    return { success: false, error: "Pesanan tidak ditemukan." };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Gagal membatalkan pesanan." };
+  }
+}
+
 export async function createOrder(input: CheckoutInput) {
   try {
+    // Bersihkan pesanan PENDING yang kedaluwarsa agar meja kosong kembali
+    await cleanupExpiredOrders().catch(() => {});
     if (!input.customerName?.trim()) {
       return { success: false, error: "Nama pelanggan wajib diisi." };
     }
@@ -52,10 +311,8 @@ export async function createOrder(input: CheckoutInput) {
       subtotal += (item.unitPrice + optionsSum) * item.quantity;
     }
 
-    const taxAmount = storeSettings.taxEnabled
-      ? Math.round(subtotal * (storeSettings.taxPercentage / 100))
-      : 0;
-    const totalAmount = subtotal + taxAmount;
+    const taxAmount = 0;
+    const totalAmount = subtotal;
 
     const orderNumber = generateOrderNumber();
     const trackingToken = generateTrackingToken();
@@ -183,7 +440,7 @@ export async function createOrder(input: CheckoutInput) {
         await tx.payment.create({
           data: {
             order_id: order.id,
-            method: input.paymentMethod,
+            method: input.paymentMethod === "CASH" ? "CASH" : "QRIS",
             status: "UNPAID",
             amount_due: totalAmount,
             amount_paid: 0,
@@ -357,6 +614,7 @@ export async function getOrderDetail(
   orderNumber: string,
 ): Promise<{ success: boolean; data?: OrderDetailData; error?: string }> {
   try {
+    await cleanupExpiredOrders().catch(() => {});
     const order = await prisma.order.findUnique({
       where: { order_number: orderNumber },
       include: {

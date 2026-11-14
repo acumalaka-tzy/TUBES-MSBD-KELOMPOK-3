@@ -2,15 +2,11 @@
 
 import React, { useCallback, useEffect, useState, use, Suspense } from "react";
 import Link from "next/link";
-import {
-  getOrderDetail,
-  simulatePaymentSuccess,
-  simulateStatusUpdate,
-} from "@/actions";
+import { getOrderDetail } from "@/actions";
+import { cancelPendingOrderAction } from "@/actions/orders";
 import { OrderDetailData } from "@/actions/types";
 import { OrderStatusStepper } from "@/components/orders/OrderStatusStepper";
 import { PaymentInstructions } from "@/components/orders/PaymentInstructions";
-import { OrderSimulationToolbar } from "@/components/orders/OrderSimulationToolbar";
 import { OrderInvoice } from "@/components/orders/OrderInvoice";
 import { useCart } from "@/context/cart-context";
 import {
@@ -24,6 +20,7 @@ import {
   Share2,
   Printer,
   ListChecks,
+  XCircle,
 } from "lucide-react";
 
 interface PageProps {
@@ -41,9 +38,24 @@ function OrderTrackingContent({ params }: PageProps) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string>("");
   const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [reorderSuccess, setReorderSuccess] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const { addItem, openCart } = useCart();
+
+  const handleCancelOrder = async () => {
+    if (!confirm("Batalkan pesanan ini dan kosongkan meja kembali?")) return;
+    setIsCancelling(true);
+    try {
+      const res = await cancelPendingOrderAction(orderNumber);
+      if (res.success) {
+        await fetchOrder();
+      } else {
+        alert(res.error || "Gagal membatalkan pesanan.");
+      }
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   const handleReorder = () => {
     if (!order || !order.items || order.items.length === 0) return;
@@ -134,42 +146,6 @@ function OrderTrackingContent({ params }: PageProps) {
       setTimeout(() => setLinkCopied(false), 2500);
     } catch {
       // Clipboard diblokir browser
-    }
-  };
-
-  const handleSimulatePayment = async () => {
-    setIsProcessingAction(true);
-    try {
-      await simulatePaymentSuccess(orderNumber);
-      await fetchOrder();
-    } finally {
-      setIsProcessingAction(false);
-    }
-  };
-
-  const handleSimulateNextStep = async () => {
-    if (!order) return;
-    const steps = ["PENDING", "CONFIRMED", "PREPARING", "READY", "COMPLETED"];
-    const currentIndex = steps.indexOf(order.status);
-    if (currentIndex >= 0 && currentIndex < steps.length - 1) {
-      const nextStatus = steps[currentIndex + 1];
-      setIsProcessingAction(true);
-      try {
-        await simulateStatusUpdate(orderNumber, nextStatus);
-        await fetchOrder();
-      } finally {
-        setIsProcessingAction(false);
-      }
-    }
-  };
-
-  const handleSimulateCancel = async () => {
-    setIsProcessingAction(true);
-    try {
-      await simulateStatusUpdate(orderNumber, "CANCELLED");
-      await fetchOrder();
-    } finally {
-      setIsProcessingAction(false);
     }
   };
 
@@ -293,7 +269,7 @@ function OrderTrackingContent({ params }: PageProps) {
             <span className="px-3 py-1.5 rounded-xl bg-secondary-bg border border-border text-xs font-bold text-foreground flex items-center gap-1.5">
               <UtensilsCrossed className="w-3.5 h-3.5 text-primary" />
               {order.service_type === "DINE_IN"
-                ? `Dine In — Meja ${order.table?.table_number || "Aktif"}`
+                ? `Dine In — Meja ${order.table?.table_number ? (String(order.table.table_number).replace(/^0+/, "") || String(order.table.table_number)) : "Aktif"}`
                 : "Takeaway (Bungkus)"}
             </span>
 
@@ -318,7 +294,7 @@ function OrderTrackingContent({ params }: PageProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* KOLOM KIRI: STATUS PEMBAYARAN & PANEL SIMULASI */}
+        {/* KOLOM KIRI: STATUS PEMBAYARAN */}
         <div className="md:col-span-5 space-y-6">
           <PaymentInstructions
             orderNumber={order.order_number}
@@ -327,18 +303,25 @@ function OrderTrackingContent({ params }: PageProps) {
             isCancelled={isCancelled}
             totalAmount={Number(order.total_amount)}
             timeLeft={timeLeft}
+            onPaymentSuccess={fetchOrder}
           />
 
-          <div className="print:hidden">
-            <OrderSimulationToolbar
-              status={order.status}
-              isPaid={isPaid}
-              isProcessingAction={isProcessingAction}
-              onSimulatePayment={handleSimulatePayment}
-              onSimulateNextStep={handleSimulateNextStep}
-              onSimulateCancel={handleSimulateCancel}
-            />
-          </div>
+          {order.status === "PENDING" && !isPaid && !isCancelled && (
+            <div className="p-4 rounded-2xl bg-white border border-border text-center space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Batal memesan atau ingin mengganti nomor meja?
+              </p>
+              <button
+                type="button"
+                onClick={handleCancelOrder}
+                disabled={isCancelling}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition cursor-pointer disabled:opacity-50"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>{isCancelling ? "Membatalkan..." : "Batalkan Pesanan & Kosongkan Meja"}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* KOLOM KANAN: RINCIAN ITEM PESANAN */}

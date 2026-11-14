@@ -36,7 +36,7 @@ function createInitialMemoryOrders(): Map<string, OrderDetailData> {
       notes: "Sambal dipisah untuk 1 porsi",
       expires_at: new Date(now + 25 * 60 * 1000),
       created_at: new Date(now - 4 * 60 * 1000),
-      table: { table_number: "04", name: "Meja 04 (Outdoor Depan)" },
+      table: { table_number: "04", name: "Meja 4" },
       items: [
         {
           id: "mock-item-101-1",
@@ -107,7 +107,7 @@ function createInitialMemoryOrders(): Map<string, OrderDetailData> {
       notes: null,
       expires_at: new Date(now + 10 * 60 * 1000),
       created_at: new Date(now - 14 * 60 * 1000),
-      table: { table_number: "02", name: "Meja 02 (Indoor)" },
+      table: { table_number: "02", name: "Meja 2" },
       items: [
         {
           id: "mock-item-102-1",

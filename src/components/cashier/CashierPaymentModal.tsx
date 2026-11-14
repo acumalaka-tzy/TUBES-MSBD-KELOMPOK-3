@@ -133,18 +133,9 @@ export function CashierPaymentModal({
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           {/* Ringkasan Tagihan */}
           <div className="rounded-2xl border border-border bg-[#F4F7F6] p-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Subtotal ({order.items.reduce((s, i) => s + i.quantity, 0)} item)</span>
-              <span className="font-semibold text-foreground">{formatRupiah(order.subtotal)}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-              <span>Pajak PB1</span>
-              <span className="font-semibold text-foreground">{formatRupiah(order.taxAmount)}</span>
-            </div>
-            <div className="my-2.5 border-t border-border" />
             <div className="flex items-center justify-between">
               <span className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                Total Tagihan (Amount Due)
+                Total Tagihan ({order.items.reduce((s, i) => s + i.quantity, 0)} item)
               </span>
               <span className="text-2xl font-black text-[#0E2A2E]">
                 {formatRupiah(totalDue)}

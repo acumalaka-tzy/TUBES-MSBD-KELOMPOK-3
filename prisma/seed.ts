@@ -73,8 +73,8 @@ async function main() {
       phone_whatsapp: "6281260001001",
       opening_hours: "Senin - Minggu, 07.00 - 02.00 WIB",
       is_web_ordering_open: true,
-      tax_enabled: true,
-      tax_percentage: 10.0,
+      tax_enabled: false,
+      tax_percentage: 0.0,
       digital_expiry_minutes: 15,
       cash_expiry_minutes: 30,
       receipt_footer_note: "Terima kasih telah bersantai di Warkop Agam! WiFi: WarkopAgam_Guest",
@@ -511,12 +511,12 @@ async function main() {
 
   // 6. Tables & Table QR Codes
   const tables = [
-    { id: "tbl-01", table_number: "01", name: "Meja 01 (Indoor)", capacity: 4, token: "qr_tok_agam_m01_9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c" },
-    { id: "tbl-02", table_number: "02", name: "Meja 02 (Indoor)", capacity: 4, token: "qr_tok_agam_m02_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d" },
-    { id: "tbl-03", table_number: "03", name: "Meja 03 (Indoor)", capacity: 2, token: "qr_tok_agam_m03_7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f" },
-    { id: "tbl-04", table_number: "04", name: "Meja 04 (Teras)",  capacity: 4, token: "qr_tok_agam_m04_4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b" },
-    { id: "tbl-05", table_number: "05", name: "Meja 05 (Teras)",  capacity: 6, token: "qr_tok_agam_m05_2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f" },
-    { id: "tbl-06", table_number: "06", name: "Meja 06 (VIP)",    capacity: 8, token: "qr_tok_agam_m06_8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d" },
+    { id: "tbl-01", table_number: "01", name: "Meja 1", capacity: 4, token: "qr_tok_agam_m01_9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c" },
+    { id: "tbl-02", table_number: "02", name: "Meja 2", capacity: 4, token: "qr_tok_agam_m02_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d" },
+    { id: "tbl-03", table_number: "03", name: "Meja 3", capacity: 2, token: "qr_tok_agam_m03_7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f" },
+    { id: "tbl-04", table_number: "04", name: "Meja 4", capacity: 4, token: "qr_tok_agam_m04_4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b" },
+    { id: "tbl-05", table_number: "05", name: "Meja 5", capacity: 6, token: "qr_tok_agam_m05_2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f" },
+    { id: "tbl-06", table_number: "06", name: "Meja 6", capacity: 8, token: "qr_tok_agam_m06_8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d" },
   ];
 
   for (const t of tables) {

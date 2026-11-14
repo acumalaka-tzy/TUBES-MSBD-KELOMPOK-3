@@ -449,16 +449,8 @@ export function AdminOverviewTab({
 
             {/* Ringkasan Akumulasi Saldo / Total Kasir */}
             <div className="mt-5 pt-4 border-t border-border space-y-2 text-xs">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal Penjualan</span>
-                <span className="font-mono font-medium">{formatRupiah(summary.grossSales)}</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Pajak Restoran (PB1 10%)</span>
-                <span className="font-mono font-medium">{formatRupiah(summary.taxCollected)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-border text-foreground">
-                <span className="text-sm font-black">Total Net Sales</span>
+              <div className="flex justify-between items-center pt-2 text-foreground">
+                <span className="text-sm font-black">Total Penjualan Bersih</span>
                 <span className="font-mono text-lg font-black text-primary">
                   {formatRupiah(summary.netSales)}
                 </span>
