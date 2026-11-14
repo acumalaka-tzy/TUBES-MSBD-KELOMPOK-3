@@ -404,43 +404,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         id: buildCartItemId(
           "prd-bangladesh-06",
           [
-            { groupName: "Cara Masak", optionName: "Nyemek (Becek)", priceAdjustment: 0 },
+            { groupName: "Pilihan Porsi & Puding", optionName: "Bangladesh Puding Ayam", priceAdjustment: 5000 },
             { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-            { groupName: "Tambahan Topping", optionName: "Telur 1/2 Matang", priceAdjustment: 4000 },
           ],
           "Kuah nyemek pas, pedas nendang"
         ),
         productId: "prd-bangladesh-06",
-        name: "Indomie Bangladesh Spesial",
-        unitPrice: 18000,
+        name: "Indomie Bangladesh",
+        unitPrice: 15000,
         quantity: 2,
         options: [
-          { groupName: "Cara Masak", optionName: "Nyemek (Becek)", priceAdjustment: 0 },
+          { groupName: "Pilihan Porsi & Puding", optionName: "Bangladesh Puding Ayam", priceAdjustment: 5000 },
           { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-          { groupName: "Tambahan Topping", optionName: "Telur 1/2 Matang", priceAdjustment: 4000 },
         ],
         itemNotes: "Kuah nyemek pas, pedas nendang",
-        subtotal: 44000, // (18000 + 4000) * 2
+        subtotal: 40000, // (15000 + 5000) * 2
       }),
       enrichCartItemMeta({
         id: buildCartItemId(
           "prd-sanger-01",
           [
-            { groupName: "Suhu Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
+            { groupName: "Varian & Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
             { groupName: "Tingkat Manis", optionName: "Manis Normal", priceAdjustment: 0 },
           ],
           "Es batu jangan kebanyakan"
         ),
         productId: "prd-sanger-01",
-        name: "Kopi Sanger Espresso",
-        unitPrice: 14000,
+        name: "Kopi Sanger",
+        unitPrice: 12000,
         quantity: 2,
         options: [
-          { groupName: "Suhu Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
+          { groupName: "Varian & Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
           { groupName: "Tingkat Manis", optionName: "Manis Normal", priceAdjustment: 0 },
         ],
         itemNotes: "Es batu jangan kebanyakan",
-        subtotal: 32000, // (14000 + 2000) * 2
+        subtotal: 28000, // (12000 + 2000) * 2
       }),
     ];
     setItems(sampleItems);

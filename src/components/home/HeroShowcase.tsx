@@ -11,9 +11,9 @@ import { cn, formatRupiah } from "@/lib/utils";
 
 const FEATURED_TABS: Array<{ id: string; label: string }> = [
   { id: "prd-sanger-01", label: "Kopi Sanger" },
-  { id: "prd-bangladesh-06", label: "Indomie" },
-  { id: "prd-tehtarik-02", label: "Teh Tarik" },
-  { id: "prd-rotibakar-08", label: "Roti Bakar" },
+  { id: "prd-bangladesh-06", label: "Bangladesh" },
+  { id: "prd-mieaceh-11", label: "Mie Aceh" },
+  { id: "prd-rotibakar-08", label: "Roti Cane" },
 ];
 
 function pickShowcaseProducts(): Product[] {

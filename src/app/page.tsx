@@ -15,7 +15,7 @@ function Hero() {
       <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 md:grid-cols-12 md:py-14">
         <div className="md:col-span-7">
           <p className="text-xs font-semibold text-muted-foreground">
-            Jalan Berdikari Baru 21, Padang Bulan · Buka 07.00 – 02.00 WIB
+            Jalan Berdikari Baru 21, Padang Bulan · Buka 24 Jam
           </p>
 
           <h1 className="mt-2.5 text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem]">
@@ -23,8 +23,9 @@ function Hero() {
           </h1>
 
           <p className="mt-3.5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Nikmati Kopi Sanger, Teh Tarik Aceh, Indomie Bangladesh, hingga Mie Aceh Daging sesuai
-            selera Anda. Bisa pesan langsung di meja lewat scan QR atau bungkus bawa pulang.
+            Nikmati Kopi Sanger, TST, Teh Tarik, Soda Badak, Indomie Bangladesh, Mie Aceh, Roti
+            Cane hingga Aneka Jus Segar 24 jam. Bisa pesan langsung di meja lewat scan QR atau
+            bungkus bawa pulang.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
