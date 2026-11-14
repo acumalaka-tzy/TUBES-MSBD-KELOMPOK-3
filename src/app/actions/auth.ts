@@ -224,6 +224,77 @@ export async function quickDemoLoginAction(role: UserRole): Promise<AuthActionRe
 }
 
 /**
+ * Server Action: Autentikasi Menggunakan Akun Google (Login / Register)
+ */
+export async function googleAuthAction(redirectTarget?: string): Promise<AuthActionResult> {
+  try {
+    const googleEmail = "pelanggan.google@gmail.com";
+    const googleName = "Pelanggan Google Warkop";
+    const googlePhone = "081299887766";
+
+    let user = await findUserByIdentifier(googleEmail);
+
+    if (!user) {
+      const registerRes = await registerNewUser({
+        name: googleName,
+        email: googleEmail,
+        phone: googlePhone,
+        password: "google_oauth_dummy_pass_msbd",
+        role: "CUSTOMER",
+      });
+
+      if (!registerRes.user) {
+        return { success: false, error: registerRes.error || "Gagal membuat akun Google." };
+      }
+
+      user = {
+        id: registerRes.user.id,
+        name: registerRes.user.name,
+        email: registerRes.user.email,
+        phone: registerRes.user.phone,
+        password_hash: "",
+        role: registerRes.user.role,
+        is_active: registerRes.user.isActive,
+      };
+    }
+
+    await createSession({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isActive: true,
+    });
+
+    try {
+      revalidatePath("/");
+    } catch {
+      // Abaikan di luar context
+    }
+
+    const target = redirectTarget && redirectTarget.startsWith("/") ? redirectTarget : "/";
+
+    return {
+      success: true,
+      redirectTo: target,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: "Gagal memproses autentikasi Google: " + (err?.message || "Terjadi kesalahan"),
+    };
+  }
+}
+
+/**
  * Server Action: Logout
  */
 export async function logoutAction(): Promise<void> {
