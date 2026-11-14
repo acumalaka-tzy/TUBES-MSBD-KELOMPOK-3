@@ -366,35 +366,10 @@ export const sampleProducts: Product[] = productList.map((p, index) => ({
   imageUrl: p.imageUrl ?? `/menu/${p.id}.svg`,
 }));
 
-export interface Promo {
-  id: string;
-  title: string;
-  description: string;
-  badge: string;
-  code?: string;
-}
-
-export const promos: Promo[] = [
-  {
-    id: "promo-1",
-    title: "Paket Pagi Warkop",
-    description: "Nasi Goreng Kampung Agam + Kopi Hitam Ulee Kareng lebih hemat setiap pukul 07.00–11.00 WIB.",
-    badge: "Hemat Pagi",
-    code: "PAGIAGAM",
-  },
-  {
-    id: "promo-2",
-    title: "Kombo Nongkrong Malam",
-    description: "Pesan 2 porsi Indomie Bangladesh Spesial + 2 Kopi Sanger gratis 1 porsi Roti Bakar.",
-    badge: "Best Deal",
-    code: "NONGKRONG",
-  },
-];
-
 export interface RestaurantInfo {
   name: string;
   address: string;
-  /** Nomor WhatsApp format internasional tanpa +, cth: 6281260001001 */
+  /** Nomor WhatsApp format internasional tanpa +, cth: 6281361425142 */
   whatsapp: string;
   /** Teks jam operasional, cth: "Senin - Minggu, 07.00 - 02.00 WIB" */
   openingHours: string;
@@ -405,8 +380,8 @@ export interface RestaurantInfo {
 /** Selaras dengan `prisma/seed.ts` (RestaurantSetting). */
 export const sampleRestaurant: RestaurantInfo = {
   name: "Warkop Agam",
-  address: "Jl. H. Misbah No. 14, Medan Maimun, Kota Medan, Sumatera Utara",
-  whatsapp: "6281260001001",
+  address: "Jalan Berdikari Baru 21, 20155 Padang Bulan, North Sumatra",
+  whatsapp: "6281361425142",
   openingHours: "Senin - Minggu, 07.00 - 02.00 WIB",
   isWebOrderingOpen: true,
 };

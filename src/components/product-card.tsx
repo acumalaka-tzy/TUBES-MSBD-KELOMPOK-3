@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Flame, Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { ProductDetail } from "@/components/product-detail";
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
@@ -33,8 +33,8 @@ export function ProductCard({ product }: { product: Product }) {
           if (!soldOut) setOpen(true);
         }}
         className={cn(
-          "group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xs transition-all cursor-pointer",
-          !soldOut && "hover:border-primary/50 hover:shadow-md",
+          "group relative flex flex-col overflow-hidden rounded-xl border border-border bg-white transition-all cursor-pointer",
+          !soldOut && "hover:border-primary/60 hover:shadow-sm",
         )}
       >
         <div className="relative">
@@ -47,8 +47,8 @@ export function ProductCard({ product }: { product: Product }) {
             )}
           />
           {product.bestSeller && !soldOut && (
-            <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
-              <Flame className="h-3 w-3" aria-hidden /> Best Seller
+            <span className="absolute left-2.5 top-2.5 rounded-md bg-foreground/85 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-background">
+              Favorit
             </span>
           )}
 
@@ -56,7 +56,7 @@ export function ProductCard({ product }: { product: Product }) {
           {totalQtyInCart > 0 && (
             <span
               title={`${totalQtyInCart} item ada di keranjang`}
-              className="absolute right-2.5 top-2.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-black text-white shadow-md ring-2 ring-white animate-in zoom-in-75 duration-200"
+              className="absolute right-2.5 top-2.5 inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-primary px-1.5 text-xs font-bold text-white shadow-sm ring-2 ring-white"
             >
               {totalQtyInCart}
             </span>
