@@ -161,7 +161,7 @@ async function CatalogSections() {
             </Link>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
             {bestSellers.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -182,9 +182,9 @@ function SectionsSkeleton() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-10" aria-hidden>
       <div className="h-7 w-48 animate-pulse rounded-lg bg-secondary-bg" />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-36 animate-pulse rounded-xl bg-secondary-bg" />
+          <div key={i} className="h-28 sm:h-36 animate-pulse rounded-xl bg-secondary-bg" />
         ))}
       </div>
     </div>
