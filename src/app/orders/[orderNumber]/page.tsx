@@ -241,9 +241,9 @@ function OrderTrackingContent({ params }: PageProps) {
       </div>
 
       {/* Panel Utama Nomor Pesanan */}
-      <div className="bg-white border border-border rounded-2xl p-6 shadow-sm mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
-          <div>
+      <div className="bg-white border border-border rounded-2xl p-4 sm:p-6 shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 sm:pb-6 border-b border-border">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground">
                 Nomor Pesanan
@@ -260,12 +260,12 @@ function OrderTrackingContent({ params }: PageProps) {
                 )}
               </button>
             </div>
-            <p className="text-2xl font-black text-foreground tracking-tight font-mono mt-0.5">
+            <p className="text-xl sm:text-2xl font-black text-foreground tracking-tight font-mono mt-0.5 break-all">
               {order.order_number}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1.5 rounded-xl bg-secondary-bg border border-border text-xs font-bold text-foreground flex items-center gap-1.5">
               <UtensilsCrossed className="w-3.5 h-3.5 text-primary" />
               {order.service_type === "DINE_IN"

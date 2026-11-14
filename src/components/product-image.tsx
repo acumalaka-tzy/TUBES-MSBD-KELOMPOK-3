@@ -44,10 +44,13 @@ export function ProductImage({
           alt={product.name}
           fill
           loading={priority ? "eager" : undefined}
-          sizes={sizes ?? "(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"}
+          sizes={
+            sizes ??
+            "(min-width: 1024px) 280px, (min-width: 768px) 33vw, (min-width: 360px) 50vw, 100vw"
+          }
           unoptimized={src.endsWith(".svg") || /^https?:\/\//i.test(src) || src.startsWith("data:")}
           onError={() => setFailedCount((n) => n + 1)}
-          className="object-cover"
+          className="object-cover object-center"
         />
       ) : (
         <span aria-hidden className={cn("text-6xl", emojiClassName)}>

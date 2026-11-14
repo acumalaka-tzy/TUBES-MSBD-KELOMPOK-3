@@ -16,9 +16,9 @@ declare global {
       pay: (
         token: string,
         options?: {
-          onSuccess?: (result: any) => void;
-          onPending?: (result: any) => void;
-          onError?: (result: any) => void;
+          onSuccess?: (result: unknown) => void;
+          onPending?: (result: unknown) => void;
+          onError?: (result: unknown) => void;
           onClose?: () => void;
         }
       ) => void;
@@ -36,7 +36,7 @@ interface PaymentInstructionsProps {
   onPaymentSuccess?: () => void;
 }
 
-function loadSnapScript(clientKey: string, isProduction: boolean): Promise<any> {
+function loadSnapScript(clientKey: string, isProduction: boolean): Promise<Window["snap"]> {
   return new Promise((resolve, reject) => {
     if (typeof window !== "undefined" && window.snap?.pay) {
       return resolve(window.snap);
@@ -242,9 +242,9 @@ export function PaymentInstructions({
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-4">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div>
+    <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div className="min-w-0">
           <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
             Metode Pembayaran
           </h2>
@@ -252,7 +252,7 @@ export function PaymentInstructions({
             {isCash ? "Tunai (Bayar di Kasir)" : "Non-Tunai (Midtrans)"}
           </p>
         </div>
-        <span className="font-mono text-primary font-black text-lg">
+        <span className="shrink-0 font-mono text-primary font-black text-base sm:text-lg">
           Rp {totalAmount.toLocaleString("id-ID")}
         </span>
       </div>
@@ -262,7 +262,7 @@ export function PaymentInstructions({
         <div className="space-y-4">
           {/* Countdown Timer */}
           {timeLeft && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 Sisa Batas Bayar:
@@ -300,7 +300,7 @@ export function PaymentInstructions({
                   <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <CreditCard className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-bold text-foreground">
                       Pembayaran Non-Tunai Midtrans
                     </p>

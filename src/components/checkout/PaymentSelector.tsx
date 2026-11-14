@@ -21,7 +21,7 @@ export function PaymentSelector({
     paymentMethod === "VIRTUAL_ACCOUNT";
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-6">
+    <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-xs space-y-5 sm:space-y-6">
       <div className="border-b border-border pb-4">
         <h2 className="text-base font-bold text-foreground flex items-center gap-2">
           <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-bold">
@@ -34,10 +34,10 @@ export function PaymentSelector({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {/* 1. TUNAI / CASH */}
         <label
-          className={`relative flex flex-col p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+          className={`relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all ${
             paymentMethod === "CASH"
               ? "border-emerald-600 bg-emerald-500/5 shadow-xs ring-2 ring-emerald-500/20"
               : "border-border hover:bg-secondary-bg/60"
@@ -51,8 +51,8 @@ export function PaymentSelector({
             onChange={() => onPaymentMethodChange("CASH")}
             className="sr-only"
           />
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="w-10 h-10 shrink-0 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
               <Banknote className="w-5 h-5" />
             </div>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
@@ -67,7 +67,7 @@ export function PaymentSelector({
 
         {/* 2. NON-TUNAI / MIDTRANS */}
         <label
-          className={`relative flex flex-col p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+          className={`relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all ${
             isNonCash
               ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/20"
               : "border-border hover:bg-secondary-bg/60"
@@ -81,12 +81,12 @@ export function PaymentSelector({
             onChange={() => onPaymentMethodChange("MIDTRANS")}
             className="sr-only"
           />
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="w-10 h-10 shrink-0 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
               <CreditCard className="w-5 h-5" />
             </div>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
-              <Zap className="w-3 h-3" />
+              <Zap className="w-3 h-3 shrink-0" />
               Midtrans Otomatis
             </span>
           </div>

@@ -148,7 +148,7 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-sm md:p-8">
+    <div className="w-full max-w-md rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6 md:p-8">
       {/* Icon & Title */}
       <div className="mb-6 text-center">
         <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -160,7 +160,7 @@ function VerifyEmailContent() {
         <p className="mt-2 text-xs text-muted-foreground md:text-sm">
           Kami telah mengirimkan 6 digit kode verifikasi ke alamat email:
         </p>
-        <p className="mt-1 font-semibold text-foreground text-sm bg-secondary-bg py-1 px-3 rounded-lg inline-block border border-border">
+        <p className="mt-1 inline-block max-w-full break-all rounded-lg border border-border bg-secondary-bg px-3 py-1 text-sm font-semibold text-foreground">
           {email || "Email Anda"}
         </p>
       </div>
@@ -187,7 +187,7 @@ function VerifyEmailContent() {
           <label className="block text-center text-xs font-semibold text-muted-foreground mb-3">
             Masukkan 6 Digit Kode OTP
           </label>
-          <div className="flex justify-center gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-6 gap-1.5 sm:flex sm:justify-center sm:gap-2.5">
             {otp.map((digit, index) => (
               <input
                 key={index}
@@ -202,7 +202,7 @@ function VerifyEmailContent() {
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={handlePaste}
                 disabled={isPending}
-                className="h-12 w-11 sm:h-14 sm:w-12 rounded-xl border-2 border-border text-center text-xl font-bold text-foreground transition-all focus:border-primary focus:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                className="h-11 w-full sm:h-14 sm:w-12 rounded-xl border-2 border-border text-center text-lg sm:text-xl font-bold text-foreground transition-all focus:border-primary focus:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
               />
             ))}
           </div>

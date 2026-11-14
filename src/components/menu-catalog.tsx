@@ -183,7 +183,7 @@ export function MenuCatalog({ categories, products }: { categories: Category[]; 
         </div>
 
         {filtered.length > 0 ? (
-          <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+          <div className="mt-3 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3 md:gap-4">
             {filtered.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

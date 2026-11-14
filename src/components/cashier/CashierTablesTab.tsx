@@ -68,9 +68,9 @@ export function CashierTablesTab({
       if (res.success) {
         onNotify(
           res.message ||
-            (nextStatus === "AVAILABLE"
-              ? `Meja ${tableNumber} telah dikosongkan.`
-              : `Meja ${tableNumber} ditandai terisi.`),
+          (nextStatus === "AVAILABLE"
+            ? `Meja ${tableNumber} telah dikosongkan.`
+            : `Meja ${tableNumber} ditandai terisi.`),
           "success",
         );
         await onRefreshData();
@@ -94,11 +94,10 @@ export function CashierTablesTab({
           <button
             type="button"
             onClick={() => setStatusFilter("ALL")}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
-              statusFilter === "ALL"
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${statusFilter === "ALL"
                 ? "bg-[#0E2A2E] text-white shadow-xs"
                 : "border border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
-            }`}
+              }`}
           >
             <span>Semua Meja</span>
             <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[11px]">
@@ -109,11 +108,10 @@ export function CashierTablesTab({
           <button
             type="button"
             onClick={() => setStatusFilter("AVAILABLE")}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
-              statusFilter === "AVAILABLE"
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${statusFilter === "AVAILABLE"
                 ? "bg-emerald-600 text-white shadow-xs"
                 : "border border-emerald-500/30 bg-emerald-500/10 text-emerald-900 hover:bg-emerald-500/20"
-            }`}
+              }`}
           >
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
             <span>Kosong (Siap Pakai)</span>
@@ -125,11 +123,10 @@ export function CashierTablesTab({
           <button
             type="button"
             onClick={() => setStatusFilter("OCCUPIED")}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${
-              statusFilter === "OCCUPIED"
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${statusFilter === "OCCUPIED"
                 ? "bg-amber-600 text-white shadow-xs"
                 : "border border-amber-500/30 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20"
-            }`}
+              }`}
           >
             <span className="h-2 w-2 rounded-full bg-amber-400" />
             <span>Terisi (Digunakan)</span>
@@ -149,22 +146,20 @@ export function CashierTablesTab({
           return (
             <div
               key={table.id}
-              className={`flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-xs transition-all hover:shadow-md ${
-                isOccupied
+              className={`flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-xs transition-all hover:shadow-md ${isOccupied
                   ? "border-amber-500/50 ring-1 ring-amber-500/15"
                   : "border-emerald-500/30"
-              }`}
+                }`}
             >
               <div>
                 {/* Header Kartu Meja */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-2xl font-mono text-lg font-black shadow-2xs ${
-                        isOccupied
+                      className={`flex h-12 w-12 items-center justify-center rounded-2xl font-mono text-lg font-black shadow-2xs ${isOccupied
                           ? "bg-amber-500 text-white"
                           : "bg-emerald-600 text-white"
-                      }`}
+                        }`}
                     >
                       {table.tableNumber}
                     </div>
@@ -180,16 +175,14 @@ export function CashierTablesTab({
                   </div>
 
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase ${
-                      isOccupied
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase ${isOccupied
                         ? "bg-amber-500/15 text-amber-900"
                         : "bg-emerald-500/15 text-emerald-800"
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`h-2 w-2 rounded-full ${
-                        isOccupied ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
-                      }`}
+                      className={`h-2 w-2 rounded-full ${isOccupied ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                        }`}
                     />
                     {isOccupied ? "Terisi" : "Kosong"}
                   </span>
@@ -199,11 +192,10 @@ export function CashierTablesTab({
                 <div className="mt-4 space-y-2">
                   {table.activeOrders.length === 0 ? (
                     <div
-                      className={`rounded-xl border border-dashed px-3.5 py-4 text-center text-xs ${
-                        isOccupied
+                      className={`rounded-xl border border-dashed px-3.5 py-4 text-center text-xs ${isOccupied
                           ? "border-amber-500/30 bg-amber-500/5 text-amber-900"
                           : "border-border bg-[#F4F7F6] text-muted-foreground"
-                      }`}
+                        }`}
                     >
                       {isOccupied
                         ? "Meja sedang ditempati pelanggan (belum ada pesanan aktif terbuka)."
@@ -227,11 +219,10 @@ export function CashierTablesTab({
                               {act.orderNumber}
                             </span>
                             <span
-                              className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
-                                act.paymentStatus === "PAID"
+                              className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${act.paymentStatus === "PAID"
                                   ? "bg-emerald-500/15 text-emerald-800"
                                   : "bg-amber-500/20 text-amber-900"
-                              }`}
+                                }`}
                             >
                               {act.paymentStatus === "PAID" ? "LUNAS" : "BELUM BAYAR"}
                             </span>

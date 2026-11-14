@@ -63,9 +63,9 @@ export function ProductCard({ product }: { product: Product }) {
           )}
         </div>
 
-        <div className={cn("flex flex-1 flex-col gap-1.5 p-3.5 sm:p-4", soldOut && "opacity-75")}>
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[11px] font-semibold text-muted-foreground">
+        <div className={cn("flex flex-1 flex-col gap-1.5 p-3 sm:p-4", soldOut && "opacity-75")}>
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-muted-foreground">
               {product.categoryName}
             </span>
             <StockBadge status={status} />
@@ -92,7 +92,7 @@ export function ProductCard({ product }: { product: Product }) {
               )}
             </div>
             {soldOut ? (
-              <span className=" rounded-lg bg-error/10 px-2.5 py-1.5 text-center text-xs font-bold text-error sm:py-1">
+              <span className="w-full rounded-lg bg-error/10 px-2.5 py-1.5 text-center text-xs font-bold text-error sm:w-auto sm:py-1">
                 Habis
               </span>
             ) : totalQtyInCart > 0 ? (
@@ -143,18 +143,18 @@ export function ProductCard({ product }: { product: Product }) {
         className="pointer-events-none fixed inset-x-0 bottom-20 z-[60] flex justify-center px-4 md:bottom-6"
       >
         {notice && (
-          <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-foreground px-4 py-3 text-xs font-bold text-white shadow-xl">
-            <span className="flex size-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+          <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2.5 rounded-2xl bg-foreground px-3.5 py-2.5 text-xs font-bold text-white shadow-xl sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-3">
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
               <Check className="h-3.5 w-3.5" aria-hidden />
             </span>
-            <span>{notice}</span>
+            <span className="min-w-0 break-words">{notice}</span>
             <button
               type="button"
               onClick={() => {
                 setNotice(null);
                 openCart();
               }}
-              className="rounded-lg bg-primary px-2.5 py-1 text-[11px] font-extrabold text-white transition-colors hover:bg-primary-hover"
+              className="shrink-0 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-extrabold text-white transition-colors hover:bg-primary-hover"
             >
               Lihat Keranjang
             </button>

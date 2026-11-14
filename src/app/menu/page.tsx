@@ -19,7 +19,7 @@ async function CatalogLoader() {
 
 function CatalogSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3" aria-hidden>
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3 md:gap-4" aria-hidden>
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="h-64 animate-pulse rounded-2xl bg-secondary-bg" />
       ))}

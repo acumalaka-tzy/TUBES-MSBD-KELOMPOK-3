@@ -370,10 +370,10 @@ async function InfoContent() {
                   href={waUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-between rounded-lg border border-border bg-secondary-bg/60 px-3 py-2 font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border bg-secondary-bg/60 px-3 py-2 font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
                 >
-                  <span>WhatsApp Kasir</span>
-                  <span className="font-mono text-[11px]">{formattedWa}</span>
+                  <span className="shrink-0">WhatsApp Kasir</span>
+                  <span className="min-w-0 truncate font-mono text-[11px]">{formattedWa}</span>
                 </a>
                 {OUTLET_PROFILE.socials.map((soc) => (
                   <a
@@ -381,10 +381,10 @@ async function InfoContent() {
                     href={soc.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between rounded-lg border border-border bg-secondary-bg/60 px-3 py-2 font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-secondary-bg/60 px-3 py-2 font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
                   >
-                    <span>{soc.platform}</span>
-                    <span className="font-mono text-[11px]">{soc.handle}</span>
+                    <span className="shrink-0">{soc.platform}</span>
+                    <span className="min-w-0 truncate font-mono text-[11px]">{soc.handle}</span>
                   </a>
                 ))}
               </div>

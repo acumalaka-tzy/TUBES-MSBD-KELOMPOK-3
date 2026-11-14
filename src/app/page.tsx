@@ -28,23 +28,23 @@ function Hero() {
             bungkus bawa pulang.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-6 grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <Link
               href="/menu"
-              className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
             >
               <span>Lihat Daftar Menu</span>
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
             <Link
               href="/lacak"
-              className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-white px-5 text-sm font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 text-sm font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
             >
               <span>Cek Pesanan</span>
             </Link>
             <Link
               href="/#info"
-              className="px-2 text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+              className="py-1 text-center text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline sm:px-2 sm:py-0"
             >
               Lokasi &amp; Kontak
             </Link>
@@ -103,14 +103,14 @@ async function CatalogSections() {
           </Link>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+        <div className="mt-5 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-4 md:gap-4">
           {categories.map((c) => {
             const count = products.filter((p) => p.categoryId === c.id).length;
             return (
               <Link
                 key={c.id}
                 href={`/menu?kategori=${c.slug}`}
-                className="group flex flex-col justify-between rounded-xl border border-border bg-white p-4 transition-colors hover:border-primary/60"
+                className="group flex flex-col justify-between rounded-xl border border-border bg-white p-3.5 sm:p-4 transition-colors hover:border-primary/60"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -142,7 +142,7 @@ async function CatalogSections() {
       {/* Menu pilihan pengunjung (Best Seller) */}
       <section className="border-y border-border bg-secondary-bg">
         <div className="mx-auto max-w-6xl px-4 py-10">
-          <div className="flex items-end justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
             <div>
               <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
                 Menu Pilihan Pengunjung
@@ -154,14 +154,14 @@ async function CatalogSections() {
             </div>
             <Link
               href="/menu"
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-white px-3.5 text-xs font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-start rounded-xl border border-border bg-white px-3.5 text-xs font-bold text-foreground transition-colors hover:border-primary hover:text-primary sm:self-auto"
             >
               <span>Lihat Semua Menu</span>
               <ArrowRight className="h-3.5 w-3.5" aria-hidden />
             </Link>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
             {bestSellers.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

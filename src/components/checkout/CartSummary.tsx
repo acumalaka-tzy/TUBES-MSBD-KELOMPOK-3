@@ -34,7 +34,7 @@ export function CartSummary({
   onEditItem,
 }: CartSummaryProps) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-xs sticky top-24">
+    <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-xs lg:sticky lg:top-24">
       <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
         <div className="flex items-center gap-2">
           <ShoppingBag className="w-4 h-4 text-primary" />

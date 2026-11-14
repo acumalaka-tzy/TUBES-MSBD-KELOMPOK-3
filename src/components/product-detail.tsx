@@ -412,7 +412,7 @@ export function ProductDetail({
                 sizes="(min-width: 768px) 512px, 100vw"
               />
 
-              <div className="space-y-5 p-5">
+              <div className="space-y-5 p-4 sm:p-5">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-muted-foreground">{product.categoryName}</span>
@@ -425,11 +425,11 @@ export function ProductDetail({
 
                 {product.options.map((g) => (
                   <fieldset key={g.id} className="space-y-2 border-t border-border pt-4">
-                    <div className="flex items-baseline justify-between">
+                    <div className="flex items-baseline justify-between gap-2">
                       <legend className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                         {g.name}
                       </legend>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
                         {g.required ? "Wajib dipilih" : "Opsional"}
                       </span>
                     </div>
@@ -441,25 +441,25 @@ export function ProductDetail({
                           <label
                             key={i.id}
                             className={cn(
-                              "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-sm transition-colors",
+                              "flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 text-sm transition-colors",
                               checked
                                 ? "border-primary bg-primary/5 font-semibold text-foreground"
                                 : "border-border hover:bg-secondary-bg text-foreground",
                             )}
                           >
-                            <span className="flex items-center gap-2.5">
+                            <span className="flex min-w-0 flex-1 items-center gap-2.5">
                               <input
                                 type={g.type === "single" ? "radio" : "checkbox"}
                                 name={g.id}
                                 value={i.id}
                                 checked={checked}
                                 onChange={() => toggle(g.id, i.id, g.type)}
-                                className="accent-primary"
+                                className="shrink-0 accent-primary"
                               />
-                              <span>{i.name}</span>
+                              <span className="break-words">{i.name}</span>
                             </span>
                             {i.price > 0 && (
-                              <span className="font-mono text-xs text-muted-foreground">
+                              <span className="shrink-0 font-mono text-xs text-muted-foreground">
                                 +{formatRupiah(i.price)}
                               </span>
                             )}
@@ -527,19 +527,19 @@ export function ProductDetail({
             </div>
 
             {/* Footer Form: Kontrol Kuantitas & Tombol Submit */}
-            <div className="border-t border-border bg-white p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center rounded-2xl border border-border bg-secondary-bg p-0.5">
+            <div className="border-t border-border bg-white p-3.5 sm:p-4">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="flex shrink-0 items-center rounded-2xl border border-border bg-secondary-bg p-0.5">
                   <button
                     type="button"
                     aria-label="Kurangi jumlah"
                     disabled={quantity <= 1}
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                    className="flex size-9 sm:size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
                   >
                     <Minus className="size-4" aria-hidden />
                   </button>
-                  <span className="w-8 text-center text-sm font-semibold font-mono" aria-live="polite">
+                  <span className="w-7 sm:w-8 text-center text-sm font-semibold font-mono" aria-live="polite">
                     {quantity}
                   </span>
                   <button
@@ -547,7 +547,7 @@ export function ProductDetail({
                     aria-label="Tambah jumlah"
                     disabled={quantity >= product.availableQty}
                     onClick={() => setQuantity((q) => Math.min(product.availableQty, q + 1))}
-                    className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                    className="flex size-9 sm:size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
                   >
                     <Plus className="size-4" aria-hidden />
                   </button>
@@ -557,12 +557,12 @@ export function ProductDetail({
                   type="button"
                   onClick={handleSubmit}
                   disabled={missingRequired || soldOut}
-                  className="h-11 flex-1 rounded-2xl bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
+                  className="h-10 sm:h-11 min-w-0 flex-1 rounded-2xl bg-primary px-3 sm:px-4 text-xs sm:text-sm font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-50 shadow-md flex items-center justify-center gap-1.5"
                 >
                   {editingCartItemId ? (
-                    <span>Simpan Perubahan · {formatRupiah(unitPrice * quantity)}</span>
+                    <span className="truncate">Simpan · {formatRupiah(unitPrice * quantity)}</span>
                   ) : (
-                    <span>Tambah · {formatRupiah(unitPrice * quantity)}</span>
+                    <span className="truncate">Tambah · {formatRupiah(unitPrice * quantity)}</span>
                   )}
                 </button>
               </div>

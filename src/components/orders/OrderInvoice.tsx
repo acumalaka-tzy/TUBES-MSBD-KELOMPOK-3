@@ -13,7 +13,7 @@ interface OrderInvoiceProps {
 
 export function OrderInvoice({ order }: OrderInvoiceProps) {
   return (
-    <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
+    <div className="bg-white border border-border rounded-2xl p-4 sm:p-6 shadow-sm">
       <h2 className="text-sm font-bold text-foreground uppercase tracking-wider pb-3 border-b border-border">
         Rincian Item yang Dipesan
       </h2>
@@ -21,8 +21,8 @@ export function OrderInvoice({ order }: OrderInvoiceProps) {
       <div className="divide-y divide-border my-2">
         {order.items?.map((item: OrderItemSnapshot) => (
           <div key={item.id} className="py-3.5 flex justify-between gap-3">
-            <div className="flex-1">
-              <p className="text-sm font-bold text-foreground">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-foreground break-words">
                 {item.product_name_snapshot}
               </p>
 

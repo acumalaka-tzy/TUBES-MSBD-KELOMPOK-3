@@ -295,9 +295,9 @@ export default function LacakPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10">
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:py-10">
       {/* Header Banner Espresso */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#231712] via-[#2F1E17] to-[#41281E] p-6 text-white shadow-lg sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#231712] via-[#2F1E17] to-[#41281E] p-5 text-white shadow-lg sm:p-8">
         <div
           aria-hidden
           className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/25 blur-3xl"
@@ -444,7 +444,7 @@ export default function LacakPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-3xl border border-border bg-white p-5 shadow-xs sm:p-6">
+          <div className="rounded-3xl border border-border bg-white p-4 shadow-xs sm:p-6">
             <div className="flex flex-col gap-3 border-b border-border pb-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -530,7 +530,7 @@ export default function LacakPage() {
                       className="rounded-2xl border border-border bg-secondary-bg/40 p-4 transition-all hover:border-primary/50 hover:bg-white hover:shadow-xs"
                     >
                       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                        <div className="flex items-start gap-3">
+                        <div className="flex min-w-0 items-start gap-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                             {isCancelled ? (
                               <XCircle className="h-5 w-5 text-error" aria-hidden />
@@ -538,7 +538,7 @@ export default function LacakPage() {
                               <ReceiptText className="h-5 w-5" aria-hidden />
                             )}
                           </span>
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="font-mono text-sm font-black text-foreground">
                                 {o.orderNumber}
@@ -564,7 +564,7 @@ export default function LacakPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 self-end sm:self-center">
+                        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:justify-start sm:self-center">
                           <button
                             type="button"
                             onClick={(e) => handleReorder(o.orderNumber, e)}
@@ -626,7 +626,7 @@ export default function LacakPage() {
               </div>
             )}
 
-            <div className="mt-6 flex items-center justify-between border-t border-border pt-4 text-xs">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs">
               <span className="text-muted-foreground">Ingin menambah pesanan baru?</span>
               <Link
                 href="/menu"
