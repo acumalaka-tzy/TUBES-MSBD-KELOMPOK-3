@@ -22,7 +22,7 @@ function Banner() {
     if (fromUrl) setActiveTable(fromUrl);
   }, [fromUrl]);
 
-  if (pathname.startsWith("/admin") || !table) return null;
+  if (pathname.startsWith("/admin") || pathname.startsWith("/cashier") || !table) return null;
 
   const handleClear = () => {
     setActiveTable(null);

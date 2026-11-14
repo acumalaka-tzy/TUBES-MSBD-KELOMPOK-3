@@ -258,6 +258,26 @@ export async function createOrder(input: CheckoutInput) {
         }
       }
 
+      let resolvedTableInfo: { table_number: string; name: string } | null = null;
+      if (input.serviceType === "DINE_IN" && input.tableNumber) {
+        const matchedTable = Array.from(mem.tables.values()).find(
+          (t) => t.table_number === input.tableNumber
+        );
+        if (matchedTable) {
+          matchedTable.status = "OCCUPIED";
+          matchedTable.updated_at = new Date();
+          resolvedTableInfo = {
+            table_number: matchedTable.table_number,
+            name: matchedTable.name,
+          };
+        } else {
+          resolvedTableInfo = {
+            table_number: input.tableNumber,
+            name: `Meja ${input.tableNumber}`,
+          };
+        }
+      }
+
       // Simpan di Memory Fallback agar user tetap bisa menguji alur 100%
       const fallbackOrder: OrderDetailData = {
         id: `mock-${Date.now()}`,
@@ -275,13 +295,12 @@ export async function createOrder(input: CheckoutInput) {
         notes: input.notes?.trim() || null,
         expires_at: expiresAt,
         created_at: new Date(),
-        table: input.tableNumber
-          ? { table_number: input.tableNumber, name: `Meja ${input.tableNumber}` }
-          : null,
+        table: resolvedTableInfo,
         items: input.items.map((it, idx) => {
           const optTotal = it.options.reduce((s, o) => s + (Number(o.priceAdjustment) || 0), 0);
           return {
             id: `mock-item-${idx}`,
+            product_id: it.productId,
             product_name_snapshot: it.name,
             unit_price_snapshot: it.unitPrice,
             quantity: it.quantity,
@@ -300,6 +319,7 @@ export async function createOrder(input: CheckoutInput) {
           status: "UNPAID",
           amount_due: totalAmount,
           amount_paid: 0,
+          change_amount: 0,
           paid_at: null,
         },
       };
@@ -403,14 +423,14 @@ export async function getCustomerRecentOrders(): Promise<{
 }> {
   try {
     const session = await getSession();
-    if (!session || !session.id) {
+    if (!session || !session.sub) {
       return { success: true, orders: [] };
     }
 
     const dbOrders = await prisma.order.findMany({
       where: {
         OR: [
-          { user_id: session.id },
+          { user_id: session.sub },
           ...(session.phone ? [{ customer_phone: session.phone }] : []),
         ],
       },

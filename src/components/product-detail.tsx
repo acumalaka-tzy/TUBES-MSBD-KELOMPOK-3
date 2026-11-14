@@ -263,9 +263,9 @@ export function ProductDetail({
 
             {/* List Item yang Sudah Berada di Keranjang */}
             <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4">
-              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="flex flex-col gap-0.5 text-xs font-bold text-muted-foreground uppercase tracking-wider sm:flex-row sm:items-center sm:justify-between">
                 <span className="flex items-center gap-1.5">
-                  <ShoppingBag className="w-3.5 h-3.5 text-primary" />
+                  <ShoppingBag className="w-3.5 h-3.5 shrink-0 text-primary" />
                   <span>Pilihan yang Sedang di Keranjang ({existingItems.length})</span>
                 </span>
                 <span className="text-[11px] text-muted-foreground/80 normal-case italic">
