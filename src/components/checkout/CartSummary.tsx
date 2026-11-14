@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShoppingBag, Plus, Minus, Trash2, ArrowRight } from "lucide-react";
+import { ShoppingBag, Plus, Minus, Trash2, ArrowRight, AlertCircle, X } from "lucide-react";
 import { CartItem } from "@/context/cart-context";
 
 interface CartSummaryProps {
@@ -10,6 +10,8 @@ interface CartSummaryProps {
   subtotal: number;
   totalAmount: number;
   isSubmitting: boolean;
+  errorMessage?: string | null;
+  onClearErrorMessage?: () => void;
   isWebOrderingOpen?: boolean;
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemoveItem: (id: string) => void;
@@ -23,6 +25,8 @@ export function CartSummary({
   subtotal,
   totalAmount,
   isSubmitting,
+  errorMessage,
+  onClearErrorMessage,
   isWebOrderingOpen = true,
   onUpdateQuantity,
   onRemoveItem,
@@ -162,8 +166,28 @@ export function CartSummary({
         </div>
       )}
 
+      {/* Alert Error jika validasi / pemesanan gagal */}
+      {errorMessage && (
+        <div className="mt-4 p-3.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-destructive" />
+          <div className="flex-1 leading-relaxed">
+            <span className="font-bold block mb-0.5">Pesanan Belum Dapat Diproses</span>
+            <span>{errorMessage}</span>
+          </div>
+          {onClearErrorMessage && (
+            <button
+              type="button"
+              onClick={onClearErrorMessage}
+              className="text-destructive/70 hover:text-destructive shrink-0 p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Tombol Buat Pesanan */}
-      <div className="mt-5">
+      <div className="mt-4">
         <button
           type="submit"
           disabled={isSubmitting || items.length === 0 || !isWebOrderingOpen}

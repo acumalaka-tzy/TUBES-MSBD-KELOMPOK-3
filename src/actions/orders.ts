@@ -336,9 +336,10 @@ export async function createOrder(input: CheckoutInput) {
         });
         if (table) {
           if (table.status === "OCCUPIED") {
+            const cleanNum = String(input.tableNumber).replace(/^0+/, "") || input.tableNumber;
             return {
               success: false,
-              error: `Meja ${input.tableNumber} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
+              error: `Meja ${cleanNum} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
             };
           }
           selectedTableId = table.id;
@@ -528,9 +529,10 @@ export async function createOrder(input: CheckoutInput) {
         );
         if (matchedTable) {
           if (matchedTable.status === "OCCUPIED") {
+            const cleanNum = String(input.tableNumber).replace(/^0+/, "") || input.tableNumber;
             return {
               success: false,
-              error: `Meja ${input.tableNumber} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
+              error: `Meja ${cleanNum} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
             };
           }
           matchedTable.status = "OCCUPIED";

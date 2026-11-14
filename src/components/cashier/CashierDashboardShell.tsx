@@ -496,16 +496,16 @@ export function CashierDashboardShell({
 
         {/* WORKSPACE BODY */}
         <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-6 p-4 sm:p-6 lg:p-8">
-          {/* Toast Notification */}
+          {/* Toast Notification Floating agar Selalu Terlihat Saat Di-scroll */}
           {toast && (
             <div
               role="status"
-              className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-xs font-bold shadow-xs ${
+              className={`fixed bottom-6 right-4 sm:right-6 z-50 max-w-md flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-xs font-bold shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 ${
                 toast.type === "success"
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-900"
+                  ? "border-emerald-500/40 bg-emerald-50 text-emerald-950"
                   : toast.type === "info"
-                    ? "border-primary/40 bg-primary/10 text-[#0E2A2E]"
-                    : "border-red-500/40 bg-red-500/10 text-red-900"
+                    ? "border-primary/40 bg-emerald-50 text-[#0E2A2E]"
+                    : "border-red-500/40 bg-red-50 text-red-950"
               }`}
             >
               <div className="flex items-center gap-2">

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Utensils, Package, User, Phone, FileText, ChevronDown, UserCheck, Zap } from "lucide-react";
+import { Utensils, Package, User, Phone, FileText, ChevronDown, UserCheck, Zap, AlertCircle } from "lucide-react";
 import { TableItem } from "@/actions/types";
 
 interface CustomerFormProps {
@@ -10,6 +10,7 @@ interface CustomerFormProps {
   onServiceTypeChange: (type: "DINE_IN" | "TAKEAWAY") => void;
   tableNumber: string;
   onTableNumberChange: (table: string) => void;
+  tableError?: string | null;
   tables: TableItem[];
   customerName: string;
   onCustomerNameChange: (val: string) => void;
@@ -26,6 +27,7 @@ export function CustomerForm({
   onServiceTypeChange,
   tableNumber,
   onTableNumberChange,
+  tableError,
   tables,
   customerName,
   onCustomerNameChange,
@@ -185,7 +187,14 @@ export function CustomerForm({
             <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
-          {tableNumber && (
+          {tableError && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs font-semibold text-red-700 dark:text-red-300">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
+              <span>{tableError}</span>
+            </div>
+          )}
+
+          {tableNumber && !tableError && (
             <div className="flex items-center gap-2 pt-0.5 text-xs text-muted-foreground">
               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
               <span>

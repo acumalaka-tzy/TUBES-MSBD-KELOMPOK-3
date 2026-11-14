@@ -12,7 +12,7 @@ import { PaymentSelector } from "@/components/checkout/PaymentSelector";
 import { CartSummary } from "@/components/checkout/CartSummary";
 import { ProductDetail } from "@/components/product-detail";
 import { getCurrentUserAction } from "@/app/actions/auth";
-import { Sparkles, AlertCircle } from "lucide-react";
+import { Sparkles, AlertCircle, X } from "lucide-react";
 
 function CheckoutContent() {
   const router = useRouter();
@@ -151,8 +151,18 @@ function CheckoutContent() {
       });
 
       if (!res.success || !res.orderNumber) {
-        setErrorMessage(res.error || "Gagal membuat pesanan. Silakan coba lagi.");
+        const errText = res.error || "Gagal membuat pesanan. Silakan coba lagi.";
+        setErrorMessage(errText);
         setIsSubmitting(false);
+
+        // Jika error terkait meja, scroll otomatis ke pemilih meja agar fokus
+        if (/meja/i.test(errText)) {
+          setTimeout(() => {
+            const tableEl = document.getElementById("table-number-select");
+            tableEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+            tableEl?.focus();
+          }, 100);
+        }
         return;
       }
 
@@ -215,7 +225,11 @@ function CheckoutContent() {
             serviceType={serviceType}
             onServiceTypeChange={setServiceType}
             tableNumber={tableNumber}
-            onTableNumberChange={setTableNumber}
+            onTableNumberChange={(t) => {
+              setTableNumber(t);
+              if (errorMessage && /meja/i.test(errorMessage)) setErrorMessage(null);
+            }}
+            tableError={errorMessage && /meja/i.test(errorMessage) ? errorMessage : null}
             tables={tables}
             customerName={customerName}
             onCustomerNameChange={setCustomerName}
@@ -245,6 +259,8 @@ function CheckoutContent() {
             subtotal={subtotal}
             totalAmount={totalAmount}
             isSubmitting={isSubmitting}
+            errorMessage={errorMessage}
+            onClearErrorMessage={() => setErrorMessage(null)}
             isWebOrderingOpen={storeSettings.isWebOrderingOpen}
             onUpdateQuantity={updateQuantity}
             onRemoveItem={removeItem}
@@ -253,6 +269,31 @@ function CheckoutContent() {
           />
         </div>
       </form>
+
+      {/* Floating Bottom Alert Toast agar Selalu Terlihat di Layar Kapanpun Muncul */}
+      {errorMessage && (
+        <div className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 p-4 rounded-2xl bg-destructive text-white shadow-2xl border border-white/20 flex items-start justify-between gap-3 animate-in fade-in slide-in-from-bottom-5">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-white" />
+            <div>
+              <p className="font-extrabold text-xs uppercase tracking-wider text-white/90">
+                Peringatan Pemesanan
+              </p>
+              <p className="text-xs font-semibold text-white leading-relaxed mt-0.5">
+                {errorMessage}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors shrink-0"
+            aria-label="Tutup pesan"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Modal Edit Varian Pesanan dari Ringkasan */}
       {editingTarget && (

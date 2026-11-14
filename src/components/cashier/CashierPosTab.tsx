@@ -388,7 +388,8 @@ export function CashierPosTab({
       }
       const targetTbl = tables.find((t) => t.tableNumber === selectedTableNumber);
       if (targetTbl && targetTbl.status === "OCCUPIED") {
-        onNotify(`Meja ${selectedTableNumber} sedang terisi dan tidak dapat digunakan. Silakan pilih meja yang kosong.`, "error");
+        const cleanTable = String(selectedTableNumber).replace(/^0+/, "") || selectedTableNumber;
+        onNotify(`Meja ${cleanTable} sedang terisi dan tidak dapat digunakan. Silakan pilih meja yang kosong.`, "error");
         return;
       }
     }
@@ -704,7 +705,8 @@ export function CashierPosTab({
                     onChange={(e) => {
                       const targetTbl = tables.find((t) => t.tableNumber === e.target.value);
                       if (targetTbl && targetTbl.status === "OCCUPIED") {
-                        onNotify(`Meja ${targetTbl.tableNumber} sedang terisi dan tidak dapat dipilih.`, "error");
+                        const cleanNum = String(targetTbl.tableNumber).replace(/^0+/, "") || targetTbl.tableNumber;
+                        onNotify(`Meja ${cleanNum} sedang terisi dan tidak dapat dipilih.`, "error");
                         return;
                       }
                       setSelectedTableNumber(e.target.value);
