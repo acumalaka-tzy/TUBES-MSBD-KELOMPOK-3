@@ -381,3 +381,62 @@ export async function getOrderDetail(
 
   return { success: false, error: "Pesanan tidak ditemukan." };
 }
+
+export interface CustomerRecentOrderSummary {
+  orderNumber: string;
+  trackingToken: string | null;
+  totalAmount: number;
+  status: string;
+  itemCount: number;
+  createdAt: string;
+  serviceType: string;
+  tableNumber?: string | null;
+  itemsSummary: string;
+}
+
+/**
+ * Mengambil daftar riwayat pesanan milik pelanggan yang sedang login dari database
+ */
+export async function getCustomerRecentOrders(): Promise<{
+  success: boolean;
+  orders: CustomerRecentOrderSummary[];
+}> {
+  try {
+    const session = await getSession();
+    if (!session || !session.id) {
+      return { success: true, orders: [] };
+    }
+
+    const dbOrders = await prisma.order.findMany({
+      where: {
+        OR: [
+          { user_id: session.id },
+          ...(session.phone ? [{ customer_phone: session.phone }] : []),
+        ],
+      },
+      orderBy: { created_at: "desc" },
+      take: 20,
+      include: {
+        table: true,
+        items: true,
+      },
+    });
+
+    const orders: CustomerRecentOrderSummary[] = dbOrders.map((o) => ({
+      orderNumber: o.order_number,
+      trackingToken: o.tracking_token,
+      totalAmount: Number(o.total_amount),
+      status: o.status,
+      itemCount: o.items.reduce((sum, item) => sum + item.quantity, 0),
+      createdAt: o.created_at.toISOString(),
+      serviceType: o.service_type,
+      tableNumber: o.table?.table_number || null,
+      itemsSummary: o.items.map((it) => `${it.quantity}x ${it.product_name_snapshot}`).join(", "),
+    }));
+
+    return { success: true, orders };
+  } catch (err) {
+    console.warn("Gagal mengambil riwayat pesanan dari DB:", err);
+    return { success: true, orders: [] };
+  }
+}

@@ -16,6 +16,7 @@ import {
   LogIn,
   LogOut,
   ShieldCheck,
+  ReceiptText,
 } from "lucide-react";
 import { CartDrawer } from "@/components/cart-drawer";
 import { useCart } from "@/context/cart-context";
@@ -128,45 +129,74 @@ function NavbarContent() {
 
                 {userDropdownOpen && (
                   <div
-                    className="absolute right-0 mt-1.5 w-48 rounded-xl border border-border bg-white p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
+                    className="absolute right-0 mt-2 w-56 rounded-2xl border border-border bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100"
                     onMouseLeave={() => setUserDropdownOpen(false)}
                   >
-                    <div className="border-b border-border px-3 py-2">
+                    <div className="border-b border-border px-3 py-2.5 mb-1 bg-secondary-bg/50 rounded-xl">
                       <p className="truncate text-xs font-bold text-foreground">{currentUser.name}</p>
-                      <p className="text-[10px] font-mono text-primary font-semibold">{currentUser.role}</p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        {currentUser.role === "ADMIN" && (
+                          <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                            🛡️ Admin Warkop
+                          </span>
+                        )}
+                        {currentUser.role === "CASHIER" && (
+                          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                            ☕ Staff Kasir
+                          </span>
+                        )}
+                        {currentUser.role === "CUSTOMER" && (
+                          <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                            👤 Pelanggan
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {currentUser.role === "ADMIN" && (
-                      <Link
-                        href="/admin"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary-bg"
-                      >
-                        <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                        <span>Panel Admin</span>
-                      </Link>
-                    )}
+                    <div className="space-y-0.5">
+                      {currentUser.role === "ADMIN" && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary-bg hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <ShieldCheck className="h-4 w-4 text-primary" />
+                          <span>Panel Admin</span>
+                        </Link>
+                      )}
 
-                    {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
-                      <Link
-                        href="/cashier"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary-bg"
-                      >
-                        <UtensilsCrossed className="h-3.5 w-3.5 text-primary" />
-                        <span>POS Kasir</span>
-                      </Link>
-                    )}
+                      {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
+                        <Link
+                          href="/cashier"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary-bg hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <UtensilsCrossed className="h-4 w-4 text-primary" />
+                          <span>POS Kasir</span>
+                        </Link>
+                      )}
 
-                    <form action={logoutAction}>
-                      <button
-                        type="submit"
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-error hover:bg-error/10 text-left"
+                      <Link
+                        href="/lacak"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary-bg hover:text-primary transition-colors cursor-pointer"
                       >
-                        <LogOut className="h-3.5 w-3.5" />
-                        <span>Keluar (Logout)</span>
-                      </button>
-                    </form>
+                        <ReceiptText className="h-4 w-4 text-primary" />
+                        <span>Riwayat Pesanan</span>
+                      </Link>
+                    </div>
+
+                    <div className="mt-1 pt-1 border-t border-border">
+                      <form action={logoutAction}>
+                        <button
+                          type="submit"
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-error hover:bg-error/10 text-left transition-colors cursor-pointer"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Keluar (Logout)</span>
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 )}
               </div>
@@ -257,6 +287,15 @@ function NavbarContent() {
                       POS Kasir
                     </Link>
                   )}
+
+                  <Link
+                    href="/lacak"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-foreground hover:bg-secondary-bg"
+                  >
+                    <ReceiptText className="h-4 w-4 text-primary" />
+                    Riwayat Pesanan
+                  </Link>
 
                   <form action={logoutAction}>
                     <button

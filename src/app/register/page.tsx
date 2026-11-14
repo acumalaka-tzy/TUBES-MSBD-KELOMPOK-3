@@ -189,36 +189,18 @@ export default function RegisterPage() {
                 onChange={(e) => handlePhoneChange(e.target.value)}
                 onBlur={() => setPhoneTouched(true)}
                 placeholder="cth: 081234567890 atau 62812..."
-                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 pl-10 pr-10 text-sm text-foreground outline-none transition-colors ${
-                  phoneTouched && phone.length > 0
-                    ? phoneValidation.isValid
-                      ? "border-emerald-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      : "border-error focus:border-error focus:ring-2 focus:ring-error/20"
+                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 pl-10 text-sm text-foreground outline-none transition-colors ${
+                  phoneTouched && phone.length > 0 && !phoneValidation.isValid
+                    ? "border-error focus:border-error focus:ring-2 focus:ring-error/20"
                     : "border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
                 }`}
                 disabled={isPending}
               />
               <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
-              {phoneTouched && phone.length > 0 && (
-                <div className="absolute right-3 top-3">
-                  {phoneValidation.isValid ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-label="Nomor valid" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-error" aria-label="Format tidak valid" />
-                  )}
-                </div>
-              )}
             </div>
-            {/* Live WhatsApp feedback */}
-            {phoneTouched && phone.length > 0 && (
-              <p
-                className={`mt-1.5 text-[11px] font-medium ${
-                  phoneValidation.isValid ? "text-emerald-600" : "text-error"
-                }`}
-              >
-                {phoneValidation.isValid
-                  ? `✓ Format WhatsApp valid (${phoneValidation.normalized})`
-                  : phoneValidation.error}
+            {phoneTouched && phone.length > 0 && !phoneValidation.isValid && (
+              <p className="mt-1.5 text-[11px] font-medium text-error">
+                {phoneValidation.error}
               </p>
             )}
             {!phoneTouched && (

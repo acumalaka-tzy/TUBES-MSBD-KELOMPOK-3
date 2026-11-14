@@ -12,6 +12,7 @@ import { OrderStatusStepper } from "@/components/orders/OrderStatusStepper";
 import { PaymentInstructions } from "@/components/orders/PaymentInstructions";
 import { OrderSimulationToolbar } from "@/components/orders/OrderSimulationToolbar";
 import { OrderInvoice } from "@/components/orders/OrderInvoice";
+import { useCart } from "@/context/cart-context";
 import {
   UtensilsCrossed,
   ArrowLeft,
@@ -19,6 +20,7 @@ import {
   Copy,
   Check,
   AlertCircle,
+  ShoppingBag,
 } from "lucide-react";
 
 interface PageProps {
@@ -35,6 +37,31 @@ function OrderTrackingContent({ params }: PageProps) {
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [reorderSuccess, setReorderSuccess] = useState(false);
+  const { addItem, openCart } = useCart();
+
+  const handleReorder = () => {
+    if (!order || !order.items || order.items.length === 0) return;
+
+    for (const item of order.items) {
+      addItem({
+        productId: item.product_id || item.id,
+        name: item.product_name_snapshot,
+        unitPrice: Number(item.unit_price_snapshot),
+        quantity: item.quantity,
+        options: (item.options || []).map((o) => ({
+          groupName: o.option_group_name_snapshot,
+          optionName: o.option_name_snapshot,
+          priceAdjustment: Number(o.price_adjustment_snapshot),
+        })),
+        itemNotes: item.item_notes || undefined,
+      });
+    }
+
+    setReorderSuccess(true);
+    setTimeout(() => setReorderSuccess(false), 3000);
+    openCart();
+  };
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -257,8 +284,24 @@ function OrderTrackingContent({ params }: PageProps) {
         </div>
 
         {/* KOLOM KANAN: RINCIAN ITEM PESANAN */}
-        <div className="md:col-span-7">
+        <div className="md:col-span-7 space-y-4">
           <OrderInvoice order={order} />
+
+          {/* Tombol Re-order (Pesan Lagi) */}
+          <div className="bg-white border border-border rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-foreground">Suka dengan hidangan ini?</p>
+              <p className="text-[11px] text-muted-foreground">Pesan lagi seluruh menu di atas ke keranjang Anda</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleReorder}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-primary-hover active:scale-[0.98] cursor-pointer"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>{reorderSuccess ? "✓ Ditambahkan ke Keranjang!" : "Pesan Lagi"}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
