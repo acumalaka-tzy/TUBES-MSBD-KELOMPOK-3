@@ -53,7 +53,12 @@ function NavbarContent() {
 
   const checkoutHref = table ? `/checkout?table=${encodeURIComponent(table)}` : "/checkout";
   const showStickyMobileCart =
-    itemCount > 0 && pathname !== "/checkout" && !pathname.startsWith("/orders/");
+    itemCount > 0 && pathname !== "/checkout" && !pathname.startsWith("/orders/") && !pathname.startsWith("/admin");
+
+  // Di rute Dashboard Admin, sembunyikan Navbar publik untuk tampilan dashboard dedicated
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <>
@@ -176,14 +181,16 @@ function NavbarContent() {
                         </Link>
                       )}
 
-                      <Link
-                        href="/lacak"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary-bg hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <ReceiptText className="h-4 w-4 text-primary" />
-                        <span>Riwayat Pesanan</span>
-                      </Link>
+                      {currentUser.role !== "ADMIN" && (
+                        <Link
+                          href="/lacak"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary-bg hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <ReceiptText className="h-4 w-4 text-primary" />
+                          <span>Riwayat Pesanan</span>
+                        </Link>
+                      )}
                     </div>
 
                     <div className="mt-1 pt-1 border-t border-border">
@@ -288,14 +295,16 @@ function NavbarContent() {
                     </Link>
                   )}
 
-                  <Link
-                    href="/lacak"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-foreground hover:bg-secondary-bg"
-                  >
-                    <ReceiptText className="h-4 w-4 text-primary" />
-                    Riwayat Pesanan
-                  </Link>
+                  {currentUser.role !== "ADMIN" && (
+                    <Link
+                      href="/lacak"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-foreground hover:bg-secondary-bg"
+                    >
+                      <ReceiptText className="h-4 w-4 text-primary" />
+                      Riwayat Pesanan
+                    </Link>
+                  )}
 
                   <form action={logoutAction}>
                     <button

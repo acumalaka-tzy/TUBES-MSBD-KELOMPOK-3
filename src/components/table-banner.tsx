@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { QrCode, X } from "lucide-react";
 import { setActiveTable, useActiveTable } from "@/lib/active-table";
 
@@ -10,6 +10,7 @@ function clean(value: string | null) {
 }
 
 function Banner() {
+  const pathname = usePathname();
   const params = useSearchParams();
   // `table` = parameter yang dipakai halaman Checkout; `meja` tetap didukung
   const fromUrl = clean(params.get("table") ?? params.get("meja"));
@@ -21,7 +22,7 @@ function Banner() {
     if (fromUrl) setActiveTable(fromUrl);
   }, [fromUrl]);
 
-  if (!table) return null;
+  if (pathname.startsWith("/admin") || !table) return null;
 
   const handleClear = () => {
     setActiveTable(null);
