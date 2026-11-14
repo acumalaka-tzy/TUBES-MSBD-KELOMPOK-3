@@ -14,13 +14,13 @@ function FooterContent() {
   }
 
   return (
-    <footer className="mt-auto border-t border-border bg-secondary-bg pb-20 md:pb-0">
+    <footer className="mt-auto border-t border-border bg-background pb-20 md:pb-0">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 font-bold text-foreground">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background">
             <Coffee className="h-3.5 w-3.5" aria-hidden />
           </span>
-          <span>Warkop Agam — Ordering &amp; POS System</span>
+          <span>Warkop Agam — Padang Bulan, Medan</span>
         </div>
         <nav className="flex flex-wrap gap-4 font-semibold">
           <Link href="/" className="hover:text-primary">Beranda</Link>

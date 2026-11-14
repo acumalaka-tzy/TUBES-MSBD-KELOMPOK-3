@@ -62,17 +62,17 @@ function NavbarContent() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center gap-2.5" onClick={() => setMobileMenuOpen(false)}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-bold text-white shadow-sm">
-              <Coffee className="h-5 w-5" aria-hidden />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground font-bold text-background">
+              <Coffee className="h-4.5 w-4.5" aria-hidden />
             </div>
             <div>
-              <span className="block text-lg font-bold leading-tight tracking-tight text-foreground">
+              <span className="block text-base font-extrabold leading-tight tracking-tight text-foreground">
                 Warkop Agam
               </span>
-              <span className="block text-xs text-muted-foreground">Ordering &amp; POS System</span>
+              <span className="block text-[11px] font-medium text-muted-foreground">Padang Bulan · Medan</span>
             </div>
           </Link>
 
@@ -84,10 +84,10 @@ function NavbarContent() {
                   key={l.href}
                   href={l.href}
                   className={cn(
-                    "rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors",
+                    "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
                     active
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground/80 hover:bg-secondary-bg hover:text-primary",
+                      ? "bg-secondary-bg text-primary"
+                      : "text-foreground/75 hover:bg-secondary-bg/70 hover:text-foreground",
                   )}
                 >
                   {l.label}
