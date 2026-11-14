@@ -102,13 +102,48 @@ const optManis: OptionGroup = {
   ],
 };
 
+const optEsLevel: OptionGroup = {
+  id: "og-es",
+  name: "Takaran Es",
+  type: "single",
+  required: true,
+  items: [
+    { id: "oi-es-normal", name: "Es Normal", price: 0 },
+    { id: "oi-es-sedikit", name: "Es Sedikit", price: 0 },
+  ],
+};
+
+const optGayaMieAceh: OptionGroup = {
+  id: "og-gaya-mie-aceh",
+  name: "Cara Masak",
+  type: "single",
+  required: true,
+  items: [
+    { id: "oi-mie-becek", name: "Becek (Nyemek)", price: 0 },
+    { id: "oi-mie-goreng", name: "Goreng", price: 0 },
+    { id: "oi-mie-kuah", name: "Kuah (Rebus)", price: 0 },
+  ],
+};
+
+const optGayaIndomie: OptionGroup = {
+  id: "og-gaya-indomie",
+  name: "Cara Masak",
+  type: "single",
+  required: true,
+  items: [
+    { id: "oi-indomie-nyemek", name: "Nyemek (Becek)", price: 0 },
+    { id: "oi-indomie-goreng", name: "Goreng", price: 0 },
+    { id: "oi-indomie-kuah", name: "Kuah", price: 0 },
+  ],
+};
+
 const optPedas: OptionGroup = {
   id: "og-pedas",
   name: "Level Pedas",
   type: "single",
   required: true,
   items: [
-    { id: "oi-pedas-sedang", name: "Pedas Sedang (Standar)", price: 0 },
+    { id: "oi-pedas-sedang", name: "Pedas Sedang", price: 0 },
     { id: "oi-pedas-ekstra", name: "Pedas Ekstra", price: 0 },
     { id: "oi-pedas-tidak", name: "Tidak Pedas", price: 0 },
   ],
@@ -120,9 +155,31 @@ const optToppingMie: OptionGroup = {
   type: "multi",
   required: false,
   items: [
-    { id: "oi-top-telur", name: "Tambah Telur Setengah Matang", price: 4000 },
-    { id: "oi-top-sosis", name: "Tambah Sosis Ayam", price: 5000 },
-    { id: "oi-top-keju", name: "Tambah Keju Parut", price: 4000 },
+    { id: "oi-top-telur", name: "Telur 1/2 Matang", price: 4000 },
+    { id: "oi-top-sosis", name: "Sosis Ayam", price: 5000 },
+    { id: "oi-top-keju", name: "Keju Parut", price: 4000 },
+  ],
+};
+
+const optPanggangRoti: OptionGroup = {
+  id: "og-roti-panggang",
+  name: "Tingkat Panggang",
+  type: "single",
+  required: true,
+  items: [
+    { id: "oi-roti-standar", name: "Panggang Standar", price: 0 },
+    { id: "oi-roti-garing", name: "Panggang Garing", price: 0 },
+  ],
+};
+
+const optToppingRoti: OptionGroup = {
+  id: "og-roti-topping",
+  name: "Tambahan Isi",
+  type: "multi",
+  required: false,
+  items: [
+    { id: "oi-roti-xkeju", name: "Extra Keju Parut", price: 4000 },
+    { id: "oi-roti-xcokelat", name: "Extra Cokelat Lumer", price: 3000 },
   ],
 };
 
@@ -134,7 +191,7 @@ const productList: Omit<Product, "categoryName">[] = [
     description: "Perpaduan kopi robusta saring kental dengan susu kental manis pas takaran.",
     basePrice: 14000,
     emoji: "☕",
-    imageUrl: "/menu/prd-sanger-01.svg",
+    imageUrl: "/images/menu/prd-sanger-01.jpg",
     availableQty: 50,
     minThreshold: 5,
     popularity: 98,
@@ -148,25 +205,25 @@ const productList: Omit<Product, "categoryName">[] = [
     description: "Teh hitam pilihan ditarik berbusa lembut dengan susu creamy.",
     basePrice: 13000,
     emoji: "🫖",
-    imageUrl: "/menu/prd-tehtarik-02.svg",
+    imageUrl: "/images/menu/prd-tehtarik-02.jpg",
     availableQty: 45,
     minThreshold: 5,
     popularity: 92,
     bestSeller: true,
-    options: [optSuhu],
+    options: [optSuhu, optManis],
   },
   {
     id: "prd-kopihitam-03",
     categoryId: "cat-kopi-01",
     name: "Kopi Hitam Ulee Kareng",
-    description: "Kopi hitam khas Aceh dengan aroma kuat dan rasa autentik.",
+    description: "Kopi hitam khas Aceh dengan aroma kuat dan rasa autentik, nikmat panas maupun dingin.",
     basePrice: 10000,
     emoji: "☕",
-    imageUrl: "/menu/prd-kopihitam-03.svg",
+    imageUrl: "/images/menu/prd-kopihitam-03.jpg",
     availableQty: 60,
     minThreshold: 5,
     popularity: 80,
-    options: [optManis],
+    options: [optSuhu, optManis],
   },
   {
     id: "prd-kopijoss-09",
@@ -175,7 +232,7 @@ const productList: Omit<Product, "categoryName">[] = [
     description: "Espresso robusta dengan susu segar dan gula aren asli.",
     basePrice: 16000,
     emoji: "🥤",
-    imageUrl: "/menu/prd-kopijoss-09.svg",
+    imageUrl: "/images/menu/prd-kopijoss-09.jpg",
     availableQty: 3,
     minThreshold: 5,
     popularity: 84,
@@ -192,7 +249,7 @@ const productList: Omit<Product, "categoryName">[] = [
     availableQty: 30,
     minThreshold: 5,
     popularity: 86,
-    options: [],
+    options: [optEsLevel, optManis],
   },
   {
     id: "prd-badak-05",
@@ -205,7 +262,7 @@ const productList: Omit<Product, "categoryName">[] = [
     availableQty: 24,
     minThreshold: 5,
     popularity: 79,
-    options: [],
+    options: [optEsLevel],
   },
   {
     id: "prd-jeruk-10",
@@ -218,7 +275,7 @@ const productList: Omit<Product, "categoryName">[] = [
     availableQty: 0,
     minThreshold: 5,
     popularity: 65,
-    options: [],
+    options: [optEsLevel, optManis],
   },
   {
     id: "prd-bangladesh-06",
@@ -227,12 +284,12 @@ const productList: Omit<Product, "categoryName">[] = [
     description: "Mie nyemek racikan bumbu rempah rahasia Warkop Agam dengan telur setengah matang.",
     basePrice: 18000,
     emoji: "🍜",
-    imageUrl: "/menu/prd-bangladesh-06.svg",
+    imageUrl: "/images/menu/prd-bangladesh-06.jpg",
     availableQty: 40,
     minThreshold: 5,
     popularity: 100,
     bestSeller: true,
-    options: [optPedas, optToppingMie],
+    options: [optGayaIndomie, optPedas, optToppingMie],
   },
   {
     id: "prd-nasgor-07",
@@ -241,7 +298,7 @@ const productList: Omit<Product, "categoryName">[] = [
     description: "Nasi goreng bumbu terasi ringan, suwiran ayam, telur mata sapi, dan kerupuk.",
     basePrice: 22000,
     emoji: "🍳",
-    imageUrl: "/menu/prd-nasgor-07.svg",
+    imageUrl: "/images/menu/prd-nasgor-07.jpg",
     availableQty: 25,
     minThreshold: 5,
     popularity: 95,
@@ -251,15 +308,15 @@ const productList: Omit<Product, "categoryName">[] = [
   {
     id: "prd-mieaceh-11",
     categoryId: "cat-mie-03",
-    name: "Mie Aceh Daging Tumis",
-    description: "Mie kuning tebal dimasak bumbu kari kental khas Aceh dengan irisan daging sapi.",
+    name: "Mie Aceh Daging",
+    description: "Mie kuning tebal dimasak bumbu kari kental khas Aceh dengan irisan daging sapi (pilih Becek, Goreng, atau Kuah).",
     basePrice: 26000,
     emoji: "🍲",
     imageUrl: "/menu/prd-mieaceh-11.svg",
-    availableQty: 4,
+    availableQty: 18,
     minThreshold: 5,
-    popularity: 88,
-    options: [optPedas],
+    popularity: 91,
+    options: [optGayaMieAceh, optPedas, optToppingMie],
   },
   {
     id: "prd-rotibakar-08",
@@ -268,11 +325,11 @@ const productList: Omit<Product, "categoryName">[] = [
     description: "Roti panggang garing di luar lembut di dalam dengan isian cokelat lumer dan keju parut.",
     basePrice: 15000,
     emoji: "🍞",
-    imageUrl: "/menu/prd-rotibakar-08.svg",
+    imageUrl: "/images/menu/prd-rotibakar-08.jpg",
     availableQty: 35,
     minThreshold: 5,
     popularity: 90,
-    options: [],
+    options: [optPanggangRoti, optToppingRoti],
   },
   {
     id: "prd-martabak-12",
@@ -285,7 +342,7 @@ const productList: Omit<Product, "categoryName">[] = [
     availableQty: 18,
     minThreshold: 5,
     popularity: 77,
-    options: [optPedas],
+    options: [optPedas, optToppingMie],
   },
   {
     id: "prd-pisang-13",
