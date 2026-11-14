@@ -9,6 +9,7 @@ export type AdminTabKey =
   | "stock"
   | "tables"
   | "staff"
+  | "transactions"
   | "reports"
   | "settings"
   | "audit";

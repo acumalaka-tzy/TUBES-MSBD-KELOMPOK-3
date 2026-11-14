@@ -20,8 +20,9 @@ interface CashierReceiptModalProps {
   onClose: () => void;
 }
 
-function formatRupiah(amount: number): string {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | null | undefined): string {
+  const val = typeof amount === "number" && !Number.isNaN(amount) && Number.isFinite(amount) ? amount : 0;
+  return `Rp ${Math.round(val).toLocaleString("id-ID")}`;
 }
 
 function formatDateTime(iso: string): string {
@@ -55,7 +56,10 @@ export function CashierReceiptModal({
   const suffixPart = order.orderNumber.split("-").pop() || "001";
   const displayReceiptNo = receiptNumber || `RCP-${datePart}-${suffixPart}`;
 
+  const isPaid = order.payment.status === "PAID";
+
   const handlePrint = () => {
+    if (!isPaid) return;
     setPrintSuccessMsg(null);
     startTransition(async () => {
       try {
@@ -247,7 +251,7 @@ export function CashierReceiptModal({
             </div>
             <div>
               <h3 className="text-base font-extrabold tracking-tight">
-                Cetak Struk Termal (58mm / 80mm)
+                Cetak Struk
               </h3>
               <p className="text-xs text-white/75">
                 {order.orderNumber} • {order.customerName}
@@ -293,10 +297,6 @@ export function CashierReceiptModal({
               <span>Thermal 80mm (Lebar)</span>
             </button>
           </div>
-
-          <span className="rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[11px] font-bold text-emerald-700">
-            CSS Print &amp; PDF Ready
-          </span>
         </div>
 
         {printSuccessMsg && (
@@ -468,35 +468,29 @@ export function CashierReceiptModal({
         </div>
 
         {/* Footer Aksi */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-white px-6 py-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-primary" />
+        <div className="flex items-center justify-end gap-2.5 border-t border-border bg-white px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-foreground transition hover:bg-muted"
+          >
+            Tutup
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={isPending || !isPaid}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-primary-hover disabled:opacity-50"
+          >
+            <Printer className="h-4 w-4" />
             <span>
-              Pilih printer termal atau <strong>Save as PDF</strong> pada jendela cetak.
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-foreground transition hover:bg-muted"
-            >
-              Tutup
-            </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={isPending}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-primary-hover disabled:opacity-50"
-            >
-              <Printer className="h-4 w-4" />
-              <span>
-                {isPending
+              {!isPaid
+                ? "Pesanan Belum Lunas"
+                : isPending
                   ? "Menyiapkan Struk..."
-                  : `Cetak Struk ${paperSize === "58MM" ? "58mm" : "80mm"} / PDF`}
-              </span>
-            </button>
-          </div>
+                  : "Cetak Struk"}
+            </span>
+          </button>
         </div>
       </div>
     </div>

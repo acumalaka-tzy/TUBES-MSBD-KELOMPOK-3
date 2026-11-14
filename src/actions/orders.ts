@@ -78,6 +78,12 @@ export async function createOrder(input: CheckoutInput) {
           where: { table_number: input.tableNumber },
         });
         if (table) {
+          if (table.status === "OCCUPIED") {
+            return {
+              success: false,
+              error: `Meja ${input.tableNumber} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
+            };
+          }
           selectedTableId = table.id;
         }
       }
@@ -264,6 +270,12 @@ export async function createOrder(input: CheckoutInput) {
           (t) => t.table_number === input.tableNumber
         );
         if (matchedTable) {
+          if (matchedTable.status === "OCCUPIED") {
+            return {
+              success: false,
+              error: `Meja ${input.tableNumber} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
+            };
+          }
           matchedTable.status = "OCCUPIED";
           matchedTable.updated_at = new Date();
           resolvedTableInfo = {

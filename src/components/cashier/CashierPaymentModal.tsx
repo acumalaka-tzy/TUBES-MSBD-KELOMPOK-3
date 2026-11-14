@@ -19,8 +19,9 @@ interface CashierPaymentModalProps {
   onPaidSuccess: (updatedOrder: CashierOrder, shouldPrintReceipt: boolean) => void;
 }
 
-function formatRupiah(amount: number): string {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | null | undefined): string {
+  const val = typeof amount === "number" && !Number.isNaN(amount) && Number.isFinite(amount) ? amount : 0;
+  return `Rp ${Math.round(val).toLocaleString("id-ID")}`;
 }
 
 export function CashierPaymentModal({

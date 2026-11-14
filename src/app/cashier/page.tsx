@@ -12,7 +12,7 @@ async function CashierDashboardContent() {
   if (!session) {
     redirect("/login?redirect=/cashier");
   }
-  if (session.role !== "CASHIER" && session.role !== "ADMIN") {
+  if (session.role !== "CASHIER") {
     redirect("/unauthorized");
   }
 

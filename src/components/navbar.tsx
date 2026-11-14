@@ -174,7 +174,7 @@ function NavbarContent() {
                         </Link>
                       )}
 
-                      {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
+                      {currentUser.role === "CASHIER" && (
                         <Link
                           href="/cashier"
                           onClick={() => setUserDropdownOpen(false)}
@@ -288,7 +288,7 @@ function NavbarContent() {
                     </Link>
                   )}
 
-                  {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
+                  {currentUser.role === "CASHIER" && (
                     <Link
                       href="/cashier"
                       onClick={() => setMobileMenuOpen(false)}

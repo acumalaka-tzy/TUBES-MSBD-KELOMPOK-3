@@ -37,8 +37,9 @@ interface CashierQueueTabProps {
   onNotify: (msg: string, type?: "success" | "error" | "info") => void;
 }
 
-function formatRupiah(amount: number): string {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | null | undefined): string {
+  const val = typeof amount === "number" && !Number.isNaN(amount) && Number.isFinite(amount) ? amount : 0;
+  return `Rp ${Math.round(val).toLocaleString("id-ID")}`;
 }
 
 function formatTimeAgo(iso: string): string {
@@ -313,33 +314,6 @@ export function CashierQueueTab({
                 </button>
               ))}
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                onPlayAudioAlert();
-                onNotify("Tes bunyi notifikasi pesanan masuk berhasil diputar.", "info");
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:bg-muted"
-              title="Uji suara notifikasi kasir"
-            >
-              <Volume2 className="h-3.5 w-3.5 text-primary" />
-              <span>Tes Nada</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSimulateWebOrder}
-              disabled={isPending && pendingOrderNo === "SIMULATE"}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover disabled:opacity-50"
-            >
-              <BellRing className="h-3.5 w-3.5 animate-bounce" />
-              <span>
-                {isPending && pendingOrderNo === "SIMULATE"
-                  ? "Mengirim..."
-                  : "+ Simulasi Pesanan Web Masuk"}
-              </span>
-            </button>
           </div>
         </div>
       </div>
@@ -355,9 +329,7 @@ export function CashierQueueTab({
           </h3>
           <p className="mt-1 max-w-md text-xs text-muted-foreground">
             Belum ada pesanan untuk kategori{" "}
-            <strong>{filterTabs.find((t) => t.key === activeFilter)?.label}</strong>. Anda dapat
-            menekan tombol <strong>&ldquo;+ Simulasi Pesanan Web Masuk&rdquo;</strong> di atas untuk
-            menguji antrean real-time &amp; notifikasi suara.
+            <strong>{filterTabs.find((t) => t.key === activeFilter)?.label}</strong> saat ini.
           </p>
         </div>
       ) : (
@@ -634,17 +606,19 @@ export function CashierQueueTab({
                       )}
                     </div>
 
-                    {/* 3. Tombol Cetak Struk & Batalkan */}
+                    {/* 3. Tombol Cetak Struk (Hanya untuk pesanan yang sudah bayar/lunas) & Batalkan */}
                     <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onOpenReceiptModal(order)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:border-primary/40 hover:bg-muted"
-                        title="Cetak Struk Termal 58mm / 80mm"
-                      >
-                        <Printer className="h-3.5 w-3.5 text-primary" />
-                        <span>Struk</span>
-                      </button>
+                      {order.payment.status === "PAID" && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenReceiptModal(order)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:border-primary/40 hover:bg-muted"
+                          title="Cetak Struk Termal 58mm / 80mm"
+                        >
+                          <Printer className="h-3.5 w-3.5 text-primary" />
+                          <span>Struk</span>
+                        </button>
+                      )}
 
                       {!isTerminal && (
                         <>

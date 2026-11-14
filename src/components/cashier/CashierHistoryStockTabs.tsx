@@ -10,7 +10,12 @@ import {
   CheckCircle2,
   XCircle,
   Receipt,
+  Boxes,
 } from "lucide-react";
+import { ProductImage } from "@/components/product-image";
+import { StockBadge } from "@/components/stock-badge";
+import { getStockStatus } from "@/lib/menu-data";
+import { cn } from "@/lib/utils";
 import type { AdminCategory, AdminProduct } from "@/lib/admin/types";
 import type { CashierOrder } from "@/lib/cashier/types";
 
@@ -27,8 +32,9 @@ interface CashierStockTabProps {
   searchQuery: string;
 }
 
-function formatRupiah(amount: number): string {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | null | undefined): string {
+  const val = typeof amount === "number" && !Number.isNaN(amount) && Number.isFinite(amount) ? amount : 0;
+  return `Rp ${Math.round(val).toLocaleString("id-ID")}`;
 }
 
 function formatDateTime(iso: string): string {
@@ -73,12 +79,8 @@ export function CashierHistoryTab({
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-extrabold text-foreground">
-            Riwayat Transaksi &amp; Cetak Ulang Struk (58mm / 80mm)
+            Riwayat Transaksi &amp; Cetak Ulang Struk
           </h3>
-          <p className="text-xs text-muted-foreground">
-            Daftar seluruh transaksi hari ini &amp; sebelumnya. Klik <strong>Cetak Struk</strong>{" "}
-            untuk mencetak ulang struk termal ukuran 58mm atau 80mm.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -201,14 +203,16 @@ export function CashierHistoryTab({
                                 <span>Bayar</span>
                               </button>
                             )}
-                          <button
-                            type="button"
-                            onClick={() => onOpenReceiptModal(order)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-extrabold text-[#0E2A2E] transition hover:border-primary hover:bg-primary/5"
-                          >
-                            <Printer className="h-3.5 w-3.5 text-primary" />
-                            <span>Cetak Struk (58/80mm)</span>
-                          </button>
+                          {isPaid && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenReceiptModal(order)}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-extrabold text-[#0E2A2E] transition hover:border-primary hover:bg-primary/5"
+                            >
+                              <Printer className="h-3.5 w-3.5 text-primary" />
+                              <span>Cetak Struk</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -244,12 +248,8 @@ export function CashierStockTab({
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-extrabold text-foreground">
-            Ketersediaan Stok Menu Real-Time (Mode Pantau Kasir)
+            Ketersediaan Stok Menu
           </h3>
-          <p className="text-xs text-muted-foreground">
-            Sesuai matriks RBAC (PRD 6.5), kasir dapat memantau sisa stok tersedia &amp; reservasi
-            pesanan secara langsung sebelum menginput pesanan POS.
-          </p>
         </div>
 
         <div className="flex flex-wrap gap-1.5">
@@ -281,76 +281,94 @@ export function CashierStockTab({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
         {filtered.map((product) => {
+          const status = getStockStatus(product.availableQty, product.minThreshold);
           const isOut = !product.isAvailable || product.availableQty <= 0;
-          const isLow = !isOut && product.availableQty <= product.minThreshold;
 
           return (
-            <div
+            <article
               key={product.id}
-              className="flex flex-col justify-between rounded-2xl border border-border bg-white p-4 shadow-2xs"
+              className={cn(
+                "group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xs transition-all hover:border-primary/40 hover:shadow-sm",
+                isOut && "opacity-75",
+              )}
             >
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <span className="rounded-md bg-[#F4F7F6] px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+              {/* Gambar Produk Rasio Aspect-Video */}
+              <div className="relative aspect-video w-full overflow-hidden bg-secondary-bg">
+                <ProductImage
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    imageUrl: product.imageUrl,
+                    emoji: "🍽️",
+                  }}
+                  className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
+                />
+
+                {/* Badge Status Stok Mengambang */}
+                <div className="absolute left-2.5 top-2.5">
+                  <StockBadge status={status} />
+                </div>
+              </div>
+
+              {/* Konten Menu */}
+              <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="truncate text-[10px] sm:text-[11px] font-semibold text-muted-foreground">
                     {product.categoryName}
                   </span>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${
-                      isOut
-                        ? "bg-red-500/15 text-red-700"
-                        : isLow
-                          ? "bg-amber-500/15 text-amber-800"
-                          : "bg-emerald-500/15 text-emerald-800"
-                    }`}
-                  >
-                    {isOut ? (
-                      <>
-                        <XCircle className="h-3 w-3" />
-                        <span>Habis</span>
-                      </>
-                    ) : isLow ? (
-                      <>
-                        <AlertTriangle className="h-3 w-3" />
-                        <span>Menipis</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>Tersedia</span>
-                      </>
-                    )}
+                  <span className="font-mono text-[10px] font-bold text-muted-foreground">
+                    Min: {product.minThreshold}
                   </span>
                 </div>
 
-                <h4 className="mt-2 font-extrabold text-foreground">{product.name}</h4>
-                <p className="font-mono text-xs font-black text-[#0E2A2E]">
-                  {formatRupiah(product.basePrice)}
+                <h4 className="line-clamp-1 text-xs sm:text-sm font-bold text-foreground">
+                  {product.name}
+                </h4>
+
+                <p className="line-clamp-2 min-h-[2rem] text-[11px] leading-relaxed text-muted-foreground">
+                  {product.description || `${product.categoryName} khas Warkop Agam`}
                 </p>
-              </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-[#F4F7F6] p-2.5 text-center text-[11px]">
-                <div>
-                  <span className="block text-[10px] text-muted-foreground">Tersedia</span>
-                  <span className="font-mono text-sm font-black text-foreground">
-                    {product.availableQty}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-muted-foreground">Reservasi</span>
-                  <span className="font-mono text-sm font-black text-amber-700">
-                    {product.reservedQty}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-muted-foreground">Min. Alert</span>
-                  <span className="font-mono text-sm font-bold text-muted-foreground">
-                    {product.minThreshold}
-                  </span>
+                <div className="mt-auto border-t border-border/60 pt-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs sm:text-sm font-extrabold text-foreground">
+                      {formatRupiah(product.basePrice)}
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-lg px-2 py-0.5 font-mono text-xs font-black",
+                        isOut
+                          ? "bg-red-500/10 text-red-700"
+                          : status === "LOW_STOCK"
+                            ? "bg-amber-500/10 text-amber-800"
+                            : "bg-emerald-500/10 text-emerald-800",
+                      )}
+                    >
+                      Sisa: {product.availableQty} porsi
+                    </span>
+                  </div>
+
+                  {/* Rincian Alokasi Stok (Siap Dijual vs Dipesan Meja) */}
+                  <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-xl bg-[#F4F7F6] p-2 text-center text-[10px]">
+                    <div>
+                      <span className="block text-[9px] text-muted-foreground">Siap Dijual</span>
+                      <span className="font-mono font-black text-foreground">
+                        {product.availableQty}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[9px] text-muted-foreground">Dipesan Meja</span>
+                      <span className="font-mono font-black text-amber-700">
+                        {product.reservedQty}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>

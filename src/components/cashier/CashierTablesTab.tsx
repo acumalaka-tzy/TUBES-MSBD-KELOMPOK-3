@@ -25,8 +25,9 @@ interface CashierTablesTabProps {
   onNotify: (msg: string, type?: "success" | "error" | "info") => void;
 }
 
-function formatRupiah(amount: number): string {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | null | undefined): string {
+  const val = typeof amount === "number" && !Number.isNaN(amount) && Number.isFinite(amount) ? amount : 0;
+  return `Rp ${Math.round(val).toLocaleString("id-ID")}`;
 }
 
 export function CashierTablesTab({
@@ -85,12 +86,8 @@ export function CashierTablesTab({
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-extrabold text-foreground">
-            Pemantauan Status Meja Dine-In Real-Time
+            Status Meja
           </h3>
-          <p className="text-xs text-muted-foreground">
-            Pantau meja terisi atau kosong, lihat pesanan aktif di setiap meja, dan kosongkan meja
-            saat pelanggan selesai bersantap.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -260,14 +257,16 @@ export function CashierTablesTab({
                                     <span>Bayar</span>
                                   </button>
                                 )}
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenReceiptModal(fullOrder)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2 py-1 text-[10px] font-bold text-foreground hover:bg-muted"
-                                >
-                                  <Printer className="h-3 w-3" />
-                                  <span>Struk</span>
-                                </button>
+                                {fullOrder.payment.status === "PAID" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenReceiptModal(fullOrder)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2 py-1 text-[10px] font-bold text-foreground hover:bg-muted"
+                                  >
+                                    <Printer className="h-3 w-3" />
+                                    <span>Struk</span>
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>

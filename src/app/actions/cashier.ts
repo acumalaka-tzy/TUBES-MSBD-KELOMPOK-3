@@ -37,10 +37,10 @@ function safeRevalidateAll() {
 }
 
 async function requireCashierOrAdmin(): Promise<AuthTokenPayload> {
-  const session = await requireRole(["CASHIER", "ADMIN"]);
+  const session = await requireRole(["CASHIER"]);
   const user = await getUserById(session.sub);
   if (user && !user.isActive) {
-    throw new Error("Akun Kasir/Admin Anda sedang dinonaktifkan.");
+    throw new Error("Akun Kasir Anda sedang dinonaktifkan.");
   }
   return session;
 }
@@ -796,6 +796,9 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
         if (serviceType === "DINE_IN" && tableNumber) {
           const t = await prisma.table.findUnique({ where: { table_number: tableNumber } });
           if (t) {
+            if (t.status === "OCCUPIED") {
+              return { success: false, error: `Meja ${tableNumber} sedang terisi dan tidak dapat digunakan.` };
+            }
             selectedTable = { id: t.id, table_number: t.table_number, name: t.name };
           }
         }
@@ -1041,6 +1044,9 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
     if (serviceType === "DINE_IN" && tableNumber) {
       const tbl = [...mem.tables.values()].find((t) => t.table_number === tableNumber);
       if (tbl) {
+        if (tbl.status === "OCCUPIED") {
+          return { success: false, error: `Meja ${tableNumber} sedang terisi dan tidak dapat digunakan.` };
+        }
         tbl.status = "OCCUPIED";
         tbl.updated_at = now;
         resolvedTable = { table_number: tbl.table_number, name: tbl.name };

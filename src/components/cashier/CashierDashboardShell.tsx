@@ -32,6 +32,7 @@ import type {
   CashierOrder,
   CashierTabKey,
 } from "@/lib/cashier/types";
+import { CashierOverviewTab } from "./CashierOverviewTab";
 import { CashierQueueTab } from "./CashierQueueTab";
 import { CashierPosTab } from "./CashierPosTab";
 import { CashierTablesTab } from "./CashierTablesTab";
@@ -49,8 +50,9 @@ interface CashierDashboardShellProps {
   initialData: CashierDashboardPayload;
 }
 
-function formatRupiah(amount: number): string {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | null | undefined): string {
+  const val = typeof amount === "number" && !Number.isNaN(amount) && Number.isFinite(amount) ? amount : 0;
+  return `Rp ${Math.round(val).toLocaleString("id-ID")}`;
 }
 
 export function CashierDashboardShell({
@@ -58,7 +60,7 @@ export function CashierDashboardShell({
   initialData,
 }: CashierDashboardShellProps) {
   const [data, setData] = useState<CashierDashboardPayload>(initialData);
-  const [activeTab, setActiveTab] = useState<CashierTabKey>("queue");
+  const [activeTab, setActiveTab] = useState<CashierTabKey>("dashboard");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -194,6 +196,11 @@ export function CashierDashboardShell({
     badgeTone?: string;
   }[] = [
     {
+      key: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
       key: "queue",
       label: "Antrean Pesanan",
       icon: BellRing,
@@ -303,51 +310,19 @@ export function CashierDashboardShell({
               );
             })}
           </nav>
-
-          {/* Kartu Ringkas Status Audio Alert di Sidebar */}
-          <div className="mx-3 mt-2 rounded-xl border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-white/90">
-                Audio Alert Pesanan
-              </span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${
-                  audioEnabled
-                    ? "bg-emerald-500/20 text-emerald-300"
-                    : "bg-red-500/20 text-red-300"
-                }`}
-              >
-                {audioEnabled ? "Aktif" : "Mati"}
-              </span>
-            </div>
-            <p className="mt-1 text-[10px] leading-relaxed text-white/65">
-              Bunyi lonceng otomatis saat ada pesanan web/QR meja baru masuk.
-            </p>
-          </div>
         </div>
 
-        {/* Sidebar Footer: Shortcut Admin (jika Admin) & User Profile Card */}
+        {/* Sidebar Footer: Shortcut Katalog & User Profile Card */}
         <div className="space-y-3 border-t border-white/10 p-3">
-          {cashierUser.role === "ADMIN" ? (
-            <Link
-              href="/admin"
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 active:scale-[0.99]"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Buka Dashboard Admin</span>
-              <ExternalLink className="h-3 w-3 text-white/50" />
-            </Link>
-          ) : (
-            <Link
-              href="/menu"
-              target="_blank"
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 active:scale-[0.99]"
-            >
-              <QrCode className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Lihat Katalog Pelanggan</span>
-              <ExternalLink className="h-3 w-3 text-white/50" />
-            </Link>
-          )}
+          <Link
+            href="/menu"
+            target="_blank"
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 active:scale-[0.99]"
+          >
+            <QrCode className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Lihat Katalog Pelanggan</span>
+            <ExternalLink className="h-3 w-3 text-white/50" />
+          </Link>
 
           {/* User Profile Card */}
           <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5">
@@ -401,86 +376,21 @@ export function CashierDashboardShell({
 
             <div>
               <h2 className="text-base font-black tracking-tight text-foreground sm:text-lg">
-                Shift Operasional Kasir — {cashierUser.name} 👋
+                Shift Operasional Kasir — {cashierUser.name}
               </h2>
-              <p className="text-xs text-muted-foreground">
-                Pantau antrean pesanan real-time, input POS manual, konfirmasi tunai, dan cetak
-                struk termal.
-              </p>
             </div>
           </div>
 
-          {/* Quick Actions & Search */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Search bar mini */}
-            <div className="relative hidden w-48 sm:block xl:w-60">
-              <input
-                type="text"
-                placeholder="Cari no. order, pelanggan, meja..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full rounded-xl border border-border bg-secondary-bg/50 pr-3 pl-8 text-xs outline-none focus:border-primary focus:bg-white"
-              />
-              <Search className=" absolute top-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-
-            {/* Toggle Notifikasi Suara (Audio Alert) */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = !audioEnabled;
-                setAudioEnabled(next);
-                if (next) {
-                  setTimeout(() => playAudioAlert(), 60);
-                }
-              }}
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold shadow-2xs transition-all ${
-                audioEnabled
-                  ? "border-emerald-500/30 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                  : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-              }`}
-              title="Aktifkan/Matikan Notifikasi Suara Pesanan Masuk"
-            >
-              {audioEnabled ? (
-                <Volume2 className="h-3.5 w-3.5 text-emerald-600" />
-              ) : (
-                <VolumeX className="h-3.5 w-3.5 text-neutral-500" />
-              )}
-              <span>Suara: {audioEnabled ? "ON" : "OFF"}</span>
-            </button>
-
-            {/* Tombol Sinkronisasi Real-Time */}
-            <button
-              type="button"
-              onClick={() => void refreshDashboardData()}
-              disabled={isSyncing}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground shadow-2xs transition hover:bg-secondary-bg disabled:opacity-60"
-              title="Segarkan antrean sekarang (Auto-sync tiap 5 detik)"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 text-primary ${isSyncing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Live Sync</span>
-            </button>
-
-            {/* Database indicator */}
-            <span
-              className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold ${
-                dataSource === "database"
-                  ? "border-emerald-500/30 bg-emerald-50 text-emerald-700"
-                  : "border-amber-500/30 bg-amber-50 text-amber-800"
-              }`}
-            >
-              <Database className="h-3 w-3" />
-              <span>{dataSource === "database" ? "MySQL Aktif" : "Memori"}</span>
-            </span>
-
+          {/* Quick Actions */}
+          <div className="flex items-center gap-2.5">
             {/* Link ke Web Publik */}
             <Link
               href="/"
               target="_blank"
-              className="inline-flex items-center gap-1 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground shadow-2xs hover:bg-secondary-bg"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground shadow-2xs transition hover:bg-secondary-bg"
             >
-              <span>Web</span>
-              <ExternalLink className="h-3 w-3 text-muted-foreground" />
+              <span>Web Menu</span>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
             </Link>
           </div>
         </header>
@@ -624,6 +534,15 @@ export function CashierDashboardShell({
           </div>
 
           {/* KONTEN TAB AKTIF */}
+          {activeTab === "dashboard" && (
+            <CashierOverviewTab
+              data={data}
+              cashierName={cashierUser.name}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenCashModal={(ord) => setCashModalOrder(ord)}
+            />
+          )}
+
           {activeTab === "queue" && (
             <CashierQueueTab
               orders={data.orders}

@@ -5,7 +5,13 @@ import type {
   DataSource,
 } from "@/lib/admin/types";
 
-export type CashierTabKey = "queue" | "pos" | "tables" | "history" | "stock";
+export type CashierTabKey =
+  | "dashboard"
+  | "queue"
+  | "pos"
+  | "tables"
+  | "history"
+  | "stock";
 
 export type QueueFilterKey = "action" | "preparing" | "ready" | "done" | "all";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -19,7 +19,14 @@ import {
   AlertCircle,
   User,
   Phone,
+  Flame,
+  Check,
+  ChevronDown,
 } from "lucide-react";
+import { ProductImage } from "@/components/product-image";
+import { StockBadge } from "@/components/stock-badge";
+import { getStockStatus } from "@/lib/menu-data";
+import { cn } from "@/lib/utils";
 import type {
   AdminCategory,
   AdminOptionGroup,
@@ -57,8 +64,9 @@ interface PosCartItem {
   options: PosCartItemOption[];
 }
 
-function formatRupiah(amount: number): string {
-  return `Rp ${Math.round(amount).toLocaleString("id-ID")}`;
+function formatRupiah(amount: number | null | undefined): string {
+  const val = typeof amount === "number" && !Number.isNaN(amount) && Number.isFinite(amount) ? amount : 0;
+  return `Rp ${Math.round(val).toLocaleString("id-ID")}`;
 }
 
 export function CashierPosTab({
@@ -98,6 +106,64 @@ export function CashierPosTab({
   const [modalQty, setModalQty] = useState<number>(1);
 
   const [isPending, startTransition] = useTransition();
+
+  // Hitung penyesuaian harga varian pada modal
+  const modalOptionsAdjustment = useMemo(() => {
+    if (!customizingProduct) return 0;
+    let total = 0;
+    for (const grp of customizingProduct.optionGroups) {
+      const chosenIds = selectedOptionsMap[grp.id] || [];
+      for (const id of chosenIds) {
+        const found = grp.items.find((i) => i.id === id);
+        if (found) {
+          total += Number(found.priceAdjustment || 0);
+        }
+      }
+    }
+    return total;
+  }, [customizingProduct, selectedOptionsMap]);
+
+  const modalUnitPrice = (customizingProduct?.basePrice || 0) + modalOptionsAdjustment;
+  const modalTotalPrice = modalUnitPrice * modalQty;
+
+  const missingRequiredInModal = useMemo(() => {
+    if (!customizingProduct) return false;
+    return customizingProduct.optionGroups.some((g) => {
+      if (!g.isRequired) return false;
+      const chosen = selectedOptionsMap[g.id] || [];
+      return chosen.length === 0;
+    });
+  }, [customizingProduct, selectedOptionsMap]);
+
+  // Rekomendasi catatan cepat khas F&B Warkop
+  const quickNotes = useMemo(() => {
+    if (!customizingProduct) return [];
+    const text = `${customizingProduct.name} ${customizingProduct.categoryName}`.toLowerCase();
+    if (/kopi|sanger|teh|minum|dingin|jeruk|milo|badak/.test(text)) {
+      return [
+        "Gula dikurangi",
+        "Es batu sedikit",
+        "Gula dipisah",
+        "Kopi lebih kental",
+        "Disajikan hangat",
+      ];
+    }
+    if (/mie|indomie|nasi|aceh|makanan/.test(text)) {
+      return [
+        "Kuah dipisah",
+        "Tanpa bawang goreng",
+        "Telur matang sempurna",
+        "Acar & cabai pisah",
+        "Bumbu lebih lekoh",
+      ];
+    }
+    return [
+      "Potong kecil-kecil",
+      "Susu/selai dipisah",
+      "Panggang lebih garing",
+      "Sajikan hangat",
+    ];
+  }, [customizingProduct]);
 
   // Jika user datang dari tab Status Meja ("Buat Pesanan di Meja Ini")
   useEffect(() => {
@@ -150,7 +216,7 @@ export function CashierPosTab({
   const changeAmount = effectiveCashPaid - totalAmount;
   const isCashSufficient = paymentMethod !== "CASH" || effectiveCashPaid >= totalAmount;
 
-  // Buka modal opsi/varian atau langsung masukkan jika tidak punya opsi
+  // Buka modal opsi/varian (selaras dengan tampilan detail menu customer)
   const handleSelectProduct = (product: AdminProduct, forceQuickAdd = false) => {
     const alreadyInCart = getQtyInCartForProduct(product.id);
     const remainingStock = product.availableQty - alreadyInCart;
@@ -160,7 +226,7 @@ export function CashierPosTab({
       return;
     }
 
-    if (product.optionGroups.length === 0 || forceQuickAdd) {
+    if (forceQuickAdd) {
       // Ambil opsi wajib pertama bila forceQuickAdd
       const defaultOpts: PosCartItemOption[] = [];
       for (const grp of product.optionGroups) {
@@ -317,9 +383,16 @@ export function CashierPosTab({
       onNotify("Tambahkan minimal 1 menu ke keranjang POS terlebih dahulu.", "error");
       return;
     }
-    if (serviceType === "DINE_IN" && !selectedTableNumber) {
-      onNotify("Pilih nomor meja untuk pesanan Dine In.", "error");
-      return;
+    if (serviceType === "DINE_IN") {
+      if (!selectedTableNumber) {
+        onNotify("Pilih nomor meja untuk pesanan Dine In.", "error");
+        return;
+      }
+      const targetTbl = tables.find((t) => t.tableNumber === selectedTableNumber);
+      if (targetTbl && targetTbl.status === "OCCUPIED") {
+        onNotify(`Meja ${selectedTableNumber} sedang terisi dan tidak dapat digunakan. Silakan pilih meja yang kosong.`, "error");
+        return;
+      }
     }
     if (paymentMethod === "CASH" && !isCashSufficient) {
       onNotify(
@@ -425,87 +498,119 @@ export function CashierPosTab({
           </div>
         </div>
 
-        {/* Grid Produk */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {/* Grid Produk POS (Sesuai Gaya Kartu Menu Customer) */}
+        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
           {filteredProducts.map((product) => {
             const inCartQty = getQtyInCartForProduct(product.id);
             const remainingStock = Math.max(0, product.availableQty - inCartQty);
+            const status = getStockStatus(remainingStock, product.minThreshold);
             const isOut = !product.isAvailable || remainingStock <= 0;
 
             return (
-              <div
+              <article
                 key={product.id}
-                className={`group flex flex-col justify-between rounded-2xl border bg-white p-4 shadow-2xs transition-all ${
-                  isOut
-                    ? "border-border/60 opacity-60"
-                    : inCartQty > 0
-                      ? "border-primary ring-1 ring-primary/20 hover:shadow-md"
-                      : "border-border hover:border-primary/50 hover:shadow-md"
-                }`}
+                onClick={() => {
+                  if (!isOut) handleSelectProduct(product, false);
+                }}
+                className={cn(
+                  "group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xs transition-all cursor-pointer",
+                  !isOut && "hover:border-primary/50 hover:shadow-md",
+                  isOut && "border-border/60 opacity-60 cursor-not-allowed",
+                  inCartQty > 0 && "ring-2 ring-primary/40 border-primary"
+                )}
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="rounded-md bg-[#F4F7F6] px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                {/* Gambar Produk */}
+                <div className="relative">
+                  <ProductImage
+                    product={{
+                      id: product.id,
+                      name: product.name,
+                      emoji: "☕",
+                      imageUrl: product.imageUrl || undefined,
+                    }}
+                    className={cn(
+                      "aspect-[4/3] transition-transform duration-300",
+                      !isOut && "group-hover:scale-[1.02]",
+                      isOut && "grayscale"
+                    )}
+                  />
+
+                  {/* Indikator Badge Jumlah di Keranjang POS */}
+                  {inCartQty > 0 && (
+                    <span
+                      title={`${inCartQty} item ada di keranjang POS`}
+                      className="absolute right-2.5 top-2.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-black text-white shadow-md ring-2 ring-white animate-in zoom-in-75 duration-200"
+                    >
+                      {inCartQty}
+                    </span>
+                  )}
+                </div>
+
+                <div className={cn("flex flex-1 flex-col gap-1.5 p-3 sm:p-3.5", isOut && "opacity-75")}>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="truncate text-[10px] sm:text-[11px] font-semibold text-muted-foreground">
                       {product.categoryName}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-extrabold ${
-                        isOut
-                          ? "bg-red-500/15 text-red-700"
-                          : remainingStock <= product.minThreshold
-                            ? "bg-amber-500/15 text-amber-800"
-                            : "bg-emerald-500/15 text-emerald-800"
-                      }`}
-                    >
-                      {isOut ? "Habis" : `Stok: ${remainingStock}`}
-                    </span>
+                    <StockBadge status={status} />
                   </div>
 
-                  <h4 className="mt-2 font-extrabold text-foreground group-hover:text-primary">
+                  <h4 className="line-clamp-1 text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                     {product.name}
                   </h4>
-                  <p className="mt-0.5 font-mono text-sm font-black text-[#0E2A2E]">
-                    {formatRupiah(product.basePrice)}
+
+                  <p className="line-clamp-2 min-h-[2rem] text-[11px] leading-relaxed text-muted-foreground">
+                    {product.description || `${product.categoryName} khas Warkop Agam`}
                   </p>
 
-                  {product.optionGroups.length > 0 && (
-                    <p className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-                      <SlidersHorizontal className="h-3 w-3 text-primary" />
-                      <span>{product.optionGroups.length} grup varian tersedia</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-3.5 flex items-center gap-1.5 pt-2">
-                  <button
-                    type="button"
-                    disabled={isOut}
-                    onClick={() => handleSelectProduct(product, false)}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0E2A2E] px-3 py-2 text-xs font-extrabold text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:bg-neutral-300"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>
-                      {product.optionGroups.length > 0 ? "Pilih Varian" : "Tambah"}
-                    </span>
-                    {inCartQty > 0 && (
-                      <span className="ml-0.5 rounded-full bg-primary px-1.5 py-0.2 font-mono text-[10px] text-white">
-                        {inCartQty}
+                  <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2">
+                    <div>
+                      <span className="font-mono text-xs sm:text-sm font-extrabold text-foreground">
+                        {formatRupiah(product.basePrice)}
                       </span>
-                    )}
-                  </button>
+                      {!isOut ? (
+                        <span className="block font-mono text-[10px] text-muted-foreground">
+                          Sisa: {remainingStock} porsi
+                        </span>
+                      ) : (
+                        <span className="block font-mono text-[10px] text-error font-semibold">
+                          Stok: 0 porsi
+                        </span>
+                      )}
+                    </div>
 
-                  {product.optionGroups.length > 0 && !isOut && (
-                    <button
-                      type="button"
-                      onClick={() => handleSelectProduct(product, true)}
-                      title="Tambah cepat dengan varian standar"
-                      className="rounded-xl border border-border bg-[#F4F7F6] px-2.5 py-2 text-[11px] font-extrabold text-foreground transition hover:bg-primary/10 hover:text-primary"
-                    >
-                      +1 Cepat
-                    </button>
-                  )}
+                    {isOut ? (
+                      <span className="rounded-lg bg-error/10 px-2.5 py-1 text-xs font-bold text-error">
+                        Habis
+                      </span>
+                    ) : inCartQty > 0 ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectProduct(product, false);
+                        }}
+                        aria-label={`${inCartQty} ${product.name} di keranjang POS`}
+                        className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-primary px-3 text-xs font-black text-white shadow-2xs transition-colors hover:bg-primary-hover"
+                      >
+                        <span>{inCartQty}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectProduct(product, false);
+                        }}
+                        aria-label={`Pilih ${product.name}`}
+                        className="inline-flex h-9 items-center gap-1 rounded-xl bg-primary px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-primary-hover"
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden />
+                        <span>Tambah</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -578,46 +683,60 @@ export function CashierPosTab({
               </div>
             </div>
 
-            {/* Pemilih Nomor Meja jika Dine In */}
+            {/* Pilihan Meja jika Dine In (Format Dropdown Sesuai Sisi Customer) */}
             {serviceType === "DINE_IN" && (
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                    Pilih Meja Pelanggan
+              <div className="space-y-2 rounded-2xl border border-border bg-[#F4F7F6]/80 p-3.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="pos-table-number-select"
+                    className="block text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Pilih Nomor Meja <span className="text-red-500">*</span>
                   </label>
-                  <span className="text-[11px] font-bold text-emerald-700">
-                    Hijau = Kosong • Kuning = Terisi
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    Tersedia {tables.filter((t) => t.isActive).length} meja
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-                  {tables
-                    .filter((t) => t.isActive)
-                    .map((tbl) => {
-                      const isSelected = selectedTableNumber === tbl.tableNumber;
-                      const isOccupied = tbl.status === "OCCUPIED";
-                      return (
-                        <button
-                          key={tbl.id}
-                          type="button"
-                          onClick={() => setSelectedTableNumber(tbl.tableNumber)}
-                          className={`flex flex-col items-center justify-center rounded-xl border py-2 text-center transition ${
-                            isSelected
-                              ? "border-primary bg-primary text-white shadow-xs"
-                              : isOccupied
-                                ? "border-amber-500/40 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20"
-                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 hover:bg-emerald-500/20"
-                          }`}
-                        >
-                          <span className="font-mono text-xs font-black">
-                            {tbl.tableNumber}
-                          </span>
-                          <span className="text-[9px] font-bold opacity-85">
-                            {isOccupied ? "Terisi" : `${tbl.capacity}k`}
-                          </span>
-                        </button>
-                      );
-                    })}
+
+                <div className="relative">
+                  <Utensils className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-primary" />
+                  <select
+                    id="pos-table-number-select"
+                    value={selectedTableNumber}
+                    onChange={(e) => {
+                      const targetTbl = tables.find((t) => t.tableNumber === e.target.value);
+                      if (targetTbl && targetTbl.status === "OCCUPIED") {
+                        onNotify(`Meja ${targetTbl.tableNumber} sedang terisi dan tidak dapat dipilih.`, "error");
+                        return;
+                      }
+                      setSelectedTableNumber(e.target.value);
+                    }}
+                    className="w-full appearance-none rounded-xl border border-border bg-white py-2.5 pl-10 pr-10 text-xs font-bold text-foreground shadow-2xs transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  >
+                    <option value="">-- Pilih Nomor Meja Pelanggan --</option>
+                    {tables
+                      .filter((t) => t.isActive)
+                      .map((tbl) => {
+                        const isOccupied = tbl.status === "OCCUPIED";
+                        return (
+                          <option key={tbl.id} value={tbl.tableNumber} disabled={isOccupied}>
+                            Meja {tbl.tableNumber} {tbl.name && tbl.name !== `Meja ${tbl.tableNumber}` ? `• ${tbl.name}` : ""}{" "}
+                            {isOccupied ? "(Sedang Terisi - Tidak Tersedia)" : "(Kosong)"}
+                          </option>
+                        );
+                      })}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 </div>
+
+                {selectedTableNumber && (
+                  <div className="flex items-center gap-2 pt-0.5 text-xs text-muted-foreground">
+                    <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span>
+                      Pesanan akan disajikan ke <strong className="font-extrabold text-foreground">Meja {selectedTableNumber}</strong>.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -893,123 +1012,238 @@ export function CashierPosTab({
       </div>
 
       {/* =====================================================================
-       * MODAL PILIH VARIAN / TOPPING PRODUK POS
+       * MODAL PILIH VARIAN / TOPPING PRODUK POS (GAYA CUSTOMER PRODUCT-DETAIL)
        * =================================================================== */}
       {customizingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl">
-            <div className="flex items-center justify-between bg-[#0E2A2E] px-5 py-4 text-white">
-              <div>
-                <h4 className="text-sm font-extrabold">{customizingProduct.name}</h4>
-                <p className="font-mono text-xs text-emerald-400">
-                  Harga Dasar: {formatRupiah(customizingProduct.basePrice)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCustomizingProduct(null)}
-                className="rounded-xl bg-white/10 p-1.5 text-white/80 hover:bg-white/20"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
+          <button
+            type="button"
+            aria-label="Tutup"
+            onClick={() => setCustomizingProduct(null)}
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+          />
 
-            <div className="flex-1 space-y-4 overflow-y-auto p-5">
-              {customizingProduct.optionGroups.map((group) => {
-                const selectedIds = selectedOptionsMap[group.id] || [];
-                return (
-                  <div key={group.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-foreground">
-                        {group.name}
-                      </span>
-                      <span className="rounded-md bg-[#F4F7F6] px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
-                        {group.isRequired ? "Wajib" : "Opsional"} •{" "}
-                        {group.isMulti ? "Bisa lebih dari 1" : "Pilih 1"}
-                      </span>
-                    </div>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pos-product-detail-title"
+            className="relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-transform duration-150 md:max-h-[88dvh] md:max-w-xl md:rounded-3xl"
+          >
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-border md:hidden" aria-hidden />
 
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {group.items
-                        .filter((it) => it.isAvailable)
-                        .map((opt) => {
-                          const isChosen = selectedIds.includes(opt.id);
-                          return (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={() => toggleModalOption(group, opt.id)}
-                              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-xs transition ${
-                                isChosen
-                                  ? "border-primary bg-primary/10 font-extrabold text-primary"
-                                  : "border-border bg-white font-semibold text-foreground hover:bg-muted"
-                              }`}
-                            >
-                              <span>{opt.name}</span>
-                              {opt.priceAdjustment > 0 && (
-                                <span className="font-mono text-[11px]">
-                                  +{formatRupiah(opt.priceAdjustment)}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                    </div>
+            {/* Tombol Tutup Floating X */}
+            <button
+              type="button"
+              onClick={() => setCustomizingProduct(null)}
+              aria-label="Tutup detail"
+              className="absolute right-3.5 top-3.5 z-20 flex size-9 items-center justify-center rounded-full bg-white/90 shadow hover:bg-white text-foreground transition-all"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+
+            {/* Kontainer Form Varian Scrollable */}
+            <div className="overflow-y-auto no-scrollbar flex-1">
+              <ProductImage
+                product={{
+                  id: customizingProduct.id,
+                  name: customizingProduct.name,
+                  imageUrl: customizingProduct.imageUrl,
+                  emoji: "🍽️",
+                }}
+                className="aspect-[16/10]"
+                emojiClassName="text-8xl"
+                sizes="(min-width: 768px) 512px, 100vw"
+              />
+
+              <div className="space-y-5 p-5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {customizingProduct.categoryName}
+                    </span>
+                    <StockBadge
+                      status={getStockStatus(
+                        customizingProduct.availableQty,
+                        customizingProduct.minThreshold,
+                      )}
+                    />
                   </div>
-                );
-              })}
+                  <h2 id="pos-product-detail-title" className="mt-1 text-xl font-bold text-foreground">
+                    {customizingProduct.name}
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    {customizingProduct.description || `${customizingProduct.categoryName} khas Warkop Agam`}
+                  </p>
+                  <p className="mt-2 text-lg font-bold text-primary">
+                    {formatRupiah(customizingProduct.basePrice)}
+                  </p>
+                </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-extrabold text-foreground">
-                  Catatan Khusus Item (Opsional)
-                </label>
-                <input
-                  type="text"
-                  value={modalItemNotes}
-                  onChange={(e) => setModalItemNotes(e.target.value)}
-                  placeholder="Contoh: Kurangi es, kuah pisah..."
-                  className="w-full rounded-xl border border-border bg-[#F4F7F6] px-3 py-2 text-xs font-semibold text-foreground outline-none focus:border-primary focus:bg-white"
-                />
+                {customizingProduct.optionGroups.map((group) => {
+                  const selectedIds = selectedOptionsMap[group.id] || [];
+                  return (
+                    <fieldset key={group.id} className="space-y-2 border-t border-border pt-4">
+                      <div className="flex items-baseline justify-between">
+                        <legend className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          {group.name}
+                        </legend>
+                        <span className="text-[11px] text-muted-foreground">
+                          {group.isRequired ? "Wajib dipilih" : "Opsional"} •{" "}
+                          {group.isMulti ? "Bisa lebih dari 1" : "Pilih 1"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {group.items
+                          .filter((it) => it.isAvailable)
+                          .map((opt) => {
+                            const isChosen = selectedIds.includes(opt.id);
+                            return (
+                              <label
+                                key={opt.id}
+                                className={cn(
+                                  "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-sm transition-colors",
+                                  isChosen
+                                    ? "border-primary bg-primary/5 font-semibold text-foreground"
+                                    : "border-border hover:bg-secondary-bg text-foreground",
+                                )}
+                              >
+                                <span className="flex items-center gap-2.5">
+                                  <input
+                                    type={group.isMulti ? "checkbox" : "radio"}
+                                    name={group.id}
+                                    value={opt.id}
+                                    checked={isChosen}
+                                    onChange={() => toggleModalOption(group, opt.id)}
+                                    className="accent-primary"
+                                  />
+                                  <span>{opt.name}</span>
+                                </span>
+                                {opt.priceAdjustment > 0 && (
+                                  <span className="font-mono text-xs text-muted-foreground">
+                                    +{formatRupiah(opt.priceAdjustment)}
+                                  </span>
+                                )}
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </fieldset>
+                  );
+                })}
+
+                {/* Catatan Tambahan & Quick Notes Chips */}
+                <div className="space-y-2 border-t border-border pt-4">
+                  <label
+                    htmlFor="cashier-item-note"
+                    className="block text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Catatan Khusus (Opsional)
+                  </label>
+
+                  {quickNotes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {quickNotes.map((chip) => {
+                        const active = modalItemNotes.includes(chip);
+                        return (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => {
+                              if (active) {
+                                setModalItemNotes((prev) =>
+                                  prev
+                                    .replace(chip, "")
+                                    .replace(/,\s*,/g, ",")
+                                    .replace(/^\s*,\s*|\s*,\s*$/g, "")
+                                    .trim(),
+                                );
+                              } else {
+                                setModalItemNotes((prev) => (prev ? `${prev}, ${chip}` : chip));
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
+                              active
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-secondary-bg text-muted-foreground hover:bg-border/60 hover:text-foreground",
+                            )}
+                          >
+                            <span>{active ? "✓" : "+"}</span>
+                            <span>{chip}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <textarea
+                    id="cashier-item-note"
+                    value={modalItemNotes}
+                    onChange={(e) => setModalItemNotes(e.target.value.slice(0, 255))}
+                    rows={2}
+                    placeholder="Contoh: gula dikurangi, kuah dipisah, jangan pakai bawang..."
+                    className="w-full resize-none rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-border bg-[#F4F7F6] px-5 py-3.5">
-              <div className="flex items-center gap-2">
+            {/* Footer Form: Stepper Kuantitas & Tombol Masukkan ke Keranjang POS */}
+            <div className="border-t border-border bg-white p-4 shadow-lg">
+              <div className="flex items-center gap-3">
+                {/* Quantity Stepper */}
+                <div className="flex items-center border border-border rounded-xl bg-white p-1 shadow-2xs shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setModalQty((q) => Math.max(1, q - 1))}
+                    disabled={modalQty <= 1}
+                    className="size-8 rounded-lg flex items-center justify-center hover:bg-secondary-bg text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                    title="Kurangi kuantitas"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <span className="w-8 text-center font-mono font-bold text-sm text-foreground">
+                    {modalQty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setModalQty((q) => {
+                        const maxAllowed =
+                          customizingProduct.availableQty -
+                          getQtyInCartForProduct(customizingProduct.id);
+                        return Math.min(maxAllowed, q + 1);
+                      })
+                    }
+                    disabled={
+                      modalQty >=
+                      customizingProduct.availableQty -
+                        getQtyInCartForProduct(customizingProduct.id)
+                    }
+                    className="size-8 rounded-lg flex items-center justify-center hover:bg-secondary-bg text-primary disabled:opacity-40 transition-colors"
+                    title="Tambah kuantitas"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
+
+                {/* Submit Button */}
                 <button
                   type="button"
-                  onClick={() => setModalQty((q) => Math.max(1, q - 1))}
-                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-white font-bold"
+                  onClick={handleConfirmModalProduct}
+                  disabled={missingRequiredInModal}
+                  className="h-11 flex-1 rounded-xl bg-primary hover:bg-primary-hover text-white font-extrabold text-sm transition-all shadow-md flex items-center justify-between px-4 disabled:opacity-50"
                 >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-                <span className="min-w-8 text-center font-mono text-sm font-black">
-                  {modalQty}
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setModalQty((q) =>
-                      Math.min(
-                        customizingProduct.availableQty -
-                          getQtyInCartForProduct(customizingProduct.id),
-                        q + 1,
-                      ),
-                    )
-                  }
-                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0E2A2E] text-white font-bold"
-                >
-                  <Plus className="h-3.5 w-3.5" />
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="size-4" />
+                    <span>+ Masukkan ke Keranjang POS</span>
+                  </span>
+                  <span className="font-mono text-sm font-black">
+                    {formatRupiah(modalTotalPrice)}
+                  </span>
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={handleConfirmModalProduct}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-xs transition hover:bg-primary-hover"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Masukkan ke Keranjang POS</span>
-              </button>
             </div>
           </div>
         </div>
