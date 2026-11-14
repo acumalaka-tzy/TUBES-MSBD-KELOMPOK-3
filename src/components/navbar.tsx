@@ -112,21 +112,18 @@ function NavbarContent() {
               )}
             </button>
 
-            {/* Tombol Akun / Login Desktop */}
+            {/* Tombol Akun / Login Desktop (Hanya Logo Profil) */}
             {currentUser ? (
               <div className="relative hidden sm:block">
                 <button
                   type="button"
                   onClick={() => setUserDropdownOpen((v) => !v)}
-                  className="flex h-11 items-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-foreground transition-all hover:border-primary/50"
+                  title={`Profil: ${currentUser.name} (${currentUser.role})`}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white text-foreground transition-all hover:border-primary/50 hover:bg-secondary-bg/50 cursor-pointer shadow-2xs"
                 >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <User className="h-3.5 w-3.5" />
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <User className="h-4 w-4" />
                   </div>
-                  <span className="max-w-[100px] truncate font-bold">{currentUser.name}</span>
-                  <span className="rounded-md bg-secondary-bg px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-                    {currentUser.role}
-                  </span>
                 </button>
 
                 {userDropdownOpen && (

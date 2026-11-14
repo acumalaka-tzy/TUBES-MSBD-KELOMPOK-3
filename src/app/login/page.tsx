@@ -4,7 +4,7 @@ import React, { useRef, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Coffee, Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
-import { loginAction, googleAuthAction } from "@/app/actions/auth";
+import { loginAction } from "@/app/actions/auth";
 
 function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (

@@ -15,6 +15,15 @@ import {
   type UserRole,
   INITIAL_MOCK_USERS,
 } from "@/lib/auth";
+import { validateIndonesianWhatsApp } from "@/lib/auth/phone-validation";
+import { sendOtpEmail } from "@/lib/email/mailer";
+import {
+  savePendingRegistration,
+  getPendingRegistration,
+  updatePendingOtp,
+  removePendingRegistration,
+  generateOtpCode,
+} from "@/lib/email/otp-store";
 
 export interface AuthActionResult {
   success: boolean;
@@ -114,7 +123,7 @@ export async function loginAction(
 }
 
 /**
- * Server Action: Registrasi Customer Terdaftar
+ * Server Action: Registrasi Customer Terdaftar dengan Verifikasi Email OTP Asli
  */
 export async function registerAction(
   prevState: AuthActionResult | null,
@@ -129,9 +138,22 @@ export async function registerAction(
   if (!name.trim()) {
     return { success: false, error: "Nama lengkap wajib diisi." };
   }
-  if (!phone.trim()) {
-    return { success: false, error: "Nomor WhatsApp aktif wajib diisi." };
+  if (!email.trim()) {
+    return { success: false, error: "Email wajib diisi untuk verifikasi akun Anda." };
   }
+
+  // Validasi format email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return { success: false, error: "Format email tidak valid. Gunakan format seperti nama@domain.com." };
+  }
+
+  // Validasi format WhatsApp Indonesia
+  const phoneValidation = validateIndonesianWhatsApp(phone);
+  if (!phoneValidation.isValid) {
+    return { success: false, error: phoneValidation.error || "Nomor WhatsApp tidak valid." };
+  }
+
   if (!password || password.length < 6) {
     return { success: false, error: "Password minimal 6 karakter." };
   }
@@ -139,22 +161,104 @@ export async function registerAction(
     return { success: false, error: "Konfirmasi password tidak cocok." };
   }
 
+  // Cek apakah email atau nomor WhatsApp sudah terdaftar di database
+  const cleanEmail = email.trim().toLowerCase();
+  const existingByEmail = await findUserByIdentifier(cleanEmail);
+  if (existingByEmail) {
+    return { success: false, error: "Email sudah terdaftar. Silakan login atau gunakan email lain." };
+  }
+
+  const existingByPhone = await findUserByIdentifier(phoneValidation.normalized);
+  if (existingByPhone) {
+    return { success: false, error: "Nomor WhatsApp sudah terdaftar. Silakan login atau gunakan nomor lain." };
+  }
+
+  // Generate 6-digit OTP kriptografis
+  const otpCode = generateOtpCode();
+
+  // Simpan data registrasi sementara dalam pending store
+  savePendingRegistration(
+    {
+      name: name.trim(),
+      email: cleanEmail,
+      phone: phoneValidation.normalized,
+      passwordHash: password, // disimpan sementara dan di-hash aman saat verifikasi
+    },
+    otpCode
+  );
+
+  // Kirim email OTP asli menggunakan Gmail SMTP Warkop Agam
+  const mailResult = await sendOtpEmail({
+    toEmail: cleanEmail,
+    recipientName: name.trim(),
+    otpCode,
+  });
+
+  if (!mailResult.success) {
+    return {
+      success: false,
+      error: `Gagal mengirim email kode verifikasi: ${mailResult.error || "Kesalahan SMTP"}. Pastikan email Anda aktif.`,
+    };
+  }
+
+  return {
+    success: true,
+    redirectTo: `/verify-email?email=${encodeURIComponent(cleanEmail)}`,
+  };
+}
+
+/**
+ * Server Action: Verifikasi Kode OTP Email & Aktivasi Akun
+ */
+export async function verifyOtpAction(
+  email: string,
+  otpCode: string
+): Promise<AuthActionResult> {
+  const cleanEmail = (email || "").trim().toLowerCase();
+  const cleanOtp = (otpCode || "").trim();
+
+  if (!cleanEmail) {
+    return { success: false, error: "Email tidak valid." };
+  }
+  if (!cleanOtp || cleanOtp.length !== 6) {
+    return { success: false, error: "Masukkan 6 digit kode verifikasi OTP yang valid." };
+  }
+
+  const pending = getPendingRegistration(cleanEmail);
+  if (!pending) {
+    return {
+      success: false,
+      error: "Sesi verifikasi tidak ditemukan atau telah kedaluwarsa. Silakan lakukan pendaftaran ulang.",
+    };
+  }
+
+  if (pending.otpCode !== cleanOtp) {
+    return {
+      success: false,
+      error: "Kode OTP salah. Silakan periksa kembali email Anda.",
+    };
+  }
+
+  // OTP Valid! Daftarkan user ke database secara permanen
   const regResult = await registerNewUser({
-    name,
-    email: email.trim() || null,
-    phone,
-    password,
+    name: pending.name,
+    email: pending.email,
+    phone: pending.phone,
+    password: pending.passwordHash,
     role: "CUSTOMER",
   });
 
   if (!regResult.user || regResult.error) {
     return {
       success: false,
-      error: regResult.error || "Gagal mendaftarkan akun. Silakan coba lagi.",
+      error: regResult.error || "Gagal mengaktifkan akun. Silakan coba lagi.",
     };
   }
 
-  // Otomatis login setelah registrasi
+  // Hapus data registrasi pending
+  removePendingRegistration(cleanEmail);
+
+  // Otomatis login dengan sesi JWT aman
   await createSession(regResult.user);
 
   try {
@@ -173,6 +277,47 @@ export async function registerAction(
       phone: regResult.user.phone,
       role: regResult.user.role,
     },
+  };
+}
+
+/**
+ * Server Action: Kirim Ulang Kode OTP Verifikasi Email
+ */
+export async function resendOtpAction(
+  email: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const cleanEmail = (email || "").trim().toLowerCase();
+  if (!cleanEmail) {
+    return { success: false, error: "Email tidak valid." };
+  }
+
+  const pending = getPendingRegistration(cleanEmail);
+  if (!pending) {
+    return {
+      success: false,
+      error: "Sesi verifikasi telah kedaluwarsa. Silakan daftar kembali.",
+    };
+  }
+
+  const newOtp = generateOtpCode();
+  updatePendingOtp(cleanEmail, newOtp);
+
+  const mailResult = await sendOtpEmail({
+    toEmail: pending.email,
+    recipientName: pending.name,
+    otpCode: newOtp,
+  });
+
+  if (!mailResult.success) {
+    return {
+      success: false,
+      error: `Gagal mengirim ulang kode: ${mailResult.error || "Kesalahan SMTP"}.`,
+    };
+  }
+
+  return {
+    success: true,
+    message: "Kode verifikasi baru telah berhasil dikirimkan ke email Anda.",
   };
 }
 
@@ -221,77 +366,6 @@ export async function quickDemoLoginAction(role: UserRole): Promise<AuthActionRe
       role: demoUser.role,
     },
   };
-}
-
-/**
- * Server Action: Autentikasi Menggunakan Akun Google (Login / Register)
- */
-export async function googleAuthAction(redirectTarget?: string): Promise<AuthActionResult> {
-  try {
-    const googleEmail = "pelanggan.google@gmail.com";
-    const googleName = "Pelanggan Google Warkop";
-    const googlePhone = "081299887766";
-
-    let user = await findUserByIdentifier(googleEmail);
-
-    if (!user) {
-      const registerRes = await registerNewUser({
-        name: googleName,
-        email: googleEmail,
-        phone: googlePhone,
-        password: "google_oauth_dummy_pass_msbd",
-        role: "CUSTOMER",
-      });
-
-      if (!registerRes.user) {
-        return { success: false, error: registerRes.error || "Gagal membuat akun Google." };
-      }
-
-      user = {
-        id: registerRes.user.id,
-        name: registerRes.user.name,
-        email: registerRes.user.email,
-        phone: registerRes.user.phone,
-        password_hash: "",
-        role: registerRes.user.role,
-        is_active: registerRes.user.isActive,
-      };
-    }
-
-    await createSession({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      isActive: true,
-    });
-
-    try {
-      revalidatePath("/");
-    } catch {
-      // Abaikan di luar context
-    }
-
-    const target = redirectTarget && redirectTarget.startsWith("/") ? redirectTarget : "/";
-
-    return {
-      success: true,
-      redirectTo: target,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      },
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      error: "Gagal memproses autentikasi Google: " + (err?.message || "Terjadi kesalahan"),
-    };
-  }
 }
 
 /**
