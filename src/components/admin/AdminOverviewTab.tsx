@@ -21,6 +21,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
+import { ProductImage } from "@/components/product-image";
 import { formatRupiah } from "@/lib/utils";
 import type {
   AdminCategory,
@@ -156,11 +157,10 @@ export function AdminOverviewTab({
                     onPeriodChange(opt.key);
                   }
                 }}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                  activePeriod === opt.key
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${activePeriod === opt.key
                     ? "bg-white text-foreground shadow-xs font-bold"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 {opt.label}
               </button>
@@ -201,10 +201,10 @@ export function AdminOverviewTab({
 
       {/* WORKSPACE DUA KOLOM: KIRI (GRAFIK & KATALOG) | KANAN (CURRENT SALE) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         {/* SISI KIRI (7 / 12 Kolom): GRAFIK PENJUALAN & KATALOG PREVIEW */}
         <div className="lg:col-span-7 space-y-6">
-          
+
           {/* 1. GRAFIK TREN PENJUALAN HARIAN */}
           <div className="rounded-2xl border border-border bg-white p-5 shadow-2xs">
             <div className="flex items-center justify-between pb-3 border-b border-border">
@@ -236,9 +236,8 @@ export function AdminOverviewTab({
                     )}
                     <div
                       style={{ height: `${heightPct}%` }}
-                      className={`w-full rounded-t-md transition-all duration-300 ${
-                        isHovered ? "bg-primary" : "bg-primary/25 hover:bg-primary/50"
-                      }`}
+                      className={`w-full rounded-t-md transition-all duration-300 ${isHovered ? "bg-primary" : "bg-primary/25 hover:bg-primary/50"
+                        }`}
                     />
                     <span className="mt-1.5 truncate text-[9px] font-mono text-muted-foreground w-full text-center">
                       {point.label.slice(0, 3)}
@@ -262,11 +261,10 @@ export function AdminOverviewTab({
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("ALL")}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
-                    selectedCategory === "ALL"
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${selectedCategory === "ALL"
                       ? "bg-primary text-white shadow-2xs"
                       : "bg-secondary-bg text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   Semua ({products.length})
                 </button>
@@ -275,11 +273,10 @@ export function AdminOverviewTab({
                     key={c.id}
                     type="button"
                     onClick={() => setSelectedCategory(c.id)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
-                      selectedCategory === c.id
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${selectedCategory === c.id
                         ? "bg-primary text-white shadow-2xs"
                         : "bg-secondary-bg text-muted-foreground hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {c.name}
                   </button>
@@ -288,23 +285,25 @@ export function AdminOverviewTab({
             </div>
 
             {/* Grid Kartu Menu (Format Gambar Referensi) */}
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3.5 max-h-[420px] overflow-y-auto pr-1">
+            <div className="mt-4 grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-3.5 max-h-[420px] overflow-y-auto pr-1">
               {filteredProducts.slice(0, 12).map((prod) => (
                 <div
                   key={prod.id}
                   className="rounded-2xl border border-border bg-secondary-bg/40 p-3 hover:border-primary/50 hover:bg-white transition-all flex flex-col justify-between group shadow-2xs"
                 >
                   <div>
-                    <div className="aspect-square w-full rounded-xl bg-white border border-border/60 flex items-center justify-center text-3xl mb-2.5 overflow-hidden shadow-2xs">
-                      {prod.imageUrl ? (
-                        <img
-                          src={prod.imageUrl}
-                          alt={prod.name}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <span>☕</span>
-                      )}
+                    <div className="aspect-square w-full rounded-xl bg-white border border-border/60 mb-2.5 overflow-hidden shadow-2xs">
+                      <ProductImage
+                        product={{
+                          id: prod.id,
+                          name: prod.name,
+                          emoji: "☕",
+                          imageUrl: prod.imageUrl ?? undefined,
+                        }}
+                        sizes="(min-width: 640px) 180px, 45vw"
+                        className="size-full transition-transform duration-300 group-hover:scale-105"
+                        emojiClassName="text-3xl"
+                      />
                     </div>
                     <p className="font-bold text-xs text-foreground line-clamp-1">{prod.name}</p>
                     <p className="text-[10px] text-muted-foreground line-clamp-1">{prod.categoryName}</p>
@@ -315,11 +314,10 @@ export function AdminOverviewTab({
                       {formatRupiah(prod.basePrice)}
                     </span>
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                        prod.isAvailable && prod.availableQty > 0
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${prod.isAvailable && prod.availableQty > 0
                           ? "bg-emerald-100 text-emerald-800"
                           : "bg-red-100 text-red-800"
-                      }`}
+                        }`}
                     >
                       {prod.isAvailable && prod.availableQty > 0 ? `${prod.availableQty} porsi` : "Habis"}
                     </span>
@@ -387,7 +385,7 @@ export function AdminOverviewTab({
         {/* SISI KANAN (5 / 12 Kolom): CURRENT SALE / LIVE ORDERS (Sesuai Permintaan Khusus User) */}
         <div className="lg:col-span-5 space-y-5">
           <div className="rounded-2xl border-2 border-primary/20 bg-white p-5 shadow-md">
-            
+
             {/* Header Current Sale */}
             <div className="flex items-center justify-between pb-3.5 border-b border-border">
               <div className="flex items-center gap-2">

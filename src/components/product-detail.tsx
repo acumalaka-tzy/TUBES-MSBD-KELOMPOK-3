@@ -278,11 +278,11 @@ export function ProductDetail({
                   <div
                     key={cartItem.id}
                     onClick={() => handleStartEdit(cartItem)}
-                    className="group relative flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-border hover:border-primary/60 bg-white hover:bg-primary/[0.02] shadow-2xs transition-all cursor-pointer"
+                    className="group relative flex items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-2xl border border-border hover:border-primary/60 bg-white hover:bg-primary/[0.02] shadow-2xs transition-all cursor-pointer"
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="relative size-14 rounded-xl overflow-hidden shrink-0 border border-border/70 bg-secondary-bg">
-                        <ProductImage product={product} className="size-full object-cover" />
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                      <div className="relative size-12 sm:size-14 rounded-xl overflow-hidden shrink-0 border border-border/70 bg-secondary-bg">
+                        <ProductImage product={product} sizes="56px" className="size-full" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
@@ -407,9 +407,9 @@ export function ProductDetail({
             <div className="overflow-y-auto no-scrollbar flex-1">
               <ProductImage
                 product={product}
-                className="aspect-[16/10]"
+                className="aspect-[4/3] max-h-60 w-full border-b border-border/50 sm:aspect-[16/10] sm:max-h-72"
                 emojiClassName="text-8xl"
-                sizes="(min-width: 768px) 512px, 100vw"
+                sizes="(min-width: 768px) 576px, 100vw"
               />
 
               <div className="space-y-5 p-4 sm:p-5">

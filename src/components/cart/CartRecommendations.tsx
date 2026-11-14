@@ -340,7 +340,7 @@ export function CartRecommendations({
               )}
 
               {/* Aksi Kartu: Catatan/Detail & Tambah Langsung Sesuai Varian */}
-              <div className="mt-2.5 flex items-center justify-between gap-2 pt-1">
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => onOpenDetail(rec, chosenOptions)}

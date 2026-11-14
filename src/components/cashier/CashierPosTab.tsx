@@ -498,7 +498,7 @@ export function CashierPosTab({
         </div>
 
         {/* Grid Produk POS (Sesuai Gaya Kartu Menu Customer) */}
-        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3.5 min-[440px]:grid-cols-2 xl:grid-cols-3">
           {filteredProducts.map((product) => {
             const inCartQty = getQtyInCartForProduct(product.id);
             const remainingStock = Math.max(0, product.availableQty - inCartQty);
@@ -519,7 +519,7 @@ export function CashierPosTab({
                 )}
               >
                 {/* Gambar Produk */}
-                <div className="relative">
+                <div className="relative border-b border-border/50">
                   <ProductImage
                     product={{
                       id: product.id,
@@ -527,6 +527,7 @@ export function CashierPosTab({
                       emoji: "☕",
                       imageUrl: product.imageUrl || undefined,
                     }}
+                    sizes="(min-width: 1280px) 24vw, (min-width: 440px) 45vw, 95vw"
                     className={cn(
                       "aspect-[4/3] transition-transform duration-300",
                       !isOut && "group-hover:scale-[1.02]",

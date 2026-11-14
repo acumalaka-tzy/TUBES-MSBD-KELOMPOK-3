@@ -216,16 +216,16 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           <div className="mx-auto mt-2.5 h-1.5 w-12 shrink-0 rounded-full bg-border md:hidden" aria-hidden />
 
           {/* Header Keranjang Espresso */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-[#231712] to-[#36231C] px-5 py-4 text-white">
-            <div className="flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
-                <ShoppingBag className="size-5" aria-hidden />
+          <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-[#231712] to-[#36231C] px-4 py-3.5 text-white sm:px-5 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-sm sm:size-10">
+                <ShoppingBag className="size-4.5 sm:size-5" aria-hidden />
               </span>
-              <div>
-                <h2 id="cart-drawer-title" className="text-base font-extrabold leading-tight text-white">
+              <div className="min-w-0">
+                <h2 id="cart-drawer-title" className="truncate text-sm font-extrabold leading-tight text-white sm:text-base">
                   Keranjang Belanja
                 </h2>
-                <p className="text-xs text-white/75">
+                <p className="truncate text-[11px] text-white/75 sm:text-xs">
                   <strong className="font-bold text-white">{itemCount} porsi</strong> ({items.length}{" "}
                   menu){activeTableDisplay ? ` • Meja ${activeTableDisplay}` : ""}
                 </p>
@@ -281,20 +281,20 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
           {/* Pilihan Tipe Layanan (Dine In vs Takeaway) sesuai PRD 5.4 */}
           {items.length > 0 && (
-            <div className="border-b border-border bg-secondary-bg/60 px-5 py-3">
+            <div className="border-b border-border bg-secondary-bg/60 px-4 py-3 sm:px-5">
               <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-border bg-white p-1">
                 <button
                   type="button"
                   onClick={() => setServiceType("DINE_IN")}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all",
+                    "flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-all sm:text-xs",
                     effectiveServiceType === "DINE_IN"
                       ? "bg-primary text-white shadow-2xs"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Utensils className="size-3.5" aria-hidden />
-                  <span>Dine In {table ? `(Meja ${table})` : ""}</span>
+                  <Utensils className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">Dine In {table ? `(Meja ${table})` : ""}</span>
                 </button>
                 <button
                   type="button"
@@ -302,15 +302,15 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   onClick={() => setServiceType("TAKEAWAY")}
                   title={table ? `Terkunci untuk Dine In Meja ${table}` : undefined}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all",
+                    "flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-all sm:text-xs",
                     effectiveServiceType === "TAKEAWAY"
                       ? "bg-primary text-white shadow-2xs"
                       : "text-muted-foreground hover:text-foreground",
                     table && "cursor-not-allowed opacity-50",
                   )}
                 >
-                  <Package className="size-3.5" aria-hidden />
-                  <span>Takeaway (Bungkus)</span>
+                  <Package className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">Takeaway (Bungkus)</span>
                 </button>
               </div>
 
@@ -521,7 +521,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                               }}
                               placeholder="Contoh: gula dikurangi, kuah pisah..."
                               autoFocus
-                              className="h-8 flex-1 rounded-lg border border-border bg-white px-2.5 text-xs outline-none focus:border-primary"
+                              className="h-8 min-w-0 flex-1 rounded-lg border border-border bg-white px-2.5 text-xs outline-none focus:border-primary"
                             />
                             <button
                               type="button"

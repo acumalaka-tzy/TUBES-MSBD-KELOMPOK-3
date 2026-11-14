@@ -38,9 +38,10 @@ export function ProductCard({ product }: { product: Product }) {
         )}
       >
         {/* Kontainer Gambar Produk */}
-        <div className="relative shrink-0 overflow-hidden rounded-xl sm:rounded-none">
+        <div className="relative shrink-0 overflow-hidden rounded-xl border border-border/50 sm:rounded-none sm:border-0 sm:border-b sm:border-border/50">
           <ProductImage
             product={product}
+            sizes="(min-width: 1024px) 280px, (min-width: 640px) 33vw, 112px"
             className={cn(
               "aspect-square w-24 min-[400px]:w-28 sm:w-full sm:h-auto sm:aspect-[4/3] transition-transform duration-300",
               !soldOut && "group-hover:scale-[1.03]",
