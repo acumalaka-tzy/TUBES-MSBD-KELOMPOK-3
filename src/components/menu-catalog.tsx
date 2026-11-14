@@ -54,6 +54,42 @@ export function MenuCatalog({ categories, products }: { categories: Category[]; 
     });
   }, [products, category, debounced, sort]);
 
+  // Kelompokkan produk berdasarkan jenis/kategori (seperti pada GrabFood / GoFood)
+  const groupedSections = useMemo(() => {
+    const activeCategories =
+      category === "all"
+        ? categories
+        : categories.filter((c) => c.id === category);
+
+    const sections = activeCategories
+      .map((cat) => {
+        const catProducts = filtered.filter((p) => p.categoryId === cat.id);
+        return {
+          category: cat,
+          products: catProducts,
+        };
+      })
+      .filter((group) => group.products.length > 0);
+
+    // Tangani produk yang mungkin belum memiliki kategori terdaftar
+    const knownCatIds = new Set(categories.map((c) => c.id));
+    const otherProducts = filtered.filter((p) => !knownCatIds.has(p.categoryId));
+    if (otherProducts.length > 0 && (category === "all" || !categories.some((c) => c.id === category))) {
+      sections.push({
+        category: {
+          id: "other",
+          name: "Menu Lainnya",
+          slug: "menu-lainnya",
+          emoji: "✨",
+          description: "Pilihan menu spesial lainnya",
+        },
+        products: otherProducts,
+      });
+    }
+
+    return sections;
+  }, [categories, filtered, category]);
+
   const countFor = (id: string) =>
     id === "all" ? products.length : products.filter((p) => p.categoryId === id).length;
   const tabs = [{ id: "all", name: "Semua Menu", emoji: "🍽️" }, ...categories];
@@ -183,9 +219,37 @@ export function MenuCatalog({ categories, products }: { categories: Category[]; 
         </div>
 
         {filtered.length > 0 ? (
-          <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-            {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} />
+          <div className="mt-4 space-y-8">
+            {groupedSections.map(({ category: cat, products: catProducts }) => (
+              <section
+                key={cat.id}
+                id={`kategori-${cat.slug || cat.id}`}
+                className="space-y-3.5 scroll-mt-24"
+              >
+                {/* Heading Jenis/Kategori (seperti PROMO PERSONAL! pada referensi) */}
+                <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    {cat.emoji && (
+                      <span className="text-lg sm:text-xl" aria-hidden>
+                        {cat.emoji}
+                      </span>
+                    )}
+                    <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground uppercase">
+                      {cat.name}
+                    </h2>
+                  </div>
+                  <span className="font-mono text-[11px] font-bold text-muted-foreground bg-secondary-bg px-2.5 py-0.5 rounded-full border border-border/50">
+                    {catProducts.length} menu
+                  </span>
+                </div>
+
+                {/* Daftar kartu menu di bawah jenisnya: 1 card per baris di mobile */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
+                  {catProducts.map((p) => (
+                    <ProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         ) : (
