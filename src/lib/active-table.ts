@@ -80,6 +80,41 @@ export function getRecentOrders(): RecentOrderSummary[] {
   }
 }
 
+const EMPTY_RECENT_ORDERS: RecentOrderSummary[] = [];
+let cachedOrdersRaw: string | null = null;
+let cachedOrdersParsed: RecentOrderSummary[] = EMPTY_RECENT_ORDERS;
+
+function subscribeRecentOrders(onChange: () => void) {
+  window.addEventListener(ORDERS_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(ORDERS_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function getRecentOrdersSnapshot(): RecentOrderSummary[] {
+  try {
+    const raw = localStorage.getItem(ORDERS_KEY);
+    if (raw !== cachedOrdersRaw) {
+      cachedOrdersRaw = raw;
+      cachedOrdersParsed = raw ? (JSON.parse(raw) as RecentOrderSummary[]) : EMPTY_RECENT_ORDERS;
+    }
+    return cachedOrdersParsed;
+  } catch {
+    return EMPTY_RECENT_ORDERS;
+  }
+}
+
+/** Berlangganan riwayat pesanan lokal perangkat secara reaktif (SSR-safe). */
+export function useRecentOrders(): RecentOrderSummary[] {
+  return useSyncExternalStore(
+    subscribeRecentOrders,
+    getRecentOrdersSnapshot,
+    () => EMPTY_RECENT_ORDERS,
+  );
+}
+
 export function clearRecentOrders() {
   try {
     localStorage.removeItem(ORDERS_KEY);

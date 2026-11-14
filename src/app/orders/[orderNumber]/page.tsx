@@ -21,6 +21,9 @@ import {
   Check,
   AlertCircle,
   ShoppingBag,
+  Share2,
+  Printer,
+  ListChecks,
 } from "lucide-react";
 
 interface PageProps {
@@ -35,6 +38,8 @@ function OrderTrackingContent({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string>("");
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [reorderSuccess, setReorderSuccess] = useState(false);
@@ -68,6 +73,9 @@ function OrderTrackingContent({ params }: PageProps) {
       const res = await getOrderDetail(orderNumber);
       if (res.success && res.data) {
         setOrder(res.data);
+        setLastSyncedAt(
+          new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        );
       } else {
         setError(res.error || "Pesanan tidak ditemukan.");
       }
@@ -109,10 +117,24 @@ function OrderTrackingContent({ params }: PageProps) {
     return () => clearInterval(timer);
   }, [order]);
 
-  const handleCopyOrderNumber = () => {
-    navigator.clipboard.writeText(orderNumber);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyOrderNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(orderNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard diblokir browser
+    }
+  };
+
+  const handleCopyTrackingLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      // Clipboard diblokir browser
+    }
   };
 
   const handleSimulatePayment = async () => {
@@ -188,24 +210,58 @@ function OrderTrackingContent({ params }: PageProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Header Back & Refresh */}
-      <div className="flex items-center justify-between mb-6">
-        <Link
-          href="/menu"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Pesan Menu Lagi
-        </Link>
+      {/* Header Back & Aksi Cepat */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/lacak"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            <ListChecks className="w-3.5 h-3.5 text-primary" />
+            <span>Semua Pesanan</span>
+          </Link>
+          <Link
+            href="/menu"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Pesan Menu Lagi</span>
+          </Link>
+        </div>
 
-        <button
-          onClick={fetchOrder}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors bg-secondary-bg px-3 py-1.5 rounded-lg border border-border"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          Sinkronkan
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {lastSyncedAt && (
+            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 border border-emerald-200 sm:inline-flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
+              <span>Live · {lastSyncedAt}</span>
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleCopyTrackingLink}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary cursor-pointer"
+          >
+            {linkCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5 text-primary" />}
+            <span>{linkCopied ? "Link Tersalin" : "Bagikan Link"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Cetak Struk</span>
+          </button>
+          <button
+            type="button"
+            onClick={fetchOrder}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary-bg px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>Sinkronkan</span>
+          </button>
+        </div>
       </div>
 
       {/* Panel Utama Nomor Pesanan */}
@@ -273,14 +329,16 @@ function OrderTrackingContent({ params }: PageProps) {
             timeLeft={timeLeft}
           />
 
-          <OrderSimulationToolbar
-            status={order.status}
-            isPaid={isPaid}
-            isProcessingAction={isProcessingAction}
-            onSimulatePayment={handleSimulatePayment}
-            onSimulateNextStep={handleSimulateNextStep}
-            onSimulateCancel={handleSimulateCancel}
-          />
+          <div className="print:hidden">
+            <OrderSimulationToolbar
+              status={order.status}
+              isPaid={isPaid}
+              isProcessingAction={isProcessingAction}
+              onSimulatePayment={handleSimulatePayment}
+              onSimulateNextStep={handleSimulateNextStep}
+              onSimulateCancel={handleSimulateCancel}
+            />
+          </div>
         </div>
 
         {/* KOLOM KANAN: RINCIAN ITEM PESANAN */}
