@@ -6,16 +6,16 @@
 
 | Dokumen | Informasi |
 | --- | --- |
-| **Versi** | **1.3** — Penyelarasan lengkap dengan Sistematika Pelaporan Tugas Besar Manajemen Sistem Basis Data (MSBD) |
+| **Versi** | **1.4** — Penyelarasan lengkap dengan Sistematika Pelaporan Tugas Besar MSBD & Penerapan Arsitektur Perangkat Lunak Modular (Clean Architecture) |
 | **Status** | Ready for Database Implementation, Application Development & Reporting |
 | **Platform** | Responsive Web Application (Optimal di Desktop, Tablet, dan Mobile untuk Customer, Cashier, & Admin) |
 | **Model Bisnis** | Single Restaurant (Warkop Agam) |
 | **Role Pengguna** | Customer, Cashier, Admin |
-| **Frontend & Backend** | Next.js Fullstack (App Router + TypeScript) |
+| **Frontend & Backend** | Next.js Fullstack (App Router + TypeScript) — Modular Architecture |
 | **Database & ORM** | MySQL + Prisma ORM |
 | **Identitas Visual** | Modern minimalist; coral/salmon (`#F16F62`), putih (`#FFFFFF`), abu-abu netral (`#F6F4F2`) |
 
-Dokumen ini menjadi acuan utama untuk perancangan sistem, desain basis data (ERD, Normalisasi, DDL/DML, Trigger, Stored Procedure, Transaksi), implementasi kode aplikasi, serta penyusunan Laporan Tugas Besar MSBD.
+Dokumen ini menjadi acuan utama untuk perancangan sistem, desain basis data (ERD, Normalisasi, DDL/DML, Trigger, Stored Procedure, Transaksi), implementasi kode aplikasi berbasis arsitektur modular, serta penyusunan Laporan Tugas Besar MSBD.
 
 ---
 
@@ -27,6 +27,7 @@ Dokumen ini menjadi acuan utama untuk perancangan sistem, desain basis data (ERD
 | **1.1** | Nama produk dikoreksi menjadi Warkop Agam; backend ditetapkan menggunakan Next.js Fullstack; detail kebutuhan kasir, QR meja, pembayaran, stok, UI/UX, dan aturan bisnis dirapikan. |
 | **1.2** | Penyesuaian UI Customer agar optimal di Desktop maupun Mobile; penambahan entitas Varian Produk di database; penetapan alur stock reservation dan order expiry; mitigasi fake order pada QR meja; spesifikasi thermal printer dan audio alert kasir; serta kuantifikasi NFR dan Success Metrics. |
 | **1.3** | **Penyesuaian & penambahan spesifikasi teknis berbasis Sistematika Tugas Besar MSBD**: penambahan Rumusan & Manfaat Sistem, Analisis Kelayakan & Risiko, Model Analisis (Konteks, DFD, ERD, Normalisasi), Spesifikasi Detail Tabel & Constraint (`No`, `Nama Field`, `Jenis Field`, `Ukuran`, `Keterangan`), Daftar Trigger/Function/Stored Procedure, Manajemen Privilege & Transaksi Database (DCL/TCL), serta Rencana Pengujian & Evaluasi Sistem. |
+| **1.4** | **Penerapan Arsitektur Modular (Clean Architecture)**: Pemisahan modul Server Actions per domain bisnis (`src/actions/{products,tables,orders,payments}`), dekomposisi komponen UI checkout & tracking menjadi unit-unit independen (`src/components/{checkout,orders}`), penerapan *Lean Page Orchestrator*, serta dokumentasi pohon direktori modular untuk menjamin kemudahan kolaborasi tim dan eliminasi potensi *Git Merge Conflict*. |
 
 ---
 
@@ -469,6 +470,8 @@ Untuk memenuhi standar implementasi DBMS tingkat lanjut, sistem menerapkan objek
 
 # 11. Technology Stack & Arsitektur Sistem (Selaras Bab IV.1 Sistematika)
 
+## 11.1 Technology Stack
+
 | Lapisan | Teknologi | Keterangan |
 | --- | --- | --- |
 | **Fullstack Framework** | Next.js (App Router) + TypeScript | UI rendering, Route Handlers, Server Actions. |
@@ -479,6 +482,53 @@ Untuk memenuhi standar implementasi DBMS tingkat lanjut, sistem menerapkan objek
 | **Payments** | Midtrans (Snap / Core API) | Pemrosesan QRIS dinamis dan Virtual Account dengan webhook. |
 | **Object Storage** | Supabase Storage / Cloudinary | Penyimpanan foto produk menu teroptimasi (WebP/AVIF). |
 | **Realtime Sync** | TanStack Query / SWR (Polling 5s) / SSE | Sinkronisasi antrean kasir dan pelacakan status pesanan. |
+
+## 11.2 Arsitektur Perangkat Lunak Modular (Clean Architecture)
+
+Untuk menjamin kemudahan kolaborasi tim tugas besar, menghindari konflik penggabungan kode (*Git Merge Conflict*), serta mematuhi prinsip rekayasa perangkat lunak modern (*Single Responsibility Principle*), kode aplikasi diorganisasi secara modular:
+
+```text
+src/
+├── actions/                         # Lapisan Server Actions (Query Database per Domain Bisnis)
+│   ├── types.ts                     # Definisi DTO & TypeScript Interface bersama
+│   ├── helpers.ts                   # In-memory mock & helper cache revalidation
+│   ├── products.ts                  # Query katalog produk, stok, & varian menu (MySQL)
+│   ├── tables.ts                    # Query master data meja & status okupansi
+│   ├── orders.ts                    # Transaksi atomik pembuatan pesanan & pelacakan status
+│   ├── payments.ts                  # Transaksi pembayaran & simulasi alur status pesanan
+│   └── index.ts                     # Barrel export terpadu (@/actions)
+├── components/                      # Lapisan Komponen UI Modular
+│   ├── checkout/                    # Sub-komponen Khusus Halaman Checkout
+│   │   ├── CustomerForm.tsx         # Form pemesan, tipe layanan (Dine In dropdown meja scalable / Takeaway)
+│   │   ├── PaymentSelector.tsx      # Selector metode pembayaran (QRIS, Tunai, VA)
+│   │   └── CartSummary.tsx          # Ringkasan keranjang, tombol Edit text-only langsung membuka modal varian, & kalkulasi PB1
+│   ├── orders/                      # Sub-komponen Khusus Halaman Pelacakan Pesanan
+│   │   ├── OrderStatusStepper.tsx   # Visual progress stepper 5 status pesanan
+│   │   ├── PaymentInstructions.tsx  # Countdown timer, QRIS canvas, & panduan kasir
+│   │   ├── OrderInvoice.tsx         # Rincian item yang dipesan, catatan, & total harga
+│   │   └── OrderSimulationToolbar.tsx # Panel pengujian mandiri status kasir/dapur
+│   └── navbar.tsx                   # Navigasi global dan indikator keranjang belanja
+├── context/                         # Lapisan State Management Klien
+│   └── cart-context.tsx             # Manajemen state keranjang dengan persistensi localStorage
+├── lib/                             # Lapisan Utilitas & Koneksi Eksternal
+│   ├── prisma.ts                    # Inisialisasi PrismaClient Singleton untuk MySQL
+│   └── utils.ts                     # Helper styling Tailwind Merge & clsx
+└── app/                             # Lapisan Routing & Halaman (Next.js App Router)
+    ├── layout.tsx                   # Root layout pembungkus CartProvider & Navbar
+    ├── page.tsx                     # Landing page Warkop Agam
+    ├── checkout/page.tsx            # Lean Page Orchestrator (< 200 baris) untuk Checkout
+    └── orders/[orderNumber]/page.tsx# Lean Page Orchestrator (< 220 baris) untuk Pelacakan
+```
+
+### Prinsip Utama Desain Modular:
+1. **Pemisahan Tanggung Jawab (*Separation of Concerns*):** 
+   - File Server Action (`src/actions/`) hanya menangani logika kueri basis data, validasi, dan transaksi ACID.
+   - File Komponen UI (`src/components/`) hanya menangani tampilan dan interaksi pengguna.
+   - File Halaman (`src/app/**/page.tsx`) hanya berfungsi sebagai *orchestrator* ramping yang merangkai komponen-komponen kecil menjadi satu alur aplikasi utuh.
+2. **Keterpakaian Ulang Komponen (*Reusability*):**
+   - Fungsi seperti `getAvailableProducts()` dan `getTablesList()` dapat diimpor langsung oleh rekan tim saat membangun Dashboard Kasir (POS) atau Admin Menu tanpa perlu menduplikasi kode kueri.
+3. **Mitigasi Git Merge Conflict:**
+   - Rekan kelompok yang mengerjakan fitur kasir, admin, atau katalog produk dapat bekerja pada file terpisah tanpa menyentuh file implementasi checkout dan tracking pesanan.
 
 ---
 

@@ -1,7 +1,18 @@
+"use client";
+
+import React, { Suspense } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Coffee } from "lucide-react";
 
-export function Footer() {
+function FooterContent() {
+  const pathname = usePathname();
+
+  // Jangan render footer konsumen di dashboard admin
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <footer className="mt-auto border-t border-border bg-secondary-bg pb-20 md:pb-0">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
@@ -21,5 +32,13 @@ export function Footer() {
         <p>© Warkop Agam • Tugas Besar MSBD Kelompok 3</p>
       </div>
     </footer>
+  );
+}
+
+export function Footer() {
+  return (
+    <Suspense fallback={null}>
+      <FooterContent />
+    </Suspense>
   );
 }

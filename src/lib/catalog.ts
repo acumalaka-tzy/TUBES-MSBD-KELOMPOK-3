@@ -3,8 +3,9 @@ import path from "node:path";
 import { cache } from "react";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { memoryOrders } from "@/actions/helpers";
+import { getMemoryStore } from "@/lib/admin/memory-store";
 import {
-  sampleCategories,
   sampleProducts,
   sampleRestaurant,
   emojiForCategory,
@@ -96,14 +97,93 @@ export function resolveProductImage(productId: string, dbImageUrl?: string | nul
   return dbImageUrl ?? `/menu/${productId}.svg`;
 }
 
-function sampleCatalog(): Catalog {
+function memoryCatalog(): Catalog {
+  const store = getMemoryStore();
+  const sampleMap = new Map(sampleProducts.map((sp) => [sp.id, sp]));
+  const soldByProduct = new Map<string, number>();
+
+  for (const ord of store.demoOrders) {
+    if (ord.status !== "CANCELLED") {
+      for (const it of ord.items) {
+        soldByProduct.set(it.product_id, (soldByProduct.get(it.product_id) ?? 0) + it.quantity);
+      }
+    }
+  }
+  for (const ord of memoryOrders.values()) {
+    if (ord.status !== "CANCELLED") {
+      for (const it of ord.items) {
+        const matched = it.product_id
+          ? store.products.get(it.product_id)
+          : Array.from(store.products.values()).find((p) => p.name === it.product_name_snapshot);
+        if (matched) {
+          soldByProduct.set(matched.id, (soldByProduct.get(matched.id) ?? 0) + it.quantity);
+        }
+      }
+    }
+  }
+
+  const activeCategories = Array.from(store.categories.values())
+    .filter((c) => c.deleted_at === null && c.is_active)
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  const categoryMap = new Map(activeCategories.map((c) => [c.id, c]));
+
+  const categories: Category[] = activeCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    description: c.description ?? "",
+    emoji: emojiForCategory(c.slug),
+  }));
+
+  const products: Product[] = Array.from(store.products.values())
+    .filter((p) => p.deleted_at === null && categoryMap.has(p.category_id))
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((p) => {
+      const cat = categoryMap.get(p.category_id)!;
+      const stock = store.stocks.get(p.id);
+      const rawQty = p.is_available ? (stock?.available_qty ?? 0) : 0;
+      const minThreshold = stock?.min_threshold ?? 5;
+      const base = sampleMap.get(p.id);
+      const soldQty = soldByProduct.get(p.id) ?? 0;
+      return {
+        id: p.id,
+        categoryId: p.category_id,
+        categoryName: cat.name,
+        name: p.name,
+        description: p.description ?? "",
+        basePrice: p.base_price,
+        imageUrl: resolveProductImage(p.id, p.image_url ?? undefined),
+        emoji: base?.emoji ?? emojiForProduct(p.name, cat.slug),
+        availableQty: rawQty,
+        minThreshold,
+        popularity: soldQty > 0 ? Math.min(100, (base?.popularity ?? 70) + soldQty) : (base?.popularity ?? 70),
+        options: p.option_groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          required: g.is_required,
+          type: (g.max_select > 1 ? "multi" : "single") as "single" | "multi",
+          items: g.items
+            .filter((it) => it.is_available)
+            .map((it) => ({
+              id: it.id,
+              name: it.name,
+              price: it.price_adjustment,
+            })),
+        })),
+      };
+    });
+
   return {
-    categories: sampleCategories,
-    products: sampleProducts.map((p) => ({
-      ...p,
-      imageUrl: resolveProductImage(p.id, p.imageUrl),
-    })),
-    restaurant: sampleRestaurant,
+    categories,
+    products,
+    restaurant: {
+      name: store.settings.restaurant_name,
+      address: store.settings.address,
+      whatsapp: store.settings.phone_whatsapp,
+      openingHours: store.settings.opening_hours,
+      isWebOrderingOpen: store.settings.is_web_ordering_open,
+    },
     source: "sample",
   };
 }
@@ -216,6 +296,6 @@ export const getCatalog = cache(async (): Promise<Catalog> => {
       "[catalog] Memakai data contoh:",
       err instanceof Error ? err.message.split("\n").pop() : err,
     );
-    return sampleCatalog();
+    return memoryCatalog();
   }
 });
