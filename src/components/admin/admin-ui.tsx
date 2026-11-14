@@ -3,7 +3,15 @@
 import React, { useEffect } from "react";
 import { X } from "lucide-react";
 
-export type AdminTabKey = "overview" | "catalog" | "stock" | "settings" | "audit";
+export type AdminTabKey =
+  | "overview"
+  | "catalog"
+  | "stock"
+  | "tables"
+  | "staff"
+  | "reports"
+  | "settings"
+  | "audit";
 
 export function formatDateTimeId(iso: string | null | undefined): string {
   if (!iso) return "-";

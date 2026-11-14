@@ -9,11 +9,14 @@ import {
   CheckCircle2,
   Database,
   ExternalLink,
+  FileSpreadsheet,
   Globe,
   Lock,
   LogOut,
+  QrCode,
   Settings,
   ShieldCheck,
+  Users,
   UtensilsCrossed,
   X,
   XCircle,
@@ -25,7 +28,10 @@ import type {
   AdminCategory,
   AdminProduct,
   AdminSettings,
+  AdminStaffUser,
   AdminStockMovement,
+  AdminTable,
+  DetailedSalesReport,
   DashboardSummary,
   DataSource,
   PeriodKey,
@@ -34,6 +40,9 @@ import type { AdminTabKey } from "./admin-ui";
 import { AdminOverviewTab } from "./AdminOverviewTab";
 import { AdminCatalogTab } from "./AdminCatalogTab";
 import { AdminStockTab } from "./AdminStockTab";
+import { AdminTablesTab } from "./AdminTablesTab";
+import { AdminStaffTab } from "./AdminStaffTab";
+import { AdminReportsTab } from "./AdminReportsTab";
 import { AdminSettingsTab } from "./AdminSettingsTab";
 import { AdminAuditLogTab } from "./AdminAuditLogTab";
 
@@ -52,6 +61,9 @@ interface AdminDashboardShellProps {
   movements: AdminStockMovement[];
   auditLogs: AdminAuditLog[];
   settings: AdminSettings;
+  tables: AdminTable[];
+  staff: AdminStaffUser[];
+  detailedReport: DetailedSalesReport;
 }
 
 export function AdminDashboardShell({
@@ -69,6 +81,9 @@ export function AdminDashboardShell({
   movements,
   auditLogs,
   settings,
+  tables,
+  staff,
+  detailedReport,
 }: AdminDashboardShellProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -137,13 +152,16 @@ export function AdminDashboardShell({
     badge?: number;
   }[] = [
     { key: "overview", label: "Ringkasan & Analitik", icon: <BarChart3 className="h-4 w-4" /> },
-    { key: "catalog", label: "Menu, Kategori & Varian", icon: <UtensilsCrossed className="h-4 w-4" /> },
+    { key: "catalog", label: "Menu & Varian", icon: <UtensilsCrossed className="h-4 w-4" /> },
     {
       key: "stock",
       label: "Stok Porsi",
       icon: <Boxes className="h-4 w-4" />,
       badge: stockAlerts > 0 ? stockAlerts : undefined,
     },
+    { key: "tables", label: "Meja & QR Code", icon: <QrCode className="h-4 w-4" /> },
+    { key: "staff", label: "Staf & Kasir", icon: <Users className="h-4 w-4" /> },
+    { key: "reports", label: "Laporan & Ekspor", icon: <FileSpreadsheet className="h-4 w-4" /> },
     { key: "settings", label: "Toko & Pajak", icon: <Settings className="h-4 w-4" /> },
     { key: "audit", label: "Audit Log", icon: <ShieldCheck className="h-4 w-4" /> },
   ];
@@ -329,6 +347,39 @@ export function AdminDashboardShell({
             movements={movements}
             onNotify={notify}
             onRefresh={refreshData}
+          />
+        )}
+
+        {activeTab === "tables" && (
+          <AdminTablesTab
+            tables={tables}
+            onNotify={notify}
+            onRefresh={refreshData}
+          />
+        )}
+
+        {activeTab === "staff" && (
+          <AdminStaffTab
+            staff={staff}
+            currentAdminId={adminUser.id}
+            onNotify={notify}
+            onRefresh={refreshData}
+          />
+        )}
+
+        {activeTab === "reports" && (
+          <AdminReportsTab
+            report={detailedReport}
+            movements={movements}
+            onPeriodChange={(period, from, to) =>
+              updateUrlParams({
+                tab: "reports",
+                period,
+                from: period === "custom" ? from : undefined,
+                to: period === "custom" ? to : undefined,
+              })
+            }
+            restaurantName={settings.restaurantName}
           />
         )}
 

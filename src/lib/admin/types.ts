@@ -175,3 +175,111 @@ export interface ActionResult {
   error?: string;
   message?: string;
 }
+
+/* ----------------------------------------------------------------------------
+ * Tipe Data Manajemen Meja & QR Code
+ * ------------------------------------------------------------------------- */
+export interface AdminTable {
+  id: string;
+  tableNumber: string;
+  name: string;
+  capacity: number;
+  status: "AVAILABLE" | "OCCUPIED" | "INACTIVE";
+  isActive: boolean;
+  activeQrToken: string | null;
+  activeQrUrl: string | null;
+  qrGeneratedAt: string | null;
+  ordersCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ----------------------------------------------------------------------------
+ * Tipe Data Manajemen Staf / Kasir
+ * ------------------------------------------------------------------------- */
+export interface AdminStaffUser {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ----------------------------------------------------------------------------
+ * Tipe Data Laporan Penjualan & Ekspor
+ * ------------------------------------------------------------------------- */
+export interface PaymentBreakdownItem {
+  method: string;
+  count: number;
+  amount: number;
+  percentage: number;
+}
+
+export interface ServiceBreakdownItem {
+  serviceType: string; // DINE_IN vs TAKEAWAY
+  count: number;
+  amount: number;
+  percentage: number;
+}
+
+export interface DailySalesItem {
+  date: string;
+  ordersCount: number;
+  grossAmount: number;
+  taxAmount: number;
+  netAmount: number;
+}
+
+export interface ProductPerformanceItem {
+  productId: string;
+  productName: string;
+  categoryName: string;
+  quantitySold: number;
+  totalRevenue: number;
+  sharePercentage: number;
+}
+
+export interface ReportTransactionItem {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  customerName: string;
+  customerPhone: string;
+  serviceType: string;
+  tableNumber: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  orderStatus: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
+export interface DetailedSalesReport {
+  period: PeriodKey;
+  rangeLabel: string;
+  from: string;
+  to: string;
+  generatedAt: string;
+  summary: {
+    grossSales: number;
+    taxCollected: number;
+    refunds: number;
+    netSales: number;
+    totalOrders: number;
+    completedOrders: number;
+    cancelledOrders: number;
+    cancellationRate: number;
+    averageOrderValue: number;
+    totalItemsSold: number;
+  };
+  dailySales: DailySalesItem[];
+  paymentBreakdown: PaymentBreakdownItem[];
+  serviceBreakdown: ServiceBreakdownItem[];
+  productPerformance: ProductPerformanceItem[];
+  recentTransactions: ReportTransactionItem[];
+}
+

@@ -113,6 +113,27 @@ export interface MemAnalyticsOrder {
   items: { product_id: string; name: string; quantity: number; subtotal: number }[];
 }
 
+export interface MemTable {
+  id: string;
+  table_number: string;
+  name: string;
+  capacity: number;
+  status: "AVAILABLE" | "OCCUPIED" | "INACTIVE";
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface MemTableQrCode {
+  id: string;
+  table_id: string;
+  token: string;
+  is_active: boolean;
+  generated_by: string | null;
+  created_at: Date;
+  revoked_at: Date | null;
+}
+
 export interface AdminMemoryStore {
   categories: Map<string, MemCategory>;
   products: Map<string, MemProduct>;
@@ -121,6 +142,8 @@ export interface AdminMemoryStore {
   auditLogs: MemAuditLog[];
   settings: MemSettings;
   demoOrders: MemAnalyticsOrder[];
+  tables: Map<string, MemTable>;
+  tableQrCodes: Map<string, MemTableQrCode[]>;
 }
 
 /** Pseudo-random deterministik agar data contoh stabil setiap restart. */
@@ -229,6 +252,45 @@ function createStore(): AdminMemoryStore {
     });
   });
 
+  const defaultTables = [
+    { number: "01", name: "Meja 01 (Indoor)", capacity: 4 },
+    { number: "02", name: "Meja 02 (Indoor)", capacity: 4 },
+    { number: "03", name: "Meja 03 (Indoor AC)", capacity: 6 },
+    { number: "04", name: "Meja 04 (Outdoor Depan)", capacity: 2 },
+    { number: "05", name: "Meja 05 (Outdoor Samping)", capacity: 4 },
+    { number: "06", name: "Meja 06 (Lesehan)", capacity: 8 },
+  ];
+
+  const tables = new Map<string, MemTable>();
+  const tableQrCodes = new Map<string, MemTableQrCode[]>();
+
+  defaultTables.forEach((t) => {
+    const tableId = `tbl-${t.number}`;
+    tables.set(tableId, {
+      id: tableId,
+      table_number: t.number,
+      name: t.name,
+      capacity: t.capacity,
+      status: "AVAILABLE",
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
+
+    const qrToken = `qr_tbl_${t.number}_${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+    tableQrCodes.set(tableId, [
+      {
+        id: `qr-${tableId}`,
+        table_id: tableId,
+        token: qrToken,
+        is_active: true,
+        generated_by: "usr-admin-001",
+        created_at: now,
+        revoked_at: null,
+      },
+    ]);
+  });
+
   return {
     categories,
     products,
@@ -249,6 +311,8 @@ function createStore(): AdminMemoryStore {
       updated_at: null,
     },
     demoOrders: buildDemoOrders(),
+    tables,
+    tableQrCodes,
   };
 }
 

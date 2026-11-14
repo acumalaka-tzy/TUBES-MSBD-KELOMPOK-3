@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { memoryOrders } from "@/actions/helpers";
+import { memoryUsers } from "@/lib/auth/mock-users";
 import { getStockStatus } from "@/lib/menu-data";
 import { invalidateDatabaseCheck, isDatabaseReady, withTimeout } from "./db";
 import { getMemoryStore } from "./memory-store";
@@ -9,9 +10,12 @@ import type {
   AdminCategory,
   AdminProduct,
   AdminSettings,
+  AdminStaffUser,
   AdminStockMovement,
+  AdminTable,
   DashboardSummary,
   DataSource,
+  DetailedSalesReport,
   PeriodKey,
   PublicStoreSettings,
   SalesPoint,
@@ -591,3 +595,425 @@ export async function getDashboardSummary(period: PeriodKey, fromStr?: string, t
     },
   );
 }
+
+/* ----------------------------------------------------------------------------
+ * Manajemen Meja & QR Code
+ * ------------------------------------------------------------------------- */
+
+export async function listAdminTables() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  return readWithFallback<AdminTable[]>(
+    "tables",
+    async () => {
+      const rows = await prisma.table.findMany({
+        orderBy: { table_number: "asc" },
+        include: {
+          qr_codes: {
+            where: { is_active: true },
+            orderBy: { created_at: "desc" },
+            take: 1,
+          },
+          _count: { select: { orders: true } },
+        },
+      });
+
+      return rows.map((r) => {
+        const activeQr = r.qr_codes[0];
+        const token = activeQr?.token ?? null;
+        const qrUrl = token
+          ? `${appUrl}/menu?table=${encodeURIComponent(r.table_number)}&token=${encodeURIComponent(token)}`
+          : null;
+
+        return {
+          id: r.id,
+          tableNumber: r.table_number,
+          name: r.name,
+          capacity: r.capacity,
+          status: r.status as AdminTable["status"],
+          isActive: r.is_active,
+          activeQrToken: token,
+          activeQrUrl: qrUrl,
+          qrGeneratedAt: activeQr?.created_at ? activeQr.created_at.toISOString() : null,
+          ordersCount: r._count.orders,
+          createdAt: r.created_at.toISOString(),
+          updatedAt: r.updated_at.toISOString(),
+        };
+      });
+    },
+    () => {
+      const mem = getMemoryStore();
+      return [...mem.tables.values()]
+        .sort((a, b) => a.table_number.localeCompare(b.table_number, undefined, { numeric: true }))
+        .map((r) => {
+          const qrs = mem.tableQrCodes.get(r.id) ?? [];
+          const activeQr = qrs.find((q) => q.is_active);
+          const token = activeQr?.token ?? null;
+          const qrUrl = token
+            ? `${appUrl}/menu?table=${encodeURIComponent(r.table_number)}&token=${encodeURIComponent(token)}`
+            : null;
+
+          return {
+            id: r.id,
+            tableNumber: r.table_number,
+            name: r.name,
+            capacity: r.capacity,
+            status: r.status,
+            isActive: r.is_active,
+            activeQrToken: token,
+            activeQrUrl: qrUrl,
+            qrGeneratedAt: activeQr?.created_at ? activeQr.created_at.toISOString() : null,
+            ordersCount: 0,
+            createdAt: r.created_at.toISOString(),
+            updatedAt: r.updated_at.toISOString(),
+          };
+        });
+    },
+  );
+}
+
+/* ----------------------------------------------------------------------------
+ * Manajemen Staf / Kasir
+ * ------------------------------------------------------------------------- */
+
+export async function listAdminStaff() {
+  return readWithFallback<AdminStaffUser[]>(
+    "staff",
+    async () => {
+      const rows = await prisma.user.findMany({
+        where: { role: "CASHIER" },
+        orderBy: { created_at: "asc" },
+      });
+
+      return rows.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        role: u.role,
+        isActive: u.is_active,
+        createdAt: u.created_at.toISOString(),
+        updatedAt: u.updated_at.toISOString(),
+      }));
+    },
+    () => {
+      return [...memoryUsers.values()]
+        .filter((u) => u.role === "CASHIER")
+        .map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          phone: u.phone,
+          role: u.role,
+          isActive: u.is_active,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+    },
+  );
+}
+
+/* ----------------------------------------------------------------------------
+ * Laporan Penjualan & Ekspor Detail
+ * ------------------------------------------------------------------------- */
+
+interface RawReportOrder {
+  id: string;
+  orderNumber: string;
+  createdAt: Date;
+  customerName: string;
+  customerPhone: string;
+  serviceType: string;
+  tableNumber: string | null;
+  status: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  items: {
+    productId: string;
+    name: string;
+    categoryName: string;
+    quantity: number;
+    subtotal: number;
+  }[];
+}
+
+function buildDetailedReport(
+  orders: RawReportOrder[],
+  period: PeriodKey,
+  range: { from: Date; to: Date; label: string },
+): DetailedSalesReport {
+  const inRange = orders.filter((o) => o.createdAt >= range.from && o.createdAt <= range.to);
+
+  let grossSales = 0;
+  let taxCollected = 0;
+  let netSales = 0;
+  let refunds = 0;
+  let totalOrders = inRange.length;
+  let completedOrders = 0;
+  let cancelledOrders = 0;
+  let totalItemsSold = 0;
+
+  const paymentMap = new Map<string, { count: number; amount: number }>();
+  const serviceMap = new Map<string, { count: number; amount: number }>();
+  const dailyMap = new Map<string, { count: number; gross: number; tax: number; net: number }>();
+  const productMap = new Map<
+    string,
+    { name: string; category: string; qty: number; revenue: number }
+  >();
+
+  for (const o of inRange) {
+    const isCompleted = o.status !== "CANCELLED" && o.paymentStatus === "PAID";
+    const isRefunded = o.paymentStatus === "REFUNDED";
+
+    if (isCompleted) {
+      completedOrders++;
+      grossSales += o.totalAmount;
+      taxCollected += o.taxAmount;
+      netSales += o.subtotal;
+
+      // Payment Breakdown
+      const pKey = o.paymentMethod || "CASH";
+      const pCur = paymentMap.get(pKey) ?? { count: 0, amount: 0 };
+      pCur.count++;
+      pCur.amount += o.totalAmount;
+      paymentMap.set(pKey, pCur);
+
+      // Service Breakdown
+      const sKey = o.serviceType || "DINE_IN";
+      const sCur = serviceMap.get(sKey) ?? { count: 0, amount: 0 };
+      sCur.count++;
+      sCur.amount += o.totalAmount;
+      serviceMap.set(sKey, sCur);
+
+      // Daily Breakdown
+      const dateKey = o.createdAt.toISOString().slice(0, 10);
+      const dCur = dailyMap.get(dateKey) ?? { count: 0, gross: 0, tax: 0, net: 0 };
+      dCur.count++;
+      dCur.gross += o.totalAmount;
+      dCur.tax += o.taxAmount;
+      dCur.net += o.subtotal;
+      dailyMap.set(dateKey, dCur);
+
+      // Product Performance
+      for (const it of o.items) {
+        totalItemsSold += it.quantity;
+        const prodCur = productMap.get(it.productId) ?? {
+          name: it.name,
+          category: it.categoryName,
+          qty: 0,
+          revenue: 0,
+        };
+        prodCur.qty += it.quantity;
+        prodCur.revenue += it.subtotal;
+        productMap.set(it.productId, prodCur);
+      }
+    } else if (o.status === "CANCELLED") {
+      cancelledOrders++;
+    } else if (isRefunded) {
+      refunds += o.totalAmount;
+    }
+  }
+
+  const cancellationRate = totalOrders > 0 ? (cancelledOrders / totalOrders) * 100 : 0;
+  const averageOrderValue = completedOrders > 0 ? Math.round(grossSales / completedOrders) : 0;
+
+  // Format Daily Sales sorted by date asc
+  const dailySales = [...dailyMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, val]) => ({
+      date,
+      ordersCount: val.count,
+      grossAmount: val.gross,
+      taxAmount: val.tax,
+      netAmount: val.net,
+    }));
+
+  // Format Payment Breakdown
+  const paymentBreakdown = [...paymentMap.entries()].map(([method, val]) => ({
+    method,
+    count: val.count,
+    amount: val.amount,
+    percentage: grossSales > 0 ? Math.round((val.amount / grossSales) * 100) : 0,
+  }));
+
+  // Format Service Breakdown
+  const serviceBreakdown = [...serviceMap.entries()].map(([serviceType, val]) => ({
+    serviceType,
+    count: val.count,
+    amount: val.amount,
+    percentage: grossSales > 0 ? Math.round((val.amount / grossSales) * 100) : 0,
+  }));
+
+  // Format Product Performance sorted by revenue desc
+  const productPerformance = [...productMap.entries()]
+    .map(([productId, val]) => ({
+      productId,
+      productName: val.name,
+      categoryName: val.category,
+      quantitySold: val.qty,
+      totalRevenue: val.revenue,
+      sharePercentage: netSales > 0 ? Math.round((val.revenue / netSales) * 100) : 0,
+    }))
+    .sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+  // Recent transactions sorted by date desc
+  const recentTransactions = inRange
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 50)
+    .map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      createdAt: o.createdAt.toISOString(),
+      customerName: o.customerName,
+      customerPhone: o.customerPhone,
+      serviceType: o.serviceType,
+      tableNumber: o.tableNumber,
+      paymentMethod: o.paymentMethod,
+      paymentStatus: o.paymentStatus,
+      orderStatus: o.status,
+      subtotal: o.subtotal,
+      taxAmount: o.taxAmount,
+      totalAmount: o.totalAmount,
+    }));
+
+  return {
+    period,
+    rangeLabel: range.label,
+    from: range.from.toISOString(),
+    to: range.to.toISOString(),
+    generatedAt: new Date().toISOString(),
+    summary: {
+      grossSales,
+      taxCollected,
+      refunds,
+      netSales,
+      totalOrders,
+      completedOrders,
+      cancelledOrders,
+      cancellationRate: Math.round(cancellationRate * 10) / 10,
+      averageOrderValue,
+      totalItemsSold,
+    },
+    dailySales,
+    paymentBreakdown,
+    serviceBreakdown,
+    productPerformance,
+    recentTransactions,
+  };
+}
+
+export async function getDetailedSalesReport(
+  period: PeriodKey = "7d",
+  fromStr?: string,
+  toStr?: string,
+) {
+  const range = resolvePeriod(period, fromStr, toStr);
+
+  return readWithFallback<DetailedSalesReport>(
+    "detailed-sales-report",
+    async () => {
+      const dbOrders = await prisma.order.findMany({
+        where: {
+          created_at: {
+            gte: range.from,
+            lte: range.to,
+          },
+        },
+        orderBy: { created_at: "desc" },
+        include: {
+          payment: true,
+          table: { select: { table_number: true } },
+          items: {
+            include: {
+              product: { select: { category: { select: { name: true } } } },
+            },
+          },
+        },
+      });
+
+      return buildDetailedReport(
+        dbOrders.map((o) => ({
+          id: o.id,
+          orderNumber: o.order_number,
+          createdAt: o.created_at,
+          customerName: o.customer_name,
+          customerPhone: o.customer_phone,
+          serviceType: o.service_type,
+          tableNumber: o.table?.table_number ?? null,
+          status: o.status,
+          subtotal: Number(o.subtotal),
+          taxAmount: Number(o.tax_amount),
+          totalAmount: Number(o.total_amount),
+          paymentMethod: o.payment?.method ?? "CASH",
+          paymentStatus: o.payment?.status ?? "UNPAID",
+          items: o.items.map((it) => ({
+            productId: it.product_id,
+            name: it.product_name_snapshot,
+            categoryName: it.product?.category?.name ?? "Lainnya",
+            quantity: it.quantity,
+            subtotal: Number(it.subtotal),
+          })),
+        })),
+        period,
+        range,
+      );
+    },
+    () => {
+      const demoOrders = getMemoryStore().demoOrders;
+      const memOrders = [...memoryOrders.values()];
+
+      const combined = [
+        ...demoOrders.map((o) => ({
+          id: o.id,
+          orderNumber: `ORD-DEMO-${o.id}`,
+          createdAt: o.created_at,
+          customerName: "Pelanggan Demo",
+          customerPhone: "08123456789",
+          serviceType: "DINE_IN",
+          tableNumber: "01",
+          status: o.status,
+          subtotal: o.subtotal,
+          taxAmount: o.tax_amount,
+          totalAmount: o.total_amount,
+          paymentMethod: o.payment_method,
+          paymentStatus: o.payment_status,
+          items: o.items.map((it) => ({
+            productId: it.product_id,
+            name: it.name,
+            categoryName: "Katalog",
+            quantity: it.quantity,
+            subtotal: it.subtotal,
+          })),
+        })),
+        ...memOrders.map((o) => ({
+          id: o.id,
+          orderNumber: o.order_number,
+          createdAt: new Date(o.created_at),
+          customerName: o.customer_name,
+          customerPhone: o.customer_phone,
+          serviceType: o.service_type,
+          tableNumber: o.table?.table_number ?? null,
+          status: o.status,
+          subtotal: Number(o.subtotal),
+          taxAmount: Number(o.tax_amount),
+          totalAmount: Number(o.total_amount),
+          paymentMethod: o.payment?.method ?? "CASH",
+          paymentStatus: o.payment?.status ?? "UNPAID",
+          items: o.items.map((it) => ({
+            productId: it.id,
+            name: it.product_name_snapshot,
+            categoryName: "Menu",
+            quantity: it.quantity,
+            subtotal: Number(it.subtotal),
+          })),
+        })),
+      ].filter((o) => o.createdAt >= range.from && o.createdAt <= range.to);
+
+      return buildDetailedReport(combined, period, range);
+    },
+  );
+}
+

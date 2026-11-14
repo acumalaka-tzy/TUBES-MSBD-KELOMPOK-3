@@ -1,11 +1,14 @@
 "use server";
 
+import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/session";
 import type { AuthTokenPayload } from "@/lib/auth/jwt";
 import { getUserById } from "@/lib/auth/user-service";
+import { hashPassword } from "@/lib/auth/password";
+import { memoryUsers, type MockUserRecord } from "@/lib/auth/mock-users";
 import { recordAuditLog } from "@/lib/admin/audit";
 import { errorMessage, invalidateDatabaseCheck, isDatabaseReady, withTimeout } from "@/lib/admin/db";
 import { getMemoryStore, memoryId, type MemOptionGroup } from "@/lib/admin/memory-store";
@@ -1567,5 +1570,1099 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
     return { success: true, message: "Pengaturan toko dan pajak berhasil disimpan." };
   } catch (err) {
     return { success: false, error: errorMessage(err, "Gagal menyimpan pengaturan toko.") };
+  }
+}
+
+/* ----------------------------------------------------------------------------
+ * 5. CRUD Meja & Generator Token QR Kriptografis (PRD 3.2 & TC-02)
+ * ------------------------------------------------------------------------- */
+
+const CreateTableSchema = z.object({
+  tableNumber: z.string().trim().min(1, "Nomor meja wajib diisi.").max(20),
+  name: z.string().trim().min(2, "Nama meja minimal 2 karakter.").max(50),
+  capacity: z.coerce.number().int().min(1, "Kapasitas meja minimal 1 orang.").max(50),
+  status: z.enum(["AVAILABLE", "OCCUPIED", "INACTIVE"]).default("AVAILABLE"),
+});
+
+export type CreateTableInput = z.infer<typeof CreateTableSchema>;
+
+const UpdateTableSchema = z.object({
+  id: z.string().trim().min(1, "ID Meja tidak valid."),
+  tableNumber: z.string().trim().min(1, "Nomor meja wajib diisi.").max(20),
+  name: z.string().trim().min(2, "Nama meja minimal 2 karakter.").max(50),
+  capacity: z.coerce.number().int().min(1, "Kapasitas meja minimal 1 orang.").max(50),
+  status: z.enum(["AVAILABLE", "OCCUPIED", "INACTIVE"]).default("AVAILABLE"),
+  isActive: z.boolean().default(true),
+});
+
+export type UpdateTableInput = z.infer<typeof UpdateTableSchema>;
+
+function generateCryptographicQrToken(): string {
+  const timestamp = Date.now().toString(36);
+  const randomBytes = crypto.randomBytes(12).toString("hex");
+  return `qr_${timestamp}_${randomBytes}`;
+}
+
+export async function createTableAction(input: CreateTableInput): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const parsed = CreateTableSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Input meja tidak valid." };
+    }
+
+    const d = parsed.data;
+    const initialToken = generateCryptographicQrToken();
+
+    if (await isDatabaseReady()) {
+      try {
+        const existing = await withTimeout(
+          prisma.table.findUnique({ where: { table_number: d.tableNumber } }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (existing) {
+          return { success: false, error: `Nomor meja "${d.tableNumber}" sudah digunakan.` };
+        }
+
+        const tableId = memoryId("tbl");
+        const qrId = memoryId("tqr");
+
+        const newTable = await withTimeout(
+          prisma.table.create({
+            data: {
+              id: tableId,
+              table_number: d.tableNumber,
+              name: d.name,
+              capacity: d.capacity,
+              status: d.status,
+              is_active: d.status !== "INACTIVE",
+              qr_codes: {
+                create: {
+                  id: qrId,
+                  token: initialToken,
+                  is_active: true,
+                  generated_by: admin.sub,
+                },
+              },
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "tables",
+          entityId: newTable.id,
+          action: "CREATE_TABLE",
+          oldData: null,
+          newData: {
+            table_number: newTable.table_number,
+            name: newTable.name,
+            capacity: newTable.capacity,
+            status: newTable.status,
+            initial_token: initialToken,
+          },
+        });
+
+        safeRevalidate("/admin");
+        return { success: true, message: `Meja "${newTable.name}" (${newTable.table_number}) berhasil ditambahkan.` };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error createTable, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const store = getMemoryStore();
+    for (const t of store.tables.values()) {
+      if (t.table_number.toLowerCase() === d.tableNumber.toLowerCase()) {
+        return { success: false, error: `Nomor meja "${d.tableNumber}" sudah digunakan.` };
+      }
+    }
+
+    const tableId = memoryId("tbl");
+    const qrId = memoryId("tqr");
+    const now = new Date();
+
+    const memTable = {
+      id: tableId,
+      table_number: d.tableNumber,
+      name: d.name,
+      capacity: d.capacity,
+      status: d.status,
+      is_active: d.status !== "INACTIVE",
+      created_at: now,
+      updated_at: now,
+    };
+
+    store.tables.set(tableId, memTable);
+    store.tableQrCodes.set(tableId, [
+      {
+        id: qrId,
+        table_id: tableId,
+        token: initialToken,
+        is_active: true,
+        generated_by: admin.sub,
+        created_at: now,
+        revoked_at: null,
+      },
+    ]);
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "tables",
+      entityId: tableId,
+      action: "CREATE_TABLE",
+      oldData: null,
+      newData: {
+        table_number: memTable.table_number,
+        name: memTable.name,
+        capacity: memTable.capacity,
+        status: memTable.status,
+        initial_token: initialToken,
+      },
+    });
+
+    safeRevalidate("/admin");
+    return { success: true, message: `Meja "${memTable.name}" (${memTable.table_number}) berhasil ditambahkan.` };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal menambahkan meja baru.") };
+  }
+}
+
+export async function updateTableAction(input: UpdateTableInput): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const parsed = UpdateTableSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Input pembaruan meja tidak valid." };
+    }
+
+    const d = parsed.data;
+
+    if (await isDatabaseReady()) {
+      try {
+        const prev = await withTimeout(
+          prisma.table.findUnique({ where: { id: d.id } }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!prev) return { success: false, error: "Data meja tidak ditemukan." };
+
+        // Cek duplikasi nomor meja jika nomornya diubah
+        if (prev.table_number !== d.tableNumber) {
+          const dup = await withTimeout(
+            prisma.table.findUnique({ where: { table_number: d.tableNumber } }),
+            ACTION_TIMEOUT_MS,
+          );
+          if (dup && dup.id !== d.id) {
+            return { success: false, error: `Nomor meja "${d.tableNumber}" sudah digunakan meja lain.` };
+          }
+        }
+
+        const updated = await withTimeout(
+          prisma.table.update({
+            where: { id: d.id },
+            data: {
+              table_number: d.tableNumber,
+              name: d.name,
+              capacity: d.capacity,
+              status: d.status,
+              is_active: d.isActive,
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "tables",
+          entityId: updated.id,
+          action: "UPDATE_TABLE",
+          oldData: {
+            table_number: prev.table_number,
+            name: prev.name,
+            capacity: prev.capacity,
+            status: prev.status,
+            is_active: prev.is_active,
+          },
+          newData: {
+            table_number: updated.table_number,
+            name: updated.name,
+            capacity: updated.capacity,
+            status: updated.status,
+            is_active: updated.is_active,
+          },
+        });
+
+        safeRevalidate("/admin");
+        return { success: true, message: `Data meja "${updated.name}" berhasil diperbarui.` };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error updateTable, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const store = getMemoryStore();
+    const prev = store.tables.get(d.id);
+    if (!prev) return { success: false, error: "Data meja tidak ditemukan." };
+
+    for (const [id, t] of store.tables.entries()) {
+      if (id !== d.id && t.table_number.toLowerCase() === d.tableNumber.toLowerCase()) {
+        return { success: false, error: `Nomor meja "${d.tableNumber}" sudah digunakan meja lain.` };
+      }
+    }
+
+    const updated = {
+      ...prev,
+      table_number: d.tableNumber,
+      name: d.name,
+      capacity: d.capacity,
+      status: d.status,
+      is_active: d.isActive,
+      updated_at: new Date(),
+    };
+    store.tables.set(d.id, updated);
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "tables",
+      entityId: d.id,
+      action: "UPDATE_TABLE",
+      oldData: {
+        table_number: prev.table_number,
+        name: prev.name,
+        capacity: prev.capacity,
+        status: prev.status,
+        is_active: prev.is_active,
+      },
+      newData: {
+        table_number: updated.table_number,
+        name: updated.name,
+        capacity: updated.capacity,
+        status: updated.status,
+        is_active: updated.is_active,
+      },
+    });
+
+    safeRevalidate("/admin");
+    return { success: true, message: `Data meja "${updated.name}" berhasil diperbarui.` };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal memperbarui data meja.") };
+  }
+}
+
+export async function toggleTableStatusAction(tableId: string, isActive: boolean): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    if (await isDatabaseReady()) {
+      try {
+        const prev = await withTimeout(
+          prisma.table.findUnique({ where: { id: tableId } }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!prev) return { success: false, error: "Data meja tidak ditemukan." };
+
+        const newStatus = isActive ? "AVAILABLE" : "INACTIVE";
+        const updated = await withTimeout(
+          prisma.table.update({
+            where: { id: tableId },
+            data: {
+              is_active: isActive,
+              status: newStatus,
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "tables",
+          entityId: updated.id,
+          action: "TOGGLE_TABLE_STATUS",
+          oldData: { is_active: prev.is_active, status: prev.status },
+          newData: { is_active: updated.is_active, status: updated.status },
+          reason: isActive ? "Meja diaktifkan kembali" : "Meja dinonaktifkan sementara",
+        });
+
+        safeRevalidate("/admin");
+        return {
+          success: true,
+          message: `Meja "${updated.name}" berhasil ${isActive ? "diaktifkan" : "dinonaktifkan"}.`,
+        };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error toggleTableStatus, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const store = getMemoryStore();
+    const prev = store.tables.get(tableId);
+    if (!prev) return { success: false, error: "Data meja tidak ditemukan." };
+
+    const newStatus = isActive ? "AVAILABLE" : "INACTIVE";
+    const updated = {
+      ...prev,
+      is_active: isActive,
+      status: newStatus as "AVAILABLE" | "INACTIVE",
+      updated_at: new Date(),
+    };
+    store.tables.set(tableId, updated);
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "tables",
+      entityId: tableId,
+      action: "TOGGLE_TABLE_STATUS",
+      oldData: { is_active: prev.is_active, status: prev.status },
+      newData: { is_active: updated.is_active, status: updated.status },
+      reason: isActive ? "Meja diaktifkan kembali" : "Meja dinonaktifkan sementara",
+    });
+
+    safeRevalidate("/admin");
+    return {
+      success: true,
+      message: `Meja "${updated.name}" berhasil ${isActive ? "diaktifkan" : "dinonaktifkan"}.`,
+    };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal mengubah status meja.") };
+  }
+}
+
+export async function regenerateTableQrAction(tableId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const newToken = generateCryptographicQrToken();
+
+    if (await isDatabaseReady()) {
+      try {
+        const table = await withTimeout(
+          prisma.table.findUnique({
+            where: { id: tableId },
+            include: { qr_codes: { where: { is_active: true } } },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!table) return { success: false, error: "Data meja tidak ditemukan." };
+
+        const oldTokens = table.qr_codes.map((q) => q.token);
+
+        // Transaksi DB: nonaktifkan token lama dan buat token baru
+        await withTimeout(
+          prisma.$transaction([
+            prisma.tableQrCode.updateMany({
+              where: { table_id: tableId, is_active: true },
+              data: { is_active: false, revoked_at: new Date() },
+            }),
+            prisma.tableQrCode.create({
+              data: {
+                id: memoryId("tqr"),
+                table_id: tableId,
+                token: newToken,
+                is_active: true,
+                generated_by: admin.sub,
+              },
+            }),
+          ]),
+          ACTION_TIMEOUT_MS,
+        );
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "table_qr_codes",
+          entityId: tableId,
+          action: "REGENERATE_TABLE_QR",
+          oldData: { revoked_tokens: oldTokens },
+          newData: { active_token: newToken, table_number: table.table_number },
+          reason: "Regenerasi token QR kriptografis baru untuk keamanan meja",
+        });
+
+        safeRevalidate("/admin");
+        return {
+          success: true,
+          message: `Token QR meja "${table.name}" (${table.table_number}) berhasil diperbarui. QR lama otomatis hangus.`,
+        };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error regenerateTableQr, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const store = getMemoryStore();
+    const table = store.tables.get(tableId);
+    if (!table) return { success: false, error: "Data meja tidak ditemukan." };
+
+    const qrList = store.tableQrCodes.get(tableId) ?? [];
+    const now = new Date();
+    const oldTokens: string[] = [];
+
+    // Revoke token lama
+    for (const qr of qrList) {
+      if (qr.is_active) {
+        qr.is_active = false;
+        qr.revoked_at = now;
+        oldTokens.push(qr.token);
+      }
+    }
+
+    // Buat token baru
+    qrList.push({
+      id: memoryId("tqr"),
+      table_id: tableId,
+      token: newToken,
+      is_active: true,
+      generated_by: admin.sub,
+      created_at: now,
+      revoked_at: null,
+    });
+    store.tableQrCodes.set(tableId, qrList);
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "table_qr_codes",
+      entityId: tableId,
+      action: "REGENERATE_TABLE_QR",
+      oldData: { revoked_tokens: oldTokens },
+      newData: { active_token: newToken, table_number: table.table_number },
+      reason: "Regenerasi token QR kriptografis baru untuk keamanan meja",
+    });
+
+    safeRevalidate("/admin");
+    return {
+      success: true,
+      message: `Token QR meja "${table.name}" (${table.table_number}) berhasil diperbarui. QR lama otomatis hangus.`,
+    };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal membuat ulang QR meja.") };
+  }
+}
+
+export async function deleteTableAction(tableId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    if (await isDatabaseReady()) {
+      try {
+        const table = await withTimeout(
+          prisma.table.findUnique({
+            where: { id: tableId },
+            include: { _count: { select: { orders: true } } },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!table) return { success: false, error: "Data meja tidak ditemukan." };
+
+        // Jika ada riwayat order, lakukan soft-deactivation agar data laporan penjualan tidak rusak
+        if (table._count.orders > 0) {
+          await withTimeout(
+            prisma.table.update({
+              where: { id: tableId },
+              data: { is_active: false, status: "INACTIVE" },
+            }),
+            ACTION_TIMEOUT_MS,
+          );
+
+          await recordAuditLog({
+            actorId: admin.sub,
+            actorName: admin.name,
+            actorRole: admin.role,
+            entityName: "tables",
+            entityId: tableId,
+            action: "DEACTIVATE_TABLE_WITH_ORDERS",
+            oldData: { status: table.status, is_active: table.is_active },
+            newData: { status: "INACTIVE", is_active: false },
+            reason: `Meja memiliki ${table._count.orders} riwayat transaksi; dinonaktifkan demi integritas data laporan.`,
+          });
+
+          safeRevalidate("/admin");
+          return {
+            success: true,
+            message: `Meja "${table.name}" dinonaktifkan (karena memiliki riwayat pesanan terdahulu).`,
+          };
+        }
+
+        // Hapus permanen jika belum ada order
+        await withTimeout(
+          prisma.table.delete({ where: { id: tableId } }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "tables",
+          entityId: tableId,
+          action: "DELETE_TABLE",
+          oldData: { table_number: table.table_number, name: table.name },
+          newData: null,
+        });
+
+        safeRevalidate("/admin");
+        return { success: true, message: `Meja "${table.name}" berhasil dihapus.` };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error deleteTable, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const store = getMemoryStore();
+    const table = store.tables.get(tableId);
+    if (!table) return { success: false, error: "Data meja tidak ditemukan." };
+
+    store.tables.delete(tableId);
+    store.tableQrCodes.delete(tableId);
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "tables",
+      entityId: tableId,
+      action: "DELETE_TABLE",
+      oldData: { table_number: table.table_number, name: table.name },
+      newData: null,
+    });
+
+    safeRevalidate("/admin");
+    return { success: true, message: `Meja "${table.name}" berhasil dihapus.` };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal menghapus meja.") };
+  }
+}
+
+/* ----------------------------------------------------------------------------
+ * 6. Manajemen Staf / Akun Kasir (CRUD, Reset Password, Toggle Aktif)
+ * ------------------------------------------------------------------------- */
+
+const CreateStaffSchema = z.object({
+  name: z.string().trim().min(2, "Nama staf minimal 2 karakter.").max(100),
+  email: z.string().trim().email("Format email tidak valid.").or(z.literal("")).optional(),
+  phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter.").max(20),
+  password: z.string().min(6, "Password minimal 6 karakter."),
+  role: z.enum(["CASHIER", "ADMIN"]).default("CASHIER"),
+});
+
+export type CreateStaffInput = z.infer<typeof CreateStaffSchema>;
+
+const UpdateStaffSchema = z.object({
+  userId: z.string().trim().min(1, "ID user tidak valid."),
+  name: z.string().trim().min(2, "Nama staf minimal 2 karakter.").max(100),
+  email: z.string().trim().email("Format email tidak valid.").or(z.literal("")).optional(),
+  phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter.").max(20),
+  role: z.enum(["CASHIER", "ADMIN"]).default("CASHIER"),
+});
+
+export type UpdateStaffInput = z.infer<typeof UpdateStaffSchema>;
+
+const ResetStaffPasswordSchema = z.object({
+  userId: z.string().trim().min(1, "ID user tidak valid."),
+  newPassword: z.string().min(6, "Password baru minimal 6 karakter."),
+});
+
+export type ResetStaffPasswordInput = z.infer<typeof ResetStaffPasswordSchema>;
+
+export async function createStaffAction(input: CreateStaffInput): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const parsed = CreateStaffSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Input staf kasir tidak valid." };
+    }
+
+    const d = parsed.data;
+    const cleanEmail = d.email && d.email.length > 0 ? d.email.toLowerCase() : null;
+    const cleanPhone = d.phone.trim();
+    const hashedPassword = await hashPassword(d.password);
+
+    if (await isDatabaseReady()) {
+      try {
+        // Cek duplikasi email atau nomor telepon
+        const existing = await withTimeout(
+          prisma.user.findFirst({
+            where: {
+              OR: [
+                ...(cleanEmail ? [{ email: cleanEmail }] : []),
+                { phone: cleanPhone },
+              ],
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        if (existing) {
+          return {
+            success: false,
+            error: existing.phone === cleanPhone
+              ? "Nomor telepon ini sudah digunakan oleh akun lain."
+              : "Email ini sudah digunakan oleh akun lain.",
+          };
+        }
+
+        const newId = memoryId("usr");
+        const createdUser = await withTimeout(
+          prisma.user.create({
+            data: {
+              id: newId,
+              name: d.name,
+              email: cleanEmail,
+              phone: cleanPhone,
+              password_hash: hashedPassword,
+              role: d.role,
+              is_active: true,
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        // Sinkronkan ke memory store juga agar transparan
+        memoryUsers.set(createdUser.id, {
+          id: createdUser.id,
+          name: createdUser.name,
+          email: createdUser.email,
+          phone: createdUser.phone,
+          password_hash: createdUser.password_hash || hashedPassword,
+          role: createdUser.role as "ADMIN" | "CASHIER" | "CUSTOMER",
+          is_active: createdUser.is_active,
+        });
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "users",
+          entityId: createdUser.id,
+          action: "CREATE_STAFF_ACCOUNT",
+          oldData: null,
+          newData: {
+            name: createdUser.name,
+            email: createdUser.email,
+            phone: createdUser.phone,
+            role: createdUser.role,
+          },
+        });
+
+        safeRevalidate("/admin");
+        return { success: true, message: `Akun staf ${d.role === "ADMIN" ? "Admin" : "Kasir"} "${createdUser.name}" berhasil dibuat.` };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error createStaff, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    for (const u of memoryUsers.values()) {
+      if (cleanEmail && u.email?.toLowerCase() === cleanEmail) {
+        return { success: false, error: "Email ini sudah digunakan oleh akun lain." };
+      }
+      if (u.phone === cleanPhone) {
+        return { success: false, error: "Nomor telepon ini sudah digunakan oleh akun lain." };
+      }
+    }
+
+    const newId = memoryId("usr");
+    const mockUser: MockUserRecord = {
+      id: newId,
+      name: d.name,
+      email: cleanEmail,
+      phone: cleanPhone,
+      password_hash: hashedPassword,
+      role: d.role,
+      is_active: true,
+    };
+    memoryUsers.set(newId, mockUser);
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "users",
+      entityId: newId,
+      action: "CREATE_STAFF_ACCOUNT",
+      oldData: null,
+      newData: {
+        name: mockUser.name,
+        email: mockUser.email,
+        phone: mockUser.phone,
+        role: mockUser.role,
+      },
+    });
+
+    safeRevalidate("/admin");
+    return { success: true, message: `Akun staf ${d.role === "ADMIN" ? "Admin" : "Kasir"} "${mockUser.name}" berhasil dibuat.` };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal membuat akun staf baru.") };
+  }
+}
+
+export async function updateStaffAction(input: UpdateStaffInput): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const parsed = UpdateStaffSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Input profil staf tidak valid." };
+    }
+
+    const d = parsed.data;
+    const cleanEmail = d.email && d.email.length > 0 ? d.email.toLowerCase() : null;
+    const cleanPhone = d.phone.trim();
+
+    if (await isDatabaseReady()) {
+      try {
+        const prev = await withTimeout(
+          prisma.user.findUnique({ where: { id: d.userId } }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+        // Cek duplikasi email/telepon di user lain
+        const dup = await withTimeout(
+          prisma.user.findFirst({
+            where: {
+              id: { not: d.userId },
+              OR: [
+                ...(cleanEmail ? [{ email: cleanEmail }] : []),
+                { phone: cleanPhone },
+              ],
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (dup) {
+          return {
+            success: false,
+            error: dup.phone === cleanPhone
+              ? "Nomor telepon ini sudah digunakan oleh akun lain."
+              : "Email ini sudah digunakan oleh akun lain.",
+          };
+        }
+
+        const updated = await withTimeout(
+          prisma.user.update({
+            where: { id: d.userId },
+            data: {
+              name: d.name,
+              email: cleanEmail,
+              phone: cleanPhone,
+              role: d.role,
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        const memRecord = memoryUsers.get(d.userId);
+        if (memRecord) {
+          memRecord.name = updated.name;
+          memRecord.email = updated.email;
+          memRecord.phone = updated.phone;
+          memRecord.role = updated.role as "ADMIN" | "CASHIER" | "CUSTOMER";
+        }
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "users",
+          entityId: updated.id,
+          action: "UPDATE_STAFF_ACCOUNT",
+          oldData: { name: prev.name, email: prev.email, phone: prev.phone, role: prev.role },
+          newData: { name: updated.name, email: updated.email, phone: updated.phone, role: updated.role },
+        });
+
+        safeRevalidate("/admin");
+        return { success: true, message: `Data staf "${updated.name}" berhasil diperbarui.` };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error updateStaff, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const prev = memoryUsers.get(d.userId);
+    if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+    for (const [id, u] of memoryUsers.entries()) {
+      if (id !== d.userId) {
+        if (cleanEmail && u.email?.toLowerCase() === cleanEmail) {
+          return { success: false, error: "Email ini sudah digunakan oleh akun lain." };
+        }
+        if (u.phone === cleanPhone) {
+          return { success: false, error: "Nomor telepon ini sudah digunakan oleh akun lain." };
+        }
+      }
+    }
+
+    prev.name = d.name;
+    prev.email = cleanEmail;
+    prev.phone = cleanPhone;
+    prev.role = d.role;
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "users",
+      entityId: d.userId,
+      action: "UPDATE_STAFF_ACCOUNT",
+      oldData: { name: prev.name, email: prev.email, phone: prev.phone, role: prev.role },
+      newData: { name: d.name, email: cleanEmail, phone: cleanPhone, role: d.role },
+    });
+
+    safeRevalidate("/admin");
+    return { success: true, message: `Data staf "${d.name}" berhasil diperbarui.` };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal memperbarui data staf.") };
+  }
+}
+
+export async function toggleStaffStatusAction(userId: string, isActive: boolean): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    if (userId === admin.sub && !isActive) {
+      return { success: false, error: "Anda tidak dapat menonaktifkan akun Administrator Anda sendiri." };
+    }
+
+    if (await isDatabaseReady()) {
+      try {
+        const prev = await withTimeout(
+          prisma.user.findUnique({ where: { id: userId } }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+        const updated = await withTimeout(
+          prisma.user.update({
+            where: { id: userId },
+            data: { is_active: isActive },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        const memRecord = memoryUsers.get(userId);
+        if (memRecord) {
+          memRecord.is_active = isActive;
+        }
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "users",
+          entityId: updated.id,
+          action: "TOGGLE_STAFF_STATUS",
+          oldData: { is_active: prev.is_active },
+          newData: { is_active: updated.is_active },
+          reason: isActive ? "Akun staf diaktifkan kembali" : "Akun staf dinonaktifkan sementara",
+        });
+
+        safeRevalidate("/admin");
+        return {
+          success: true,
+          message: `Akun staf "${updated.name}" berhasil ${isActive ? "diaktifkan" : "dinonaktifkan"}.`,
+        };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error toggleStaffStatus, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const prev = memoryUsers.get(userId);
+    if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+    prev.is_active = isActive;
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "users",
+      entityId: userId,
+      action: "TOGGLE_STAFF_STATUS",
+      oldData: { is_active: !isActive },
+      newData: { is_active: isActive },
+      reason: isActive ? "Akun staf diaktifkan kembali" : "Akun staf dinonaktifkan sementara",
+    });
+
+    safeRevalidate("/admin");
+    return {
+      success: true,
+      message: `Akun staf "${prev.name}" berhasil ${isActive ? "diaktifkan" : "dinonaktifkan"}.`,
+    };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal mengubah status aktif staf.") };
+  }
+}
+
+export async function resetStaffPasswordAction(input: ResetStaffPasswordInput): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    const parsed = ResetStaffPasswordSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Input password tidak valid." };
+    }
+
+    const { userId, newPassword } = parsed.data;
+    const newPasswordHash = await hashPassword(newPassword);
+
+    if (await isDatabaseReady()) {
+      try {
+        const prev = await withTimeout(
+          prisma.user.findUnique({ where: { id: userId } }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+        await withTimeout(
+          prisma.user.update({
+            where: { id: userId },
+            data: { password_hash: newPasswordHash },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        const memRecord = memoryUsers.get(userId);
+        if (memRecord) {
+          memRecord.password_hash = newPasswordHash;
+        }
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "users",
+          entityId: userId,
+          action: "RESET_STAFF_PASSWORD",
+          oldData: null,
+          newData: { password_reset: true },
+          reason: `Password staf di-reset oleh Administrator ${admin.name}`,
+        });
+
+        safeRevalidate("/admin");
+        return { success: true, message: `Password akun staf "${prev.name}" berhasil direset.` };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error resetStaffPassword, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const prev = memoryUsers.get(userId);
+    if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+    prev.password_hash = newPasswordHash;
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "users",
+      entityId: userId,
+      action: "RESET_STAFF_PASSWORD",
+      oldData: null,
+      newData: { password_reset: true },
+      reason: `Password staf di-reset oleh Administrator ${admin.name}`,
+    });
+
+    safeRevalidate("/admin");
+    return { success: true, message: `Password akun staf "${prev.name}" berhasil direset.` };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal me-reset password staf.") };
+  }
+}
+
+export async function deleteStaffAction(userId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    if (userId === admin.sub) {
+      return { success: false, error: "Anda tidak dapat menghapus atau menonaktifkan akun Administrator Anda sendiri." };
+    }
+
+    if (await isDatabaseReady()) {
+      try {
+        const prev = await withTimeout(
+          prisma.user.findUnique({ where: { id: userId } }),
+          ACTION_TIMEOUT_MS,
+        );
+        if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+        // Soft-deactivate agar tidak merusak data relasi transaksi/audit
+        await withTimeout(
+          prisma.user.update({
+            where: { id: userId },
+            data: { is_active: false },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        const memRecord = memoryUsers.get(userId);
+        if (memRecord) {
+          memRecord.is_active = false;
+        }
+
+        await recordAuditLog({
+          actorId: admin.sub,
+          actorName: admin.name,
+          actorRole: admin.role,
+          entityName: "users",
+          entityId: userId,
+          action: "DEACTIVATE_STAFF",
+          oldData: { is_active: prev.is_active },
+          newData: { is_active: false },
+          reason: "Akun staf dinonaktifkan permanen oleh Administrator",
+        });
+
+        safeRevalidate("/admin");
+        return { success: true, message: `Akun staf "${prev.name}" berhasil dinonaktifkan.` };
+      } catch (err) {
+        invalidateDatabaseCheck();
+        console.warn("Prisma error deleteStaff, fallback ke in-memory:", err);
+      }
+    }
+
+    // Memory Store Fallback
+    const prev = memoryUsers.get(userId);
+    if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
+
+    prev.is_active = false;
+
+    await recordAuditLog({
+      actorId: admin.sub,
+      actorName: admin.name,
+      actorRole: admin.role,
+      entityName: "users",
+      entityId: userId,
+      action: "DEACTIVATE_STAFF",
+      oldData: { is_active: true },
+      newData: { is_active: false },
+      reason: "Akun staf dinonaktifkan permanen oleh Administrator",
+    });
+
+    safeRevalidate("/admin");
+    return { success: true, message: `Akun staf "${prev.name}" berhasil dinonaktifkan.` };
+  } catch (err) {
+    return { success: false, error: errorMessage(err, "Gagal menonaktifkan akun staf.") };
   }
 }

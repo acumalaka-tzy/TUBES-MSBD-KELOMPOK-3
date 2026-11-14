@@ -6,8 +6,11 @@ import {
   getAdminSettings,
   getDashboardSummary,
   getDataSource,
+  getDetailedSalesReport,
   listAdminCategories,
   listAdminProducts,
+  listAdminStaff,
+  listAdminTables,
   listAuditLogs,
   listStockMovements,
 } from "@/lib/admin/queries";
@@ -15,7 +18,16 @@ import type { PeriodKey } from "@/lib/admin/types";
 import type { AdminTabKey } from "@/components/admin/admin-ui";
 import { AdminDashboardShell } from "@/components/admin/AdminDashboardShell";
 
-const VALID_TABS: AdminTabKey[] = ["overview", "catalog", "stock", "settings", "audit"];
+const VALID_TABS: AdminTabKey[] = [
+  "overview",
+  "catalog",
+  "stock",
+  "tables",
+  "staff",
+  "reports",
+  "settings",
+  "audit",
+];
 const VALID_PERIODS: PeriodKey[] = ["today", "7d", "month", "custom"];
 
 function pickFirst(val: string | string[] | undefined): string | undefined {
@@ -65,6 +77,9 @@ async function AdminDashboardContent({
     movementsRes,
     auditRes,
     settingsRes,
+    tablesRes,
+    staffRes,
+    detailedReportRes,
   ] = await Promise.all([
     getDataSource(),
     getDashboardSummary(activePeriod, fromParam, toParam),
@@ -77,6 +92,9 @@ async function AdminDashboardContent({
       limit: 150,
     }),
     getAdminSettings(),
+    listAdminTables(),
+    listAdminStaff(),
+    getDetailedSalesReport(activePeriod, fromParam, toParam),
   ]);
 
   return (
@@ -100,6 +118,9 @@ async function AdminDashboardContent({
       movements={movementsRes.data}
       auditLogs={auditRes.data}
       settings={settingsRes.data}
+      tables={tablesRes.data}
+      staff={staffRes.data}
+      detailedReport={detailedReportRes.data}
     />
   );
 }
