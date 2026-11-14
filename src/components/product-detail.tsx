@@ -43,6 +43,31 @@ function getQuickNoteSuggestions(product: Product): string[] {
   ];
 }
 
+function mapOptionsToSelected(
+  optionGroups: Product["options"],
+  chosenOptions?: CartOption[],
+): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  optionGroups.forEach((g) => {
+    const matchedIds = chosenOptions
+      ? g.items
+          .filter((item) =>
+            chosenOptions.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
+          )
+          .map((item) => item.id)
+      : [];
+
+    if (matchedIds.length > 0) {
+      result[g.id] = matchedIds;
+    } else if (g.type === "single" && g.required && g.items.length > 0) {
+      result[g.id] = [g.items[0].id];
+    } else {
+      result[g.id] = [];
+    }
+  });
+  return result;
+}
+
 /**
  * Detail produk & Alur GrabFood (PRD 5.3):
  * 1. Mode "manage": Menampilkan varian yang sudah ada di keranjang + tombol "+ Buat Varian Baru".
@@ -55,12 +80,14 @@ export function ProductDetail({
   onAdded,
   initialCartItemId,
   initialEditItem,
+  initialPresetOptions,
 }: {
   product: Product;
   onClose: () => void;
   onAdded?: (message: string) => void;
   initialCartItemId?: string;
   initialEditItem?: ProductDetailInitialEdit;
+  initialPresetOptions?: CartOption[];
 }) {
   const { items, addItem, updateItem, updateQuantity } = useCart();
   const existingItems = items.filter((it) => it.productId === product.id);
@@ -73,9 +100,13 @@ export function ProductDetail({
     : undefined;
 
   // Jika produk sudah ada di keranjang, buka tampilan riwayat & "Make another" (seperti GrabFood)
-  // Kecuali jika initialCartItem diberikan, maka langsung buka mode "customize" untuk mengeditnya
+  // Kecuali jika sedang edit item atau datang dari preset varian rekomendasi
   const [viewMode, setViewMode] = useState<"manage" | "customize">(
-    initialCartItem || initialEditItem ? "customize" : existingItems.length > 0 ? "manage" : "customize",
+    initialCartItem || initialEditItem || initialPresetOptions
+      ? "customize"
+      : existingItems.length > 0
+        ? "manage"
+        : "customize",
   );
 
   // ID item keranjang yang sedang diedit (null jika membuat varian baru)
@@ -83,51 +114,12 @@ export function ProductDetail({
     initialCartItem?.id || initialEditItem?.cartItemId || null,
   );
 
-  const [selected, setSelected] = useState<Record<string, string[]>>(() => {
-    if (initialCartItem) {
-      const initialSelected: Record<string, string[]> = {};
-      product.options.forEach((g) => {
-        const matchedIds = g.items
-          .filter((item) =>
-            initialCartItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
-          )
-          .map((item) => item.id);
-
-        if (matchedIds.length > 0) {
-          initialSelected[g.id] = matchedIds;
-        } else if (g.type === "single" && g.required && g.items.length > 0) {
-          initialSelected[g.id] = [g.items[0].id];
-        } else {
-          initialSelected[g.id] = [];
-        }
-      });
-      return initialSelected;
-    }
-
-    if (initialEditItem) {
-      const initialSelected: Record<string, string[]> = {};
-      product.options.forEach((g) => {
-        const matchedIds = g.items
-          .filter((item) =>
-            initialEditItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
-          )
-          .map((item) => item.id);
-
-        if (matchedIds.length > 0) {
-          initialSelected[g.id] = matchedIds;
-        } else if (g.type === "single" && g.required && g.items.length > 0) {
-          initialSelected[g.id] = [g.items[0].id];
-        } else {
-          initialSelected[g.id] = [];
-        }
-      });
-      return initialSelected;
-    }
-
-    return Object.fromEntries(
-      product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
-    );
-  });
+  const [selected, setSelected] = useState<Record<string, string[]>>(() =>
+    mapOptionsToSelected(
+      product.options,
+      initialCartItem?.options ?? initialEditItem?.options ?? initialPresetOptions,
+    ),
+  );
 
   const [quantity, setQuantity] = useState(
     initialCartItem?.quantity || initialEditItem?.quantity || 1,
@@ -180,11 +172,7 @@ export function ProductDetail({
 
   function handleStartNew() {
     setEditingCartItemId(null);
-    setSelected(
-      Object.fromEntries(
-        product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
-      ),
-    );
+    setSelected(mapOptionsToSelected(product.options));
     setQuantity(1);
     setNote("");
     setViewMode("customize");
@@ -192,26 +180,7 @@ export function ProductDetail({
 
   function handleStartEdit(cartItem: CartItem) {
     setEditingCartItemId(cartItem.id);
-
-    // Cari opsi yang sesuai dengan cartItem.options
-    const newSelected: Record<string, string[]> = {};
-    product.options.forEach((g) => {
-      const matchedIds = g.items
-        .filter((item) =>
-          cartItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
-        )
-        .map((item) => item.id);
-
-      if (matchedIds.length > 0) {
-        newSelected[g.id] = matchedIds;
-      } else if (g.type === "single" && g.required && g.items.length > 0) {
-        newSelected[g.id] = [g.items[0].id];
-      } else {
-        newSelected[g.id] = [];
-      }
-    });
-
-    setSelected(newSelected);
+    setSelected(mapOptionsToSelected(product.options, cartItem.options));
     setQuantity(cartItem.quantity);
     setNote(cartItem.itemNotes || "");
     setViewMode("customize");

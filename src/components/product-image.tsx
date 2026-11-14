@@ -16,11 +16,13 @@ export function ProductImage({
   className,
   emojiClassName,
   sizes,
+  priority = false,
 }: {
   product: Pick<Product, "id" | "name" | "emoji" | "imageUrl">;
   className?: string;
   emojiClassName?: string;
   sizes?: string;
+  priority?: boolean;
 }) {
   const sources = [product.imageUrl, `/menu/${product.id}.svg`].filter(
     (s, i, arr): s is string => !!s && arr.indexOf(s) === i,
@@ -41,6 +43,7 @@ export function ProductImage({
           src={src}
           alt={product.name}
           fill
+          loading={priority ? "eager" : undefined}
           sizes={sizes ?? "(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"}
           unoptimized={src.endsWith(".svg") || /^https?:\/\//i.test(src) || src.startsWith("data:")}
           onError={() => setFailedCount((n) => n + 1)}

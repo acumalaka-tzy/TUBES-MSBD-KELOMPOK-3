@@ -188,7 +188,7 @@ function CheckoutContent() {
           Selesaikan Pesanan Anda
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Warkop Agam Senayan • Pesanan diproses otomatis ke kasir &amp; dapur
+          Warkop Agam Medan • Pesanan diproses otomatis ke kasir &amp; dapur
         </p>
       </div>
 
