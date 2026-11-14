@@ -1,20 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Check,
-  Flame,
-  Info,
-  MessageSquarePlus,
-  Minus,
-  PackageCheck,
-  Plus,
-  RotateCcw,
-  ShoppingBag,
-  Sparkles,
-  X,
-} from "lucide-react";
-import { useCart, type CartOption } from "@/context/cart-context";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Edit3, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { useCart, type CartItem, type CartOption } from "@/context/cart-context";
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
 import { getStockStatus, type Product } from "@/lib/menu-data";
@@ -35,8 +23,8 @@ function getQuickNoteSuggestions(product: Product): string[] {
       "Es batu sedikit",
       "Gula dipisah",
       "Kopi lebih kental",
-      " disajikan hangat",
-    ].map((s) => s.trim());
+      "Disajikan hangat",
+    ];
   }
   if (/mie|indomie|nasi|aceh|makanan/.test(text)) {
     return [
@@ -56,61 +44,99 @@ function getQuickNoteSuggestions(product: Product): string[] {
 }
 
 /**
- * Detail produk: Modal Dialog di Desktop, Bottom Sheet Drawer di Mobile (PRD 5.3 & 10.1).
- * Mendukung mode tambah item baru maupun edit item yang sudah ada di Keranjang.
+ * Detail produk & Alur GrabFood (PRD 5.3):
+ * 1. Mode "manage": Menampilkan varian yang sudah ada di keranjang + tombol "+ Buat Varian Baru".
+ *    Mengklik salah satu kartu pesanan akan masuk ke mode edit varian tersebut.
+ * 2. Mode "customize": Form pemilihan opsi/varian (Bisa untuk varian baru atau edit varian yang ada).
  */
 export function ProductDetail({
   product,
   onClose,
   onAdded,
+  initialCartItemId,
   initialEditItem,
 }: {
   product: Product;
   onClose: () => void;
   onAdded?: (message: string) => void;
+  initialCartItemId?: string;
   initialEditItem?: ProductDetailInitialEdit;
 }) {
-  const { addItem, updateItem, getProductCartQuantity, openCart } = useCart();
-  const isEditMode = !!initialEditItem;
+  const { items, addItem, updateItem, updateQuantity } = useCart();
+  const existingItems = items.filter((it) => it.productId === product.id);
+
+  const effectiveEditId = initialCartItemId || initialEditItem?.cartItemId;
+
+  // Jika item keranjang spesifik dioper untuk diedit, cari datanya
+  const initialCartItem = effectiveEditId
+    ? existingItems.find((it) => it.id === effectiveEditId) || items.find((it) => it.id === effectiveEditId)
+    : undefined;
+
+  // Jika produk sudah ada di keranjang, buka tampilan riwayat & "Make another" (seperti GrabFood)
+  // Kecuali jika initialCartItem diberikan, maka langsung buka mode "customize" untuk mengeditnya
+  const [viewMode, setViewMode] = useState<"manage" | "customize">(
+    initialCartItem || initialEditItem ? "customize" : existingItems.length > 0 ? "manage" : "customize",
+  );
+
+  // ID item keranjang yang sedang diedit (null jika membuat varian baru)
+  const [editingCartItemId, setEditingCartItemId] = useState<string | null>(
+    initialCartItem?.id || initialEditItem?.cartItemId || null,
+  );
 
   const [selected, setSelected] = useState<Record<string, string[]>>(() => {
-    if (initialEditItem) {
-      return Object.fromEntries(
-        product.options.map((g) => {
-          const matchedIds = g.items
-            .filter((item) =>
-              initialEditItem.options.some(
-                (opt) => opt.groupName === g.name && opt.optionName === item.name,
-              ),
-            )
-            .map((item) => item.id);
-          if (matchedIds.length > 0) return [g.id, matchedIds];
-          return [g.id, g.type === "single" && g.required && g.items[0] ? [g.items[0].id] : []];
-        }),
-      );
+    if (initialCartItem) {
+      const initialSelected: Record<string, string[]> = {};
+      product.options.forEach((g) => {
+        const matchedIds = g.items
+          .filter((item) =>
+            initialCartItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
+          )
+          .map((item) => item.id);
+
+        if (matchedIds.length > 0) {
+          initialSelected[g.id] = matchedIds;
+        } else if (g.type === "single" && g.required && g.items.length > 0) {
+          initialSelected[g.id] = [g.items[0].id];
+        } else {
+          initialSelected[g.id] = [];
+        }
+      });
+      return initialSelected;
     }
+
+    if (initialEditItem) {
+      const initialSelected: Record<string, string[]> = {};
+      product.options.forEach((g) => {
+        const matchedIds = g.items
+          .filter((item) =>
+            initialEditItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
+          )
+          .map((item) => item.id);
+
+        if (matchedIds.length > 0) {
+          initialSelected[g.id] = matchedIds;
+        } else if (g.type === "single" && g.required && g.items.length > 0) {
+          initialSelected[g.id] = [g.items[0].id];
+        } else {
+          initialSelected[g.id] = [];
+        }
+      });
+      return initialSelected;
+    }
+
     return Object.fromEntries(
-      product.options.map((g) => [
-        g.id,
-        g.type === "single" && g.required && g.items[0] ? [g.items[0].id] : [],
-      ]),
+      product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
     );
   });
 
-  const alreadyInCartQty = getProductCartQuantity(product.id, initialEditItem?.cartItemId);
-  const maxAllowedQty = Math.max(0, product.availableQty - alreadyInCartQty);
+  const [quantity, setQuantity] = useState(
+    initialCartItem?.quantity || initialEditItem?.quantity || 1,
+  );
+  const [note, setNote] = useState(
+    initialCartItem?.itemNotes || initialEditItem?.itemNotes || "",
+  );
 
-  const [quantity, setQuantity] = useState(() => {
-    if (initialEditItem) {
-      return Math.max(1, Math.min(initialEditItem.quantity, Math.max(1, maxAllowedQty)));
-    }
-    return 1;
-  });
-  const [note, setNote] = useState(initialEditItem?.itemNotes ?? "");
-
-  // Drag-to-close gesture untuk Bottom Sheet di Mobile
-  const touchStartY = useRef<number | null>(null);
-  const [dragOffset, setDragOffset] = useState(0);
+  const quickNotes = useMemo(() => getQuickNoteSuggestions(product), [product]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -123,25 +149,27 @@ export function ProductDetail({
     };
   }, [onClose]);
 
+  // Jika semua item dari produk ini dihapus saat di mode manage, alihkan ke mode customize
+  useEffect(() => {
+    if (viewMode === "manage" && existingItems.length === 0) {
+      setEditingCartItemId(null);
+      setViewMode("customize");
+    }
+  }, [existingItems.length, viewMode]);
+
   const status = getStockStatus(product.availableQty, product.minThreshold);
   const soldOut = status === "OUT_OF_STOCK";
-  const quickSuggestions = useMemo(() => getQuickNoteSuggestions(product), [product]);
 
   const chosen = useMemo(
     () =>
       product.options.flatMap((g) =>
-        g.items
-          .filter((i) => selected[g.id]?.includes(i.id))
-          .map((i) => ({ group: g.name, ...i })),
+        g.items.filter((i) => selected[g.id]?.includes(i.id)).map((i) => ({ group: g.name, ...i })),
       ),
     [product.options, selected],
   );
-
   const optionsTotal = chosen.reduce((s, i) => s + i.price, 0);
   const unitPrice = product.basePrice + optionsTotal;
-  const totalPrice = unitPrice * quantity;
   const missingRequired = product.options.some((g) => g.required && !selected[g.id]?.length);
-  const canSubmit = !soldOut && !missingRequired && maxAllowedQty > 0 && quantity >= 1;
 
   function toggle(groupId: string, itemId: string, type: "single" | "multi") {
     setSelected((prev) => {
@@ -156,532 +184,423 @@ export function ProductDetail({
     });
   }
 
-  function resetGroup(groupId: string) {
-    setSelected((prev) => ({ ...prev, [groupId]: [] }));
+  function handleStartNew() {
+    setEditingCartItemId(null);
+    setSelected(
+      Object.fromEntries(
+        product.options.map((g) => [g.id, g.type === "single" && g.required ? [g.items[0].id] : []]),
+      ),
+    );
+    setQuantity(1);
+    setNote("");
+    setViewMode("customize");
   }
 
-  function toggleQuickNote(chip: string) {
-    setNote((prev) => {
-      const parts = prev
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const exists = parts.some((p) => p.toLowerCase() === chip.toLowerCase());
-      const next = exists
-        ? parts.filter((p) => p.toLowerCase() !== chip.toLowerCase()).join(", ")
-        : [...parts, chip].join(", ");
-      return next.slice(0, 255);
+  function handleStartEdit(cartItem: CartItem) {
+    setEditingCartItemId(cartItem.id);
+
+    // Cari opsi yang sesuai dengan cartItem.options
+    const newSelected: Record<string, string[]> = {};
+    product.options.forEach((g) => {
+      const matchedIds = g.items
+        .filter((item) =>
+          cartItem.options.some((opt) => opt.groupName === g.name && opt.optionName === item.name),
+        )
+        .map((item) => item.id);
+
+      if (matchedIds.length > 0) {
+        newSelected[g.id] = matchedIds;
+      } else if (g.type === "single" && g.required && g.items.length > 0) {
+        newSelected[g.id] = [g.items[0].id];
+      } else {
+        newSelected[g.id] = [];
+      }
     });
+
+    setSelected(newSelected);
+    setQuantity(cartItem.quantity);
+    setNote(cartItem.itemNotes || "");
+    setViewMode("customize");
   }
 
-  function isChipActive(chip: string) {
-    return note
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .includes(chip.toLowerCase());
-  }
+  function handleSubmit() {
+    const formattedOptions = chosen.map((i) => ({
+      groupName: i.group,
+      optionName: i.name,
+      priceAdjustment: i.price,
+    }));
 
-  function submit() {
-    if (!canSubmit) return;
-
-    const payload = {
-      productId: product.id,
-      name: product.name,
-      unitPrice: product.basePrice,
-      quantity,
-      options: chosen.map((i) => ({
-        groupName: i.group,
-        optionName: i.name,
-        priceAdjustment: i.price,
-      })),
-      itemNotes: note.trim() || undefined,
-      imageUrl: product.imageUrl,
-      emoji: product.emoji,
-      categoryName: product.categoryName,
-      maxStock: product.availableQty,
-    };
-
-    if (isEditMode && initialEditItem) {
-      updateItem(initialEditItem.cartItemId, payload);
-      onAdded?.(`Pilihan ${product.name} berhasil diperbarui`);
-      onClose();
-      return;
-    }
-
-    const res = addItem(payload);
-    if (res.added > 0) {
-      onAdded?.(`${res.added}× ${product.name} ditambahkan ke keranjang`);
+    if (editingCartItemId) {
+      // Perbarui item yang sudah ada di keranjang
+      updateItem(editingCartItemId, {
+        productId: product.id,
+        name: product.name,
+        unitPrice: product.basePrice,
+        quantity,
+        options: formattedOptions,
+        itemNotes: note.trim() || undefined,
+      });
+      onAdded?.(`Pesanan ${product.name} berhasil diperbarui`);
     } else {
-      onAdded?.(`Stok maksimal ${product.name} sudah berada di keranjang`);
+      // Tambah sebagai varian baru
+      addItem({
+        productId: product.id,
+        name: product.name,
+        unitPrice: product.basePrice,
+        quantity,
+        options: formattedOptions,
+        itemNotes: note.trim() || undefined,
+      });
+      onAdded?.(`${quantity}× ${product.name} varian baru ditambahkan ke keranjang`);
     }
     onClose();
   }
 
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartY.current = e.touches[0].clientY;
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    if (touchStartY.current === null) return;
-    const delta = e.touches[0].clientY - touchStartY.current;
-    if (delta > 0) {
-      setDragOffset(Math.min(delta, 220));
-    }
-  }
-
-  function handleTouchEnd() {
-    if (dragOffset > 85) {
-      onClose();
-    } else {
-      setDragOffset(0);
-    }
-    touchStartY.current = null;
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
-      {/* Backdrop */}
-      <button
-        type="button"
-        aria-label="Tutup"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/55 backdrop-blur-[2px] transition-opacity"
-      />
-
-      {/* Modal Desktop / Bottom Sheet Mobile */}
+      <button type="button" aria-label="Tutup" onClick={onClose} className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
+      
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-detail-title"
-        style={dragOffset > 0 ? { transform: `translateY(${dragOffset}px)` } : undefined}
         className="relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-transform duration-150 md:max-h-[88dvh] md:max-w-xl md:rounded-3xl"
       >
-        {/* Drag Handle Bar (khusus Bottom Sheet Mobile) */}
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className="flex cursor-grab items-center justify-center pb-1.5 pt-2.5 active:cursor-grabbing md:hidden"
-        >
-          <div className="h-1.5 w-12 rounded-full bg-border" aria-hidden />
-        </div>
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-border md:hidden" aria-hidden />
 
-        {/* Tombol Tutup Floating */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Tutup detail"
-          className="absolute right-3.5 top-3.5 z-20 flex size-10 items-center justify-center rounded-full border border-border/60 bg-white/90 text-foreground shadow-md backdrop-blur transition-transform hover:scale-105 hover:bg-white"
-        >
-          <X className="size-5" aria-hidden />
-        </button>
-
-        {/* Konten Scrollable */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Foto Produk Besar & Badge Overlay */}
-          <div className="relative">
-            <ProductImage
-              product={product}
-              className={cn("aspect-[16/10]", soldOut && "grayscale")}
-              emojiClassName="text-8xl"
-              sizes="(min-width: 768px) 576px, 100vw"
-            />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
-
-            {/* Badges Kiri Atas */}
-            <div className="absolute left-3.5 top-3.5 flex flex-wrap items-center gap-1.5 pr-14">
-              {product.bestSeller && !soldOut && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-bold text-white shadow-md">
-                  <Flame className="size-3.5" aria-hidden />
-                  Best Seller
-                </span>
-              )}
-              {isEditMode && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-foreground/90 px-3 py-1 text-xs font-bold text-white shadow-md backdrop-blur">
-                  <Sparkles className="size-3" aria-hidden />
-                  Mode Ubah Pilihan
-                </span>
-              )}
-            </div>
-
-            {/* Kategori & Status Stok di Atas Foto Bawah */}
-            <div className="absolute bottom-3 left-3.5 right-3.5 flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-xs font-bold text-foreground shadow-sm backdrop-blur">
-                <span aria-hidden>{product.emoji}</span>
-                <span>{product.categoryName}</span>
-              </span>
-              <StockBadge status={status} className="shadow-sm backdrop-blur bg-white/95" />
-            </div>
-          </div>
-
-          <div className="space-y-5 p-5 sm:p-6">
-            {/* Judul, Deskripsi & Harga */}
-            <div>
-              <div className="flex items-start justify-between gap-3">
-                <h2
-                  id="product-detail-title"
-                  className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl"
-                >
+        {/* =========================================================================
+            TAMPILAN 1: MANAGE / MAKE ANOTHER (GAYA GRABFOOD)
+           ========================================================================= */}
+        {viewMode === "manage" ? (
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* Header Produk Ringkas */}
+            <div className="flex items-start justify-between gap-3 p-5 pb-3.5 border-b border-border">
+              <div className="min-w-0 flex-1">
+                <h2 id="product-detail-title" className="text-xl font-black text-foreground truncate">
                   {product.name}
                 </h2>
-                <div className="shrink-0 text-right">
-                  <p className="font-mono text-lg font-black text-primary sm:text-xl">
-                    {formatRupiah(unitPrice)}
-                  </p>
-                  {optionsTotal > 0 && (
-                    <p className="font-mono text-[11px] text-muted-foreground">
-                      Dasar {formatRupiah(product.basePrice)} + Varian {formatRupiah(optionsTotal)}
-                    </p>
-                  )}
-                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Harga dasar:{" "}
+                  <strong className="font-mono text-xs font-black text-foreground">
+                    {formatRupiah(product.basePrice)}
+                  </strong>
+                </p>
               </div>
 
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {product.description}
-              </p>
+              {/* Tombol Tutup */}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Tutup detail"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary-bg hover:bg-border/60 text-foreground transition-colors"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </div>
 
-              {/* Bar Informasi Stok Real-Time & Keranjang */}
-              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-secondary-bg/70 px-3.5 py-2.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <PackageCheck
-                    className={cn(
-                      "size-4 shrink-0",
-                      soldOut
-                        ? "text-error"
-                        : status === "LOW_STOCK"
-                          ? "text-warning"
-                          : "text-success",
-                    )}
-                    aria-hidden
-                  />
-                  <span className="text-muted-foreground">
-                    Ketersediaan hari ini:{" "}
-                    <strong className="font-mono font-bold text-foreground">
-                      {product.availableQty} porsi
-                    </strong>
-                  </span>
-                </div>
+            {/* List Item yang Sudah Berada di Keranjang */}
+            <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4">
+              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-primary" />
+                  <span>Pilihan yang Sedang di Keranjang ({existingItems.length})</span>
+                </span>
+                <span className="text-[11px] text-muted-foreground/80 normal-case italic">
+                  (klik item untuk edit varian)
+                </span>
+              </div>
 
-                {alreadyInCartQty > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      openCart();
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-bold text-primary transition-colors hover:bg-primary/20"
+              <div className="space-y-3">
+                {existingItems.map((cartItem) => (
+                  <div
+                    key={cartItem.id}
+                    onClick={() => handleStartEdit(cartItem)}
+                    className="group relative flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-border hover:border-primary/60 bg-white hover:bg-primary/[0.02] shadow-2xs transition-all cursor-pointer"
                   >
-                    <ShoppingBag className="size-3" aria-hidden />
-                    <span>{alreadyInCartQty} di keranjang</span>
-                  </button>
-                )}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative size-14 rounded-xl overflow-hidden shrink-0 border border-border/70 bg-secondary-bg">
+                        <ProductImage product={product} className="size-full object-cover" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                            {cartItem.name}
+                          </p>
+                          <Edit3 className="size-3 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                        </div>
+                        {cartItem.options && cartItem.options.length > 0 && (
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {cartItem.options.map((o) => o.optionName).join(", ")}
+                          </p>
+                        )}
+                        {cartItem.itemNotes && (
+                          <p className="text-[10px] text-muted-foreground italic truncate mt-0.5">
+                            &ldquo;{cartItem.itemNotes}&rdquo;
+                          </p>
+                        )}
+                        <p className="font-mono text-xs font-black text-foreground mt-1.5">
+                          {formatRupiah(cartItem.subtotal)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quantity Control Pill */}
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center border border-border rounded-full bg-white p-0.5 shadow-2xs shrink-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(cartItem.id, -1)}
+                        className="size-7 rounded-full flex items-center justify-center hover:bg-secondary-bg text-muted-foreground hover:text-foreground transition-colors"
+                        title="Kurangi"
+                      >
+                        <Minus className="size-3.5" />
+                      </button>
+                      <span className="w-6 text-center font-mono font-bold text-xs text-foreground">
+                        {cartItem.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(cartItem.id, 1)}
+                        className="size-7 rounded-full flex items-center justify-center hover:bg-secondary-bg text-primary transition-colors"
+                        title="Tambah"
+                      >
+                        <Plus className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Pilihan Varian / Topping */}
-            {product.options.length > 0 ? (
-              <div className="space-y-4">
-                {product.options.map((g) => {
-                  const selectedIds = selected[g.id] ?? [];
-                  const isSatisfied = !g.required || selectedIds.length > 0;
-
-                  return (
-                    <fieldset
-                      key={g.id}
-                      className="rounded-2xl border border-border bg-secondary-bg/35 p-4"
-                    >
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <div>
-                          <legend className="text-sm font-extrabold text-foreground">
-                            {g.name}
-                          </legend>
-                          <p className="text-[11px] text-muted-foreground">
-                            {g.type === "single"
-                              ? "Pilih 1 opsi penyajian"
-                              : `Opsional • Bisa pilih hingga ${g.items.length} tambahan`}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {g.type === "multi" && selectedIds.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => resetGroup(g.id)}
-                              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold text-muted-foreground hover:bg-border/60 hover:text-foreground"
-                            >
-                              <RotateCcw className="size-3" aria-hidden />
-                              Reset
-                            </button>
-                          )}
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold",
-                              g.required
-                                ? isSatisfied
-                                  ? "bg-success/15 text-success"
-                                  : "bg-warning/20 text-[#9A6A12]"
-                                : selectedIds.length > 0
-                                  ? "bg-primary/15 text-primary"
-                                  : "bg-secondary-bg text-muted-foreground",
-                            )}
-                          >
-                            {g.required ? (
-                              isSatisfied ? (
-                                <>
-                                  <Check className="size-3" aria-hidden />
-                                  Wajib • Terpilih
-                                </>
-                              ) : (
-                                "Wajib dipilih"
-                              )
-                            ) : selectedIds.length > 0 ? (
-                              `${selectedIds.length} dipilih`
-                            ) : (
-                              "Opsional"
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {g.items.map((item) => {
-                          const checked = selectedIds.includes(item.id);
-                          return (
-                            <label
-                              key={item.id}
-                              className={cn(
-                                "group relative flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-sm transition-all",
-                                checked
-                                  ? "border-primary bg-primary/8 shadow-2xs ring-1 ring-primary/30"
-                                  : "border-border bg-white hover:border-primary/40 hover:bg-secondary-bg/60",
-                                soldOut && "pointer-events-none opacity-60",
-                              )}
-                            >
-                              <span className="flex items-center gap-2.5 min-w-0">
-                                <input
-                                  type={g.type === "single" ? "radio" : "checkbox"}
-                                  name={g.id}
-                                  checked={!!checked}
-                                  disabled={soldOut}
-                                  onChange={() => toggle(g.id, item.id, g.type)}
-                                  className="sr-only"
-                                />
-                                <span
-                                  aria-hidden
-                                  className={cn(
-                                    "flex size-4.5 shrink-0 items-center justify-center border transition-colors",
-                                    g.type === "single" ? "rounded-full" : "rounded-md",
-                                    checked
-                                      ? "border-primary bg-primary text-white"
-                                      : "border-muted-foreground/40 bg-white group-hover:border-primary",
-                                  )}
-                                >
-                                  {checked &&
-                                    (g.type === "single" ? (
-                                      <span className="size-2 rounded-full bg-white" />
-                                    ) : (
-                                      <Check className="size-3 stroke-[3]" />
-                                    ))}
-                                </span>
-                                <span
-                                  className={cn(
-                                    "truncate font-semibold",
-                                    checked ? "text-foreground" : "text-foreground/85",
-                                  )}
-                                >
-                                  {item.name}
-                                </span>
-                              </span>
-
-                              <span
-                                className={cn(
-                                  "shrink-0 font-mono text-xs font-bold",
-                                  item.price > 0
-                                    ? checked
-                                      ? "text-primary"
-                                      : "text-muted-foreground"
-                                    : "text-[11px] font-medium text-muted-foreground/70",
-                                )}
-                              >
-                                {item.price > 0 ? `+${formatRupiah(item.price)}` : "Gratis"}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </fieldset>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-secondary-bg/50 px-4 py-3 text-xs text-muted-foreground">
-                <Info className="size-4 shrink-0 text-primary" aria-hidden />
-                <span>
-                  Menu ini disajikan sesuai takaran standar terbaik Warkop Agam. Anda tetap dapat
-                  menambahkan permintaan khusus pada kolom catatan di bawah.
-                </span>
-              </div>
-            )}
-
-            {/* Catatan Khusus Item + Quick Suggestion Chips */}
-            <div className="rounded-2xl border border-border bg-secondary-bg/35 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <label
-                  htmlFor="item-note"
-                  className="flex items-center gap-1.5 text-sm font-extrabold text-foreground"
-                >
-                  <MessageSquarePlus className="size-4 text-primary" aria-hidden />
-                  <span>Catatan Khusus Item</span>
-                  <span className="text-xs font-normal text-muted-foreground">(Opsional)</span>
-                </label>
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  {note.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setNote("")}
-                      className="font-semibold text-primary hover:underline"
-                    >
-                      Bersihkan
-                    </button>
-                  )}
-                  <span className="font-mono">{note.length}/255</span>
-                </div>
-              </div>
-
-              {/* Chip Saran Catatan Cepat */}
-              {!soldOut && (
-                <div className="mb-2.5 flex flex-wrap gap-1.5">
-                  {quickSuggestions.map((chip) => {
-                    const active = isChipActive(chip);
-                    return (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => toggleQuickNote(chip)}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
-                          active
-                            ? "border-primary bg-primary text-white shadow-2xs"
-                            : "border-border bg-white text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                        )}
-                      >
-                        <span>{active ? "✓" : "+"}</span>
-                        <span>{chip}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <textarea
-                id="item-note"
-                value={note}
-                disabled={soldOut}
-                onChange={(e) => setNote(e.target.value.slice(0, 255))}
-                rows={2}
-                placeholder="Contoh: gula dikurangi, kuah dipisah, jangan pakai bawang..."
-                className="w-full resize-none rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-              />
+            {/* Tombol Utama: BUAT VARIAN BARU */}
+            <div className="border-t border-border bg-white p-4">
+              <button
+                type="button"
+                onClick={handleStartNew}
+                className="h-12 w-full rounded-2xl bg-primary hover:bg-primary-hover text-white font-extrabold text-sm transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                <span>+ Buat Varian Baru</span>
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* Sticky Footer: Ringkasan Kalkulasi + Stepper Jumlah + Tombol Aksi */}
-        <div className="border-t border-border bg-white px-5 py-3.5 shadow-[0_-8px_20px_-12px_rgba(0,0,0,0.12)]">
-          {/* Bar Ringkasan Pilihan Aktif */}
-          {(chosen.length > 0 || quantity > 1) && !soldOut && (
-            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary-bg px-3 py-1.5 text-xs">
-              <span className="truncate text-muted-foreground">
-                {chosen.length > 0
-                  ? `Pilihan: ${chosen.map((c) => c.name).join(", ")}`
-                  : `${quantity} porsi × ${formatRupiah(unitPrice)}`}
-              </span>
-              <span className="shrink-0 font-mono font-bold text-foreground">
-                {quantity} × {formatRupiah(unitPrice)}
-              </span>
-            </div>
-          )}
-
-          {soldOut ? (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                Maaf, stok porsi menu ini sedang habis untuk hari ini.
-              </p>
-              <button
-                type="button"
-                disabled
-                className="h-11 shrink-0 rounded-xl bg-error/15 px-5 text-xs font-extrabold text-error"
-              >
-                Stok Habis
-              </button>
-            </div>
-          ) : maxAllowedQty <= 0 ? (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                Seluruh stok tersedia ({product.availableQty} porsi) sudah ada di keranjang Anda.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  openCart();
-                }}
-                className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-bold text-white shadow-sm hover:bg-primary-hover"
-              >
-                <ShoppingBag className="size-4" aria-hidden />
-                <span>Lihat Keranjang</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              {/* Stepper Jumlah Porsi */}
-              <div className="flex items-center rounded-2xl border border-border bg-secondary-bg p-0.5">
+        ) : (
+          /* =========================================================================
+              TAMPILAN 2: CUSTOMIZE (FORM PEMILIHAN VARIAN/OPSI - EDIT / BARU)
+             ========================================================================= */
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* Header Navigasi jika sebelumnya sudah ada item di keranjang */}
+            {existingItems.length > 0 ? (
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between">
                 <button
                   type="button"
-                  aria-label="Kurangi jumlah"
-                  disabled={quantity <= 1}
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                  onClick={() => {
+                    setEditingCartItemId(null);
+                    setViewMode("manage");
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Minus className="size-4" aria-hidden />
+                  <ArrowLeft className="size-3.5" />
+                  <span>
+                    {editingCartItemId ? "Batal Ubah" : `Kembali ke Pilihan (${existingItems.length})`}
+                  </span>
                 </button>
-                <span
-                  className="w-9 text-center font-mono text-sm font-extrabold text-foreground"
-                  aria-live="polite"
-                >
-                  {quantity}
-                </span>
+                <div className="flex items-center gap-2">
+                  {editingCartItemId && (
+                    <span className="text-[11px] font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10">
+                      Mode Edit Varian
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Tutup detail"
+                    className="flex size-7 items-center justify-center rounded-full bg-secondary-bg hover:bg-border/60 text-foreground transition-colors"
+                  >
+                    <X className="size-3.5" aria-hidden />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Tombol Tutup jika item belum pernah ditambahkan ke keranjang */
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Tutup detail"
+                className="absolute right-3.5 top-3.5 z-20 flex size-9 items-center justify-center rounded-full bg-white/90 shadow hover:bg-white text-foreground"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            )}
+
+            {/* Kontainer Form Varian */}
+            <div className="overflow-y-auto no-scrollbar flex-1">
+              <ProductImage
+                product={product}
+                className="aspect-[16/10]"
+                emojiClassName="text-8xl"
+                sizes="(min-width: 768px) 512px, 100vw"
+              />
+
+              <div className="space-y-5 p-5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">{product.categoryName}</span>
+                    <StockBadge status={status} />
+                  </div>
+                  <h2 className="mt-1 text-xl font-bold">{product.name}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{product.description}</p>
+                  <p className="mt-2 text-lg font-bold text-primary">{formatRupiah(product.basePrice)}</p>
+                </div>
+
+                {product.options.map((g) => (
+                  <fieldset key={g.id} className="space-y-2 border-t border-border pt-4">
+                    <div className="flex items-baseline justify-between">
+                      <legend className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        {g.name}
+                      </legend>
+                      <span className="text-[11px] text-muted-foreground">
+                        {g.required ? "Wajib dipilih" : "Opsional"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {g.items.map((i) => {
+                        const checked = selected[g.id]?.includes(i.id) ?? false;
+                        return (
+                          <label
+                            key={i.id}
+                            className={cn(
+                              "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-sm transition-colors",
+                              checked
+                                ? "border-primary bg-primary/5 font-semibold text-foreground"
+                                : "border-border hover:bg-secondary-bg text-foreground",
+                            )}
+                          >
+                            <span className="flex items-center gap-2.5">
+                              <input
+                                type={g.type === "single" ? "radio" : "checkbox"}
+                                name={g.id}
+                                value={i.id}
+                                checked={checked}
+                                onChange={() => toggle(g.id, i.id, g.type)}
+                                className="accent-primary"
+                              />
+                              <span>{i.name}</span>
+                            </span>
+                            {i.price > 0 && (
+                              <span className="font-mono text-xs text-muted-foreground">
+                                +{formatRupiah(i.price)}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ))}
+
+                {/* Catatan Tambahan & Quick Notes Chips */}
+                <div className="space-y-2 border-t border-border pt-4">
+                  <label htmlFor="item-note" className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Catatan Khusus (Opsional)
+                  </label>
+
+                  {quickNotes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {quickNotes.map((chip) => {
+                        const active = note.includes(chip);
+                        return (
+                          <button
+                            key={chip}
+                            type="button"
+                            disabled={soldOut}
+                            onClick={() => {
+                              if (active) {
+                                setNote((prev) =>
+                                  prev
+                                    .replace(chip, "")
+                                    .replace(/,\s*,/g, ",")
+                                    .replace(/^\s*,\s*|\s*,\s*$/g, "")
+                                    .trim(),
+                                );
+                              } else {
+                                setNote((prev) => (prev ? `${prev}, ${chip}` : chip));
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
+                              active
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-secondary-bg text-muted-foreground hover:bg-border/60 hover:text-foreground",
+                            )}
+                          >
+                            <span>{active ? "✓" : "+"}</span>
+                            <span>{chip}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <textarea
+                    id="item-note"
+                    value={note}
+                    disabled={soldOut}
+                    onChange={(e) => setNote(e.target.value.slice(0, 255))}
+                    rows={2}
+                    placeholder="Contoh: gula dikurangi, kuah dipisah, jangan pakai bawang..."
+                    className="w-full resize-none rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Form: Kontrol Kuantitas & Tombol Submit */}
+            <div className="border-t border-border bg-white p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center rounded-2xl border border-border bg-secondary-bg p-0.5">
+                  <button
+                    type="button"
+                    aria-label="Kurangi jumlah"
+                    disabled={quantity <= 1}
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                  >
+                    <Minus className="size-4" aria-hidden />
+                  </button>
+                  <span className="w-8 text-center text-sm font-semibold font-mono" aria-live="polite">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Tambah jumlah"
+                    disabled={quantity >= product.availableQty}
+                    onClick={() => setQuantity((q) => Math.min(product.availableQty, q + 1))}
+                    className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                  >
+                    <Plus className="size-4" aria-hidden />
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  aria-label="Tambah jumlah"
-                  disabled={quantity >= maxAllowedQty}
-                  onClick={() => setQuantity((q) => Math.min(maxAllowedQty, q + 1))}
-                  className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-white hover:text-primary disabled:opacity-40"
+                  onClick={handleSubmit}
+                  disabled={missingRequired || soldOut}
+                  className="h-11 flex-1 rounded-2xl bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
                 >
-                  <Plus className="size-4" aria-hidden />
+                  {editingCartItemId ? (
+                    <span>Simpan Perubahan · {formatRupiah(unitPrice * quantity)}</span>
+                  ) : (
+                    <span>Tambah · {formatRupiah(unitPrice * quantity)}</span>
+                  )}
                 </button>
               </div>
-
-              {/* Tombol Tambah / Simpan ke Keranjang */}
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!canSubmit}
-                className="flex h-11 flex-1 items-center justify-between gap-2 rounded-2xl bg-primary px-5 text-sm font-bold text-white shadow-md transition-all hover:bg-primary-hover disabled:opacity-50"
-              >
-                <span className="flex items-center gap-2">
-                  <ShoppingBag className="size-4" aria-hidden />
-                  <span>{isEditMode ? "Simpan Perubahan" : "Tambah Pesanan"}</span>
-                </span>
-                <span className="font-mono text-sm font-extrabold">
-                  {formatRupiah(totalPrice)}
-                </span>
-              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

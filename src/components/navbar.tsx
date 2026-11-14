@@ -2,12 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useState } from "react";
-import { ArrowRight, Coffee, Compass, Home, Menu, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
+import { Suspense, useState, useEffect } from "react";
+import {
+  ArrowRight,
+  Coffee,
+  Compass,
+  Home,
+  Menu,
+  ShoppingBag,
+  UtensilsCrossed,
+  X,
+  User,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+} from "lucide-react";
 import { CartDrawer } from "@/components/cart-drawer";
 import { useCart } from "@/context/cart-context";
 import { useActiveTable } from "@/lib/active-table";
 import { cn, formatRupiah } from "@/lib/utils";
+import { getCurrentUserAction, logoutAction } from "@/app/actions/auth";
 
 const links = [
   { href: "/", label: "Beranda", icon: Home },
@@ -21,6 +35,20 @@ function NavbarContent() {
   const { items, itemCount, subtotal, totalAmount, isCartOpen, openCart, closeCart } = useCart();
   const table = useActiveTable();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    role: string;
+  } | null>(null);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    getCurrentUserAction().then((u) => {
+      setCurrentUser(u);
+    });
+  }, [pathname]);
 
   const checkoutHref = table ? `/checkout?table=${encodeURIComponent(table)}` : "/checkout";
   const showStickyMobileCart =
@@ -63,6 +91,7 @@ function NavbarContent() {
           </nav>
 
           <div className="flex items-center gap-2">
+            {/* Tombol Keranjang */}
             <button
               type="button"
               onClick={openCart}
@@ -82,6 +111,77 @@ function NavbarContent() {
                 </span>
               )}
             </button>
+
+            {/* Tombol Akun / Login Desktop */}
+            {currentUser ? (
+              <div className="relative hidden sm:block">
+                <button
+                  type="button"
+                  onClick={() => setUserDropdownOpen((v) => !v)}
+                  className="flex h-11 items-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-foreground transition-all hover:border-primary/50"
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <User className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="max-w-[100px] truncate font-bold">{currentUser.name}</span>
+                  <span className="rounded-md bg-secondary-bg px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                    {currentUser.role}
+                  </span>
+                </button>
+
+                {userDropdownOpen && (
+                  <div
+                    className="absolute right-0 mt-1.5 w-48 rounded-xl border border-border bg-white p-1.5 shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100"
+                    onMouseLeave={() => setUserDropdownOpen(false)}
+                  >
+                    <div className="border-b border-border px-3 py-2">
+                      <p className="truncate text-xs font-bold text-foreground">{currentUser.name}</p>
+                      <p className="text-[10px] font-mono text-primary font-semibold">{currentUser.role}</p>
+                    </div>
+
+                    {currentUser.role === "ADMIN" && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary-bg"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                        <span>Panel Admin</span>
+                      </Link>
+                    )}
+
+                    {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
+                      <Link
+                        href="/cashier"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary-bg"
+                      >
+                        <UtensilsCrossed className="h-3.5 w-3.5 text-primary" />
+                        <span>POS Kasir</span>
+                      </Link>
+                    )}
+
+                    <form action={logoutAction}>
+                      <button
+                        type="submit"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-error hover:bg-error/10 text-left"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        <span>Keluar (Logout)</span>
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex h-11 items-center gap-1.5 rounded-xl border border-border bg-white px-3.5 py-2 text-xs font-bold text-foreground transition-all hover:border-primary hover:text-primary"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Masuk</span>
+              </Link>
+            )}
 
             <button
               type="button"
@@ -119,6 +219,78 @@ function NavbarContent() {
               <ShoppingBag className="h-4 w-4" aria-hidden />
               Halaman Checkout ({itemCount})
             </Link>
+
+            {/* Bagian Akun di Mobile Menu */}
+            <div className="mt-3 border-t border-border pt-3">
+              {currentUser ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between rounded-xl bg-secondary-bg p-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <User className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground">{currentUser.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{currentUser.phone}</p>
+                      </div>
+                    </div>
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold font-mono text-primary">
+                      {currentUser.role}
+                    </span>
+                  </div>
+
+                  {currentUser.role === "ADMIN" && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-primary hover:bg-secondary-bg"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      Panel Administrator
+                    </Link>
+                  )}
+
+                  {(currentUser.role === "CASHIER" || currentUser.role === "ADMIN") && (
+                    <Link
+                      href="/cashier"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-primary hover:bg-secondary-bg"
+                    >
+                      <UtensilsCrossed className="h-4 w-4" />
+                      POS Kasir
+                    </Link>
+                  )}
+
+                  <form action={logoutAction}>
+                    <button
+                      type="submit"
+                      className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-error hover:bg-error/10 text-left"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Keluar (Logout)
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-white text-xs font-bold text-foreground hover:border-primary hover:text-primary"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Masuk
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-white hover:bg-primary-hover"
+                  >
+                    Daftar Akun
+                  </Link>
+                </div>
+              )}
+            </div>
           </nav>
         )}
       </header>
