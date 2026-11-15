@@ -16,7 +16,6 @@ import {
   RotateCcw,
   ShoppingBag,
   SlidersHorizontal,
-  Sparkles,
   Trash2,
   Utensils,
   X,
@@ -41,7 +40,6 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     updateItemNotes,
     removeItem,
     clearCart,
-    loadSampleItems,
     getProductCartQuantity,
     getProductMaxStock,
     subtotal,
@@ -384,7 +382,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   Pilih hidangan khas Aceh &amp; Medan langsung dari rekomendasi di bawah atau buka
                   Katalog Menu.
                 </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <div className="mt-4 flex justify-center">
                   <Link
                     href="/menu"
                     onClick={onClose}
@@ -393,14 +391,6 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                     <span>Lihat Katalog Menu</span>
                     <ArrowRight className="size-3.5" aria-hidden />
                   </Link>
-                  <button
-                    type="button"
-                    onClick={loadSampleItems}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-border bg-secondary-bg px-3.5 text-xs font-bold text-foreground hover:bg-border/60"
-                  >
-                    <Sparkles className="size-3.5 text-primary" aria-hidden />
-                    <span>Muat Contoh Pesanan</span>
-                  </button>
                 </div>
 
                 {/* Rekomendasi Interaktif dengan Pemilih Varian Saat Kosong */}
