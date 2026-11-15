@@ -7,7 +7,7 @@ export interface OutletSocialLink {
 }
 
 export const OUTLET_PROFILE = {
-  brandTitle: "Warkop Agam Medan — Outlet Berdikari",
+  brandTitle: "Warkop Agam Medan",
   outletBadge: "Outlet Berdikari · Padang Bulan",
   menuAddressNote: "Jl. Berdikari Baru No. 21 B, Padang Bulan, Medan",
   tagline: "Nongki Sambil Nge-Indomie...",

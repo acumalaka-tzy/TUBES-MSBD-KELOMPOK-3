@@ -16,7 +16,6 @@ import {
   Wifi,
   MessageCircle,
 } from "lucide-react";
-import { OpenStatus } from "@/components/open-status";
 import type { RestaurantInfo } from "@/lib/menu-data";
 import {
   buildOutletLinks,
@@ -61,20 +60,10 @@ export function OutletLocationGrid({
       {/* Kartu Informasi Outlet */}
       <div className="flex flex-col justify-between rounded-xl border border-border bg-white p-4 shadow-xs sm:p-6 lg:col-span-5">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex items-center rounded-md bg-secondary-bg px-2.5 py-1 text-[11px] font-bold text-foreground">
-              {OUTLET_PROFILE.outletBadge}
-            </span>
-            <OpenStatus
-              openingHours={restaurant.openingHours}
-              forceClosed={!restaurant.isWebOrderingOpen}
-            />
-          </div>
-
           {showStorefrontPreview && (
             <Link
-              href="/info"
-              className="group mt-4 flex items-center gap-3.5 rounded-lg border border-border bg-secondary-bg/60 p-2.5 transition-colors hover:border-primary/50"
+              href="/#kategori"
+              className="group mb-3.5 flex items-center gap-3.5 rounded-lg border border-border bg-secondary-bg/60 p-2.5 transition-colors hover:border-primary/50"
             >
               <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-md border border-border bg-secondary-bg">
                 <Image
@@ -92,15 +81,11 @@ export function OutletLocationGrid({
                 <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
                   {OUTLET_PROFILE.menuAddressNote}
                 </p>
-                <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-primary">
-                  <span>Tentang outlet ini</span>
-                  <ArrowRight className="h-3 w-3" aria-hidden />
-                </span>
               </div>
             </Link>
           )}
 
-          <h3 className="mt-3.5 text-lg font-extrabold tracking-tight text-foreground sm:text-xl">
+          <h3 className="text-lg font-extrabold tracking-tight text-foreground sm:text-xl">
             {restaurant.name}
           </h3>
 
@@ -209,7 +194,7 @@ export function OutletLocationGrid({
           </a>
           {showStorefrontPreview && (
             <Link
-              href="/info"
+              href="/#kategori"
               className="flex h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 text-xs font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
             >
               <span>Info Lengkap</span>

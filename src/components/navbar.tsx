@@ -28,7 +28,7 @@ const links = [
   { href: "/", label: "Beranda", icon: Home },
   { href: "/menu", label: "Katalog Menu", icon: UtensilsCrossed },
   { href: "/lacak", label: "Lacak Pesanan", icon: Compass },
-  { href: "/info", label: "Info Restoran", icon: Coffee },
+  { href: "/#kategori", label: "Info Restoran", icon: Coffee },
 ];
 
 function NavbarContent() {

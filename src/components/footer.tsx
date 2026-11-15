@@ -27,7 +27,7 @@ function FooterContent() {
           <Link href="/menu" className="hover:text-primary">Katalog Menu</Link>
           <Link href="/checkout" className="hover:text-primary">Checkout</Link>
           <Link href="/lacak" className="hover:text-primary">Lacak Pesanan</Link>
-          <Link href="/info" className="hover:text-primary">Info Restoran</Link>
+          <Link href="/#kategori" className="hover:text-primary">Info Restoran</Link>
         </nav>
         <p>© Warkop Agam • Tugas Besar MSBD Kelompok 3</p>
       </div>

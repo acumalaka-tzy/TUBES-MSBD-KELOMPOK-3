@@ -1,80 +1,131 @@
 import { Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { HeroShowcase } from "@/components/home/HeroShowcase";
 import {
   QuickTrackBanner,
   RestaurantInfoSection,
 } from "@/components/home/InteractiveSections";
 import { ProductCard } from "@/components/product-card";
-import { getCatalog } from "@/lib/catalog";
+import { OUTLET_PROFILE } from "@/lib/restaurant-profile";
+import { getOutletSnapshot } from "@/lib/restaurant-snapshot";
 
-function Hero() {
-  return (
-    <section className="border-b border-border bg-secondary-bg text-foreground">
-      <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 md:grid-cols-12 md:py-14">
-        <div className="md:col-span-7">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Jalan Berdikari Baru 21, Padang Bulan · Buka 24 Jam
-          </p>
+/** Bagian Beranda yang memuat Hero Profil Restoran & Seluruh Seksi Terkait. */
+async function HomeSections() {
+  const { catalog, tableStats } = await getOutletSnapshot();
+  const { categories, products, restaurant } = catalog;
 
-          <h1 className="mt-2.5 text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem]">
-            Sajian <span className="text-primary">Warkop Agam</span>, Pesan Langsung dari Meja.
-          </h1>
-
-          <p className="mt-3.5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Nikmati Kopi Sanger, TST, Teh Tarik, Soda Badak, Indomie Bangladesh, Mie Aceh, Roti
-            Cane hingga Aneka Jus Segar 24 jam. Bisa pesan langsung di meja lewat scan QR atau
-            bungkus bawa pulang.
-          </p>
-
-          <div className="mt-6 grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <Link
-              href="/menu"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
-            >
-              <span>Lihat Daftar Menu</span>
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
-              href="/lacak"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 text-sm font-bold text-foreground transition-colors hover:border-primary hover:text-primary"
-            >
-              <span>Cek Pesanan</span>
-            </Link>
-            <Link
-              href="/#info"
-              className="py-1 text-center text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline sm:px-2 sm:py-0"
-            >
-              Lokasi &amp; Kontak
-            </Link>
-          </div>
-
-          <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-4 text-xs font-medium text-muted-foreground">
-            <span>Pesan QR Meja &amp; Takeaway</span>
-            <span aria-hidden className="text-border">•</span>
-            <span>Bayar QRIS atau Tunai di Kasir</span>
-            <span aria-hidden className="text-border">•</span>
-            <span>Stok Porsi Terpantau Langsung</span>
-          </div>
-        </div>
-
-        <div className="md:col-span-5">
-          <HeroShowcase />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** Bagian yang datanya diambil dari database MySQL (dengan fallback otomatis). */
-async function CatalogSections() {
-  const { categories, products, restaurant } = await getCatalog();
   const flaggedBest = products.filter((p) => p.bestSeller);
   const bestSellers = flaggedBest.length > 0 ? flaggedBest : products.slice(0, 4);
 
+  const metrics = [
+    {
+      label: "Jam Operasional",
+      value: restaurant.openingHours.toLowerCase().includes("24 jam") ? "24 Jam" : "Setiap Hari",
+      sub: restaurant.openingHours,
+    },
+    {
+      label: "Sajian Tersedia",
+      value: `${products.length} Menu`,
+      sub: `${categories.length} kategori pilihan`,
+    },
+    {
+      label: "Area Makan",
+      value: `${tableStats.totalTables} Meja`,
+      sub: `${tableStats.totalTables} meja • ${tableStats.totalSeats} kursi`,
+    },
+  ];
+
   return (
     <>
+      {/* Hero & Profil Outlet Berdikari (Versi Bersih & Gambar Diperbesar) */}
+      <section className="border-b border-border bg-secondary-bg text-foreground">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-8 sm:gap-10 sm:py-10 md:grid-cols-12 md:py-14">
+          <div className="min-w-0 md:col-span-7">
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem]">
+              {restaurant.name} Medan
+            </h1>
+
+            <p className="mt-1.5 text-xs font-semibold text-primary sm:text-sm">
+              &ldquo;{OUTLET_PROFILE.tagline}&rdquo; · {OUTLET_PROFILE.menuAddressNote}
+            </p>
+
+            <div className="mt-4 max-w-2xl space-y-2.5 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+              <p>
+                {restaurant.name} Outlet Berdikari berlokasi di {restaurant.address} dan melayani
+                pelanggan {restaurant.openingHours.toLowerCase()}. Tersedia {products.length} menu
+                khas warkop Medan dan Aceh dalam {categories.length} kategori, mulai dari Kopi
+                Sanger, TST, Teh Tarik, dan Soda Badak hingga Indomie Bangladesh, Mie Aceh, Roti
+                Cane, Nasi Goreng, serta Aneka Jus Segar.
+              </p>
+              <p>
+                Pengunjung dapat menikmati Wi-Fi gratis serta stop kontak di area makan berkapasitas{" "}
+                {tableStats.totalTables} meja ({tableStats.totalSeats} kursi), memesan langsung dari
+                meja lewat scan QR atau Takeaway, lalu menyelesaikan pembayaran melalui Midtrans
+                (QRIS, E-Wallet, Virtual Account) maupun tunai di kasir.
+              </p>
+            </div>
+
+            {/* Metrik 3 Kolom Ringkas */}
+            <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
+              {metrics.map((m) => (
+                <div
+                  key={m.label}
+                  className="min-w-0 rounded-xl border border-border bg-white px-3.5 py-3 shadow-2xs"
+                >
+                  <p className="text-[11px] font-semibold text-muted-foreground">{m.label}</p>
+                  <p className="mt-0.5 text-base font-extrabold text-foreground sm:text-lg">
+                    {m.value}
+                  </p>
+                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{m.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Tombol Aksi */}
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link
+                href="/menu"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-bold text-white transition-colors hover:bg-primary-hover shadow-2xs"
+              >
+                <span>Jelajahi Menu</span>
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <Link
+                href="/checkout"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 text-sm font-bold text-foreground transition-colors hover:border-primary hover:text-primary shadow-2xs"
+              >
+                <span>Pesan Sekarang</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Foto Resmi Outlet Warkop Agam Berdikari (Diperbesar) */}
+          <div className="md:col-span-5">
+            <figure className="mx-auto w-full max-w-[340px] sm:max-w-[400px] lg:max-w-[440px] overflow-hidden rounded-2xl border border-border bg-white shadow-md transition-all hover:shadow-lg">
+              <div className="relative aspect-[4/3] sm:aspect-[4/3.5] lg:aspect-[4/3.2] w-full bg-secondary-bg">
+                <Image
+                  src={OUTLET_PROFILE.storefrontImage}
+                  alt={OUTLET_PROFILE.storefrontAlt}
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 95vw, 450px"
+                  className="object-cover"
+                />
+              </div>
+              <figcaption className="border-t border-border p-3.5 sm:p-4">
+                <p className="text-xs sm:text-sm font-extrabold text-foreground">
+                  {OUTLET_PROFILE.brandTitle}
+                </p>
+                <p className="mt-0.5 text-[11px] sm:text-xs leading-relaxed text-muted-foreground">
+                  {restaurant.address}
+                </p>
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
       {!restaurant.isWebOrderingOpen && (
         <div role="status" className="border-b border-error/20 bg-error/10 text-error">
           <p className="mx-auto max-w-6xl px-4 py-3 text-center text-xs font-bold">
@@ -84,8 +135,8 @@ async function CatalogSections() {
         </div>
       )}
 
-      {/* Kategori menu */}
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      {/* Kategori Menu (Dimulai langsung di bawah Hero Beranda) */}
+      <section id="kategori" className="scroll-mt-20 mx-auto w-full max-w-6xl px-4 py-10">
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
@@ -172,15 +223,16 @@ async function CatalogSections() {
       {/* Cara pesan & cek status pesanan */}
       <QuickTrackBanner />
 
-      {/* Info restoran */}
+      {/* Info restoran & Peta Google Maps */}
       <RestaurantInfoSection restaurant={restaurant} />
     </>
   );
 }
 
-function SectionsSkeleton() {
+function HomeSkeleton() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-10" aria-hidden>
+      <div className="h-48 sm:h-64 animate-pulse rounded-2xl bg-secondary-bg" />
       <div className="h-7 w-48 animate-pulse rounded-lg bg-secondary-bg" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -193,11 +245,8 @@ function SectionsSkeleton() {
 
 export default function HomePage() {
   return (
-    <>
-      <Hero />
-      <Suspense fallback={<SectionsSkeleton />}>
-        <CatalogSections />
-      </Suspense>
-    </>
+    <Suspense fallback={<HomeSkeleton />}>
+      <HomeSections />
+    </Suspense>
   );
 }
