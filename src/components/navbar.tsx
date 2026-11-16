@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import {
   ArrowRight,
@@ -21,6 +21,10 @@ import {
 import { CartDrawer } from "@/components/cart-drawer";
 import { useCart } from "@/context/cart-context";
 import { useActiveTable } from "@/lib/active-table";
+import {
+  consumePendingScrollOnHome,
+  triggerScrollToSectionAcrossPages,
+} from "@/lib/smooth-scroll";
 import { cn, formatRupiah } from "@/lib/utils";
 import { getCurrentUserAction, logoutAction } from "@/app/actions/auth";
 
@@ -28,11 +32,12 @@ const links = [
   { href: "/", label: "Beranda", icon: Home },
   { href: "/menu", label: "Katalog Menu", icon: UtensilsCrossed },
   { href: "/lacak", label: "Lacak Pesanan", icon: Compass },
-  { href: "/#kategori", label: "Info Restoran", icon: Coffee },
+  { href: "/#info", label: "Info Restoran", icon: Coffee },
 ];
 
 function NavbarContent() {
   const pathname = usePathname();
+  const router = useRouter();
   const { items, itemCount, subtotal, totalAmount, isCartOpen, openCart, closeCart, storeSettings } = useCart();
   const table = useActiveTable();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -49,6 +54,9 @@ function NavbarContent() {
     getCurrentUserAction().then((u) => {
       setCurrentUser(u);
     });
+    if (pathname === "/") {
+      consumePendingScrollOnHome("info", -72, 680);
+    }
   }, [pathname]);
 
   const checkoutHref = table ? `/checkout?table=${encodeURIComponent(table)}` : "/checkout";
@@ -58,6 +66,24 @@ function NavbarContent() {
     !pathname.startsWith("/orders/") &&
     !pathname.startsWith("/admin") &&
     !pathname.startsWith("/cashier");
+
+  function handleNavLinkClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+    const wasMobileOpen = mobileMenuOpen;
+    if (wasMobileOpen) {
+      setMobileMenuOpen(false);
+    }
+
+    if (href === "/#info") {
+      e.preventDefault();
+      if (wasMobileOpen && pathname === "/") {
+        setTimeout(() => {
+          triggerScrollToSectionAcrossPages("info", () => router.push("/"), -72, 680);
+        }, 160);
+      } else {
+        triggerScrollToSectionAcrossPages("info", () => router.push("/"), -72, 680);
+      }
+    }
+  }
 
   // Di rute Dashboard Admin & POS Kasir, sembunyikan Navbar publik untuk tampilan dashboard dedicated
   if (pathname.startsWith("/admin") || pathname.startsWith("/cashier")) {
@@ -87,8 +113,9 @@ function NavbarContent() {
                 <Link
                   key={l.href}
                   href={l.href}
+                  onClick={(e) => handleNavLinkClick(e, l.href)}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+                    "rounded-lg px-3 py-1.5 text-sm font-semibold transition-all duration-200",
                     active
                       ? "bg-secondary-bg text-primary"
                       : "text-foreground/75 hover:bg-secondary-bg/70 hover:text-foreground",
@@ -226,135 +253,174 @@ function NavbarContent() {
               aria-label={mobileMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((v) => !v)}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-border md:hidden"
+              className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white transition-all duration-200 active:scale-95 md:hidden"
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
+              <Menu
+                className={cn(
+                  "absolute h-5 w-5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  mobileMenuOpen ? "rotate-90 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100",
+                )}
+                aria-hidden
+              />
+              <X
+                className={cn(
+                  "absolute h-5 w-5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  mobileMenuOpen ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-50 opacity-0",
+                )}
+                aria-hidden
+              />
             </button>
           </div>
         </div>
 
-        {mobileMenuOpen && (
-          <nav aria-label="Navigasi mobile" className="border-t border-border bg-white px-4 py-3 md:hidden">
-            {links.map((l) => {
-              const Icon = l.icon;
-              const active = pathname === l.href;
-              return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={cn(
-                    "flex h-11 items-center gap-2.5 rounded-xl px-3 text-sm font-semibold transition-colors",
-                    active
-                      ? "bg-secondary-bg text-primary"
-                      : "text-foreground hover:bg-secondary-bg",
-                  )}
-                >
-                  <Icon className="h-4 w-4 text-primary" aria-hidden />
-                  {l.label}
-                </Link>
-              );
-            })}
-            <Link
-              href={checkoutHref}
-              onClick={() => setMobileMenuOpen(false)}
-              className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white"
-            >
-              <ShoppingBag className="h-4 w-4" aria-hidden />
-              Halaman Checkout ({itemCount})
-            </Link>
-
-            {/* Bagian Akun di Mobile Menu */}
-            <div className="mt-3 border-t border-border pt-3">
-              {currentUser ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between rounded-xl bg-secondary-bg p-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <User className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-foreground">{currentUser.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{currentUser.phone}</p>
-                      </div>
-                    </div>
-                    <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold font-mono text-primary">
-                      {currentUser.role}
-                    </span>
-                  </div>
-
-                  {currentUser.role === "ADMIN" && (
-                    <Link
-                      href="/admin"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-primary hover:bg-secondary-bg"
-                    >
-                      <ShieldCheck className="h-4 w-4" />
-                      Panel Administrator
-                    </Link>
-                  )}
-
-                  {currentUser.role === "CASHIER" && (
-                    <Link
-                      href="/cashier"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-primary hover:bg-secondary-bg"
-                    >
-                      <UtensilsCrossed className="h-4 w-4" />
-                      POS Kasir
-                    </Link>
-                  )}
-
-                  {currentUser.role !== "ADMIN" && (
-                    <Link
-                      href="/lacak"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-foreground hover:bg-secondary-bg"
-                    >
-                      <ReceiptText className="h-4 w-4 text-primary" />
-                      Riwayat Pesanan
-                    </Link>
-                  )}
-
-                  <form action={logoutAction}>
-                    <button
-                      type="submit"
-                      className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-error hover:bg-error/10 text-left"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Keluar (Logout)
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-white text-xs font-bold text-foreground hover:border-primary hover:text-primary"
-                  >
-                    <LogIn className="h-4 w-4" />
-                    Masuk
-                  </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-white hover:bg-primary-hover"
-                  >
-                    Daftar Akun
-                  </Link>
-                </div>
+        {/* Panel Navigasi Mobile dengan Animasi Accordion Smooth */}
+        <div
+          className={cn(
+            "grid overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:hidden",
+            mobileMenuOpen
+              ? "grid-rows-[1fr] border-t border-border opacity-100"
+              : "pointer-events-none grid-rows-[0fr] border-t border-transparent opacity-0",
+          )}
+        >
+          <div className="min-h-0">
+            <nav
+              aria-label="Navigasi mobile"
+              className={cn(
+                "bg-white px-4 py-3 shadow-lg transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                mobileMenuOpen ? "translate-y-0" : "-translate-y-2",
               )}
-            </div>
-          </nav>
-        )}
+            >
+              {links.map((l) => {
+                const Icon = l.icon;
+                const active = pathname === l.href;
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={(e) => handleNavLinkClick(e, l.href)}
+                    className={cn(
+                      "flex h-11 items-center gap-2.5 rounded-xl px-3 text-sm font-semibold transition-all duration-200 active:scale-[0.99]",
+                      active
+                        ? "bg-secondary-bg text-primary"
+                        : "text-foreground hover:bg-secondary-bg",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 text-primary" aria-hidden />
+                    {l.label}
+                  </Link>
+                );
+              })}
+              <Link
+                href={checkoutHref}
+                onClick={() => setMobileMenuOpen(false)}
+                className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white transition-all duration-200 hover:bg-primary-hover active:scale-[0.99]"
+              >
+                <ShoppingBag className="h-4 w-4" aria-hidden />
+                Halaman Checkout ({itemCount})
+              </Link>
+
+              {/* Bagian Akun di Mobile Menu */}
+              <div className="mt-3 border-t border-border pt-3">
+                {currentUser ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between rounded-xl bg-secondary-bg p-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-foreground">{currentUser.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{currentUser.phone}</p>
+                        </div>
+                      </div>
+                      <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold font-mono text-primary">
+                        {currentUser.role}
+                      </span>
+                    </div>
+
+                    {currentUser.role === "ADMIN" && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-primary hover:bg-secondary-bg"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Panel Administrator
+                      </Link>
+                    )}
+
+                    {currentUser.role === "CASHIER" && (
+                      <Link
+                        href="/cashier"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-primary hover:bg-secondary-bg"
+                      >
+                        <UtensilsCrossed className="h-4 w-4" />
+                        POS Kasir
+                      </Link>
+                    )}
+
+                    {currentUser.role !== "ADMIN" && (
+                      <Link
+                        href="/lacak"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-foreground hover:bg-secondary-bg"
+                      >
+                        <ReceiptText className="h-4 w-4 text-primary" />
+                        Riwayat Pesanan
+                      </Link>
+                    )}
+
+                    <form action={logoutAction}>
+                      <button
+                        type="submit"
+                        className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-error hover:bg-error/10 text-left"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Keluar (Logout)
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-white text-xs font-bold text-foreground hover:border-primary hover:text-primary"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Masuk
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-white hover:bg-primary-hover"
+                    >
+                      Daftar Akun
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </nav>
+          </div>
+        </div>
       </header>
+
+      {/* Backdrop halus ketika menu mobile dibuka */}
+      <div
+        aria-hidden
+        onClick={() => setMobileMenuOpen(false)}
+        className={cn(
+          "fixed inset-0 z-30 bg-black/25 backdrop-blur-[1px] transition-opacity duration-300 md:hidden",
+          mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      />
 
       <CartDrawer open={isCartOpen} onClose={closeCart} />
 
       {/* Sticky Bottom Cart Bar khusus Mobile sesuai PRD 5.4 */}
       {showStickyMobileCart && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 p-3 shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur md:hidden">
+        <div className="animate-fade-slide-up fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 p-3 shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur md:hidden">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-2.5">
             <button
               type="button"

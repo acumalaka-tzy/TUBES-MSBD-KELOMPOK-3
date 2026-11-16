@@ -69,10 +69,13 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6 md:p-8">
+    <div className="animate-fade-scale-in w-full max-w-md rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6 md:p-8">
       {/* Header Form */}
-      <div className="mb-6 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <div
+        style={{ animationDelay: "40ms" }}
+        className="animate-fade-slide-up mb-6 text-center"
+      >
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-300 hover:scale-105">
           <Coffee className="h-6 w-6" aria-hidden />
         </div>
         <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
@@ -85,7 +88,7 @@ function LoginForm() {
 
       {/* Error Message */}
       {errorMessage && (
-        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-error/30 bg-error/10 p-3 text-xs font-medium text-error">
+        <div className="animate-fade-scale-in mb-5 flex items-start gap-2.5 rounded-xl border border-error/30 bg-error/10 p-3 text-xs font-medium text-error">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <p>{errorMessage}</p>
         </div>
@@ -96,14 +99,18 @@ function LoginForm() {
         type="button"
         disabled={isPending}
         onClick={handleGoogleAuth}
-        className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-white text-xs font-bold text-foreground transition-all hover:bg-secondary-bg hover:border-border/80 active:scale-[0.99] disabled:opacity-60 cursor-pointer shadow-2xs mb-5"
+        style={{ animationDelay: "90ms" }}
+        className="animate-fade-slide-up flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-white text-xs font-bold text-foreground transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:bg-secondary-bg hover:border-border/80 hover:shadow-xs active:scale-[0.99] disabled:opacity-60 cursor-pointer shadow-2xs mb-5"
       >
         <GoogleIcon className="h-4 w-4" />
         <span>Masuk dengan Google</span>
       </button>
 
       {/* Pemisah atau */}
-      <div className="relative mb-5">
+      <div
+        style={{ animationDelay: "130ms" }}
+        className="animate-fade-slide-up relative mb-5"
+      >
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border" />
         </div>
@@ -114,7 +121,10 @@ function LoginForm() {
 
       {/* Main Login Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
+        <div
+          style={{ animationDelay: "170ms" }}
+          className="animate-fade-slide-up"
+        >
           <label
             htmlFor="identifier"
             className="block text-xs font-semibold text-foreground mb-1.5"
@@ -130,14 +140,17 @@ function LoginForm() {
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder="Contoh: admin@warkopagam.id / 081260001001"
-              className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 pl-10 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 pl-10 text-sm text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
               disabled={isPending}
             />
             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
           </div>
         </div>
 
-        <div>
+        <div
+          style={{ animationDelay: "215ms" }}
+          className="animate-fade-slide-up"
+        >
           <div className="flex items-center justify-between mb-1.5">
             <label
               htmlFor="password"
@@ -155,7 +168,7 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Masukkan password Anda"
-              className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 pl-10 pr-10 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 pl-10 pr-10 text-sm text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
               disabled={isPending}
             />
             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden />
@@ -163,7 +176,7 @@ function LoginForm() {
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
               aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
-              className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" aria-hidden />
@@ -177,7 +190,8 @@ function LoginForm() {
         <button
           type="submit"
           disabled={isPending}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-hover active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+          style={{ animationDelay: "260ms" }}
+          className="animate-fade-slide-up mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-md active:scale-[0.99] disabled:opacity-60 cursor-pointer"
         >
           {isPending ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -191,7 +205,10 @@ function LoginForm() {
       </form>
 
       {/* Footer Info & Links */}
-      <div className="mt-6 border-t border-border pt-4 text-center">
+      <div
+        style={{ animationDelay: "305ms" }}
+        className="animate-fade-slide-up mt-6 border-t border-border pt-4 text-center"
+      >
         <p className="text-xs text-muted-foreground">
           Belum punya akun pelanggan?{" "}
           <Link

@@ -189,7 +189,10 @@ function CheckoutContent() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header Halaman */}
-      <div className="mb-8">
+      <div
+        style={{ animationDelay: "0ms" }}
+        className="animate-fade-slide-up mb-8"
+      >
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-2">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Checkout &amp; Pembayaran Mandiri</span>
@@ -203,7 +206,7 @@ function CheckoutContent() {
       </div>
 
       {!storeSettings.isWebOrderingOpen && (
-        <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-sm flex items-center gap-3">
+        <div className="animate-fade-scale-in mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-sm flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <span>
             <strong>Pemesanan web sedang ditutup sementara oleh admin.</strong> Silakan hubungi kasir atau coba beberapa saat lagi.
@@ -212,7 +215,7 @@ function CheckoutContent() {
       )}
 
       {errorMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-3">
+        <div className="animate-fade-scale-in mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{errorMessage}</span>
         </div>
@@ -220,7 +223,10 @@ function CheckoutContent() {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* KOLOM KIRI: FORM DATA PEMESAN & METODE PEMBAYARAN */}
-        <div className="lg:col-span-7 space-y-6">
+        <div
+          style={{ animationDelay: "80ms" }}
+          className="animate-fade-slide-up lg:col-span-7 space-y-6"
+        >
           <CustomerForm
             serviceType={serviceType}
             onServiceTypeChange={setServiceType}
@@ -252,7 +258,10 @@ function CheckoutContent() {
         </div>
 
         {/* KOLOM KANAN: RINGKASAN PESANAN (STICKY) */}
-        <div className="lg:col-span-5">
+        <div
+          style={{ animationDelay: "150ms" }}
+          className="animate-fade-slide-up lg:col-span-5"
+        >
           <CartSummary
             items={items}
             itemCount={itemCount}

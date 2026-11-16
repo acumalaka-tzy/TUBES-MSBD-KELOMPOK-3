@@ -358,9 +358,12 @@ export function MenuCatalog({ categories, products }: { categories: Category[]; 
                 </div>
 
                 {/* Daftar kartu menu di bawah jenisnya: 1 card per baris di mobile */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
-                  {catProducts.map((p) => (
-                    <ProductCard key={p.id} product={p} />
+                <div
+                  key={`${cat.id}-${sort}-${debounced}`}
+                  className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4"
+                >
+                  {catProducts.map((p, idx) => (
+                    <ProductCard key={p.id} product={p} index={idx} />
                   ))}
                 </div>
               </section>

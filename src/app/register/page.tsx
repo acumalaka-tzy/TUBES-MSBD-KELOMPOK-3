@@ -112,10 +112,13 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-secondary-bg px-4 py-8 sm:py-10">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6 md:p-8">
+      <div className="animate-fade-scale-in w-full max-w-md rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6 md:p-8">
         {/* Header */}
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div
+          style={{ animationDelay: "40ms" }}
+          className="animate-fade-slide-up mb-6 text-center"
+        >
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-300 hover:scale-105">
             <Coffee className="h-6 w-6" aria-hidden />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
@@ -128,7 +131,7 @@ export default function RegisterPage() {
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-error/30 bg-error/10 p-3 text-xs font-medium text-error">
+          <div className="animate-fade-scale-in mb-5 flex items-start gap-2.5 rounded-xl border border-error/30 bg-error/10 p-3 text-xs font-medium text-error">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <p>{errorMessage}</p>
           </div>
@@ -139,14 +142,18 @@ export default function RegisterPage() {
           type="button"
           disabled={isPending}
           onClick={handleGoogleAuth}
-          className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-white text-xs font-bold text-foreground transition-all hover:bg-secondary-bg hover:border-border/80 active:scale-[0.99] disabled:opacity-60 cursor-pointer shadow-2xs mb-5"
+          style={{ animationDelay: "85ms" }}
+          className="animate-fade-slide-up flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-white text-xs font-bold text-foreground transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:bg-secondary-bg hover:border-border/80 hover:shadow-xs active:scale-[0.99] disabled:opacity-60 cursor-pointer shadow-2xs mb-5"
         >
           <GoogleIcon className="h-4 w-4" />
           <span>Daftar dengan Google</span>
         </button>
 
         {/* Pemisah atau */}
-        <div className="relative mb-5">
+        <div
+          style={{ animationDelay: "120ms" }}
+          className="animate-fade-slide-up relative mb-5"
+        >
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-border" />
           </div>
@@ -156,7 +163,11 @@ export default function RegisterPage() {
         </div>
 
         {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          style={{ animationDelay: "160ms" }}
+          className="animate-fade-slide-up space-y-4"
+        >
           <div>
             <label htmlFor="reg-name" className="block text-xs font-semibold text-foreground mb-1.5">
               Nama Lengkap <span className="text-error">*</span>
