@@ -996,14 +996,14 @@ export function CashierPosTab({
             type="button"
             aria-label="Tutup"
             onClick={() => setCustomizingProduct(null)}
-            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300"
           />
 
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="pos-product-detail-title"
-            className="relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-transform duration-150 md:max-h-[88dvh] md:max-w-xl md:rounded-3xl"
+            className="animate-fade-scale-in relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl ring-1 ring-black/5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:max-h-[88dvh] md:max-w-xl md:rounded-3xl"
           >
             <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-border md:hidden" aria-hidden />
 

@@ -136,7 +136,10 @@ export function AdminOverviewTab({
       )}
 
       {/* FILTER PERIODE & RANGE */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-white p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between">
+      <div
+        style={{ animationDelay: "40ms" }}
+        className="animate-fade-slide-up flex flex-col gap-3 rounded-2xl border border-border bg-white p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between"
+      >
         <div>
           <h2 className="text-sm font-bold text-foreground">Filter Rentang Analisis</h2>
           <p className="text-xs text-muted-foreground">
@@ -206,7 +209,10 @@ export function AdminOverviewTab({
         <div className="lg:col-span-7 space-y-6">
 
           {/* 1. GRAFIK TREN PENJUALAN HARIAN */}
-          <div className="rounded-2xl border border-border bg-white p-5 shadow-2xs">
+          <div
+            style={{ animationDelay: "85ms" }}
+            className="animate-fade-slide-up rounded-2xl border border-border bg-white p-5 shadow-2xs"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
@@ -249,7 +255,10 @@ export function AdminOverviewTab({
           </div>
 
           {/* 2. KATALOG MENU PREVIEW DENGAN FILTER KATEGORI (Seperti sisi kanan di gambar) */}
-          <div className="rounded-2xl border border-border bg-white p-5 shadow-2xs">
+          <div
+            style={{ animationDelay: "130ms" }}
+            className="animate-fade-slide-up rounded-2xl border border-border bg-white p-5 shadow-2xs"
+          >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
               <div>
                 <h3 className="text-sm font-bold text-foreground">Katalog Menu &amp; Stok</h3>
@@ -257,11 +266,11 @@ export function AdminOverviewTab({
               </div>
 
               {/* Filter Kategori Pills */}
-              <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-1">
+              <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto scroll-smooth pb-1">
                 <button
                   type="button"
                   onClick={() => setSelectedCategory("ALL")}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${selectedCategory === "ALL"
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${selectedCategory === "ALL"
                       ? "bg-primary text-white shadow-2xs"
                       : "bg-secondary-bg text-muted-foreground hover:text-foreground"
                     }`}
@@ -273,7 +282,7 @@ export function AdminOverviewTab({
                     key={c.id}
                     type="button"
                     onClick={() => setSelectedCategory(c.id)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${selectedCategory === c.id
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${selectedCategory === c.id
                         ? "bg-primary text-white shadow-2xs"
                         : "bg-secondary-bg text-muted-foreground hover:text-foreground"
                       }`}
@@ -285,11 +294,15 @@ export function AdminOverviewTab({
             </div>
 
             {/* Grid Kartu Menu (Format Gambar Referensi) */}
-            <div className="mt-4 grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-3.5 max-h-[420px] overflow-y-auto pr-1">
-              {filteredProducts.slice(0, 12).map((prod) => (
+            <div
+              key={`${selectedCategory}-${catalogSearch}`}
+              className="mt-4 grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-3.5 max-h-[420px] overflow-y-auto scroll-smooth pr-1"
+            >
+              {filteredProducts.slice(0, 12).map((prod, idx) => (
                 <div
                   key={prod.id}
-                  className="rounded-2xl border border-border bg-secondary-bg/40 p-3 hover:border-primary/50 hover:bg-white transition-all flex flex-col justify-between group shadow-2xs"
+                  style={{ animationDelay: `${Math.min(idx * 45, 320)}ms` }}
+                  className="animate-fade-slide-up rounded-2xl border border-border bg-secondary-bg/40 p-3 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-white hover:shadow-md transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] flex flex-col justify-between group shadow-2xs"
                 >
                   <div>
                     <div className="aspect-square w-full rounded-xl bg-white border border-border/60 mb-2.5 overflow-hidden shadow-2xs">
@@ -340,7 +353,10 @@ export function AdminOverviewTab({
           </div>
 
           {/* 3. MENU TERLARIS (TOP SELLING) */}
-          <div className="rounded-2xl border border-border bg-white p-5 shadow-2xs">
+          <div
+            style={{ animationDelay: "180ms" }}
+            className="animate-fade-slide-up rounded-2xl border border-border bg-white p-5 shadow-2xs"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <Flame className="h-4 w-4 text-primary" />
@@ -383,7 +399,10 @@ export function AdminOverviewTab({
         </div>
 
         {/* SISI KANAN (5 / 12 Kolom): CURRENT SALE / LIVE ORDERS (Sesuai Permintaan Khusus User) */}
-        <div className="lg:col-span-5 space-y-5">
+        <div
+          style={{ animationDelay: "140ms" }}
+          className="animate-fade-slide-up lg:col-span-5 space-y-5"
+        >
           <div className="rounded-2xl border-2 border-primary/20 bg-white p-5 shadow-md">
 
             {/* Header Current Sale */}
@@ -398,11 +417,12 @@ export function AdminOverviewTab({
             </div>
 
             {/* List Transaksi / Pesanan Terkini */}
-            <div className="mt-4 space-y-3 max-h-[460px] overflow-y-auto pr-1">
-              {liveTransactions.map((tx) => (
+            <div className="mt-4 space-y-3 max-h-[460px] overflow-y-auto scroll-smooth pr-1">
+              {liveTransactions.map((tx, idx) => (
                 <div
                   key={tx.id}
-                  className="rounded-xl border border-border bg-secondary-bg/50 p-3 hover:border-primary/40 hover:bg-white transition-all shadow-2xs"
+                  style={{ animationDelay: `${Math.min(idx * 50, 320)}ms` }}
+                  className="animate-fade-slide-up rounded-xl border border-border bg-secondary-bg/50 p-3 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-white hover:shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-2xs"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

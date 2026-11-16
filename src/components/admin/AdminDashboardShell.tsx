@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { toggleWebOrderingAction } from "@/app/actions/admin";
+import { smoothScrollToSection } from "@/lib/smooth-scroll";
 import { formatRupiah } from "@/lib/utils";
 import type {
   AdminAuditLog,
@@ -140,6 +141,11 @@ export function AdminDashboardShell({
         router.replace(`/admin?${params.toString()}`, { scroll: false });
       });
       setMobileSidebarOpen(false);
+      if (updates.tab && typeof window !== "undefined" && window.scrollY > 160) {
+        setTimeout(() => {
+          smoothScrollToSection("admin-workspace-top", -88, 520);
+        }, 60);
+      }
     },
     [activeTab, activePeriod, fromParam, toParam, auditEntity, auditQuery, router],
   );
@@ -300,7 +306,7 @@ export function AdminDashboardShell({
       <div
         aria-hidden
         onClick={() => setMobileSidebarOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 z-40 bg-white/25 backdrop-blur-md transition-opacity duration-300 lg:hidden ${
           mobileSidebarOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
@@ -309,14 +315,24 @@ export function AdminDashboardShell({
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         
         {/* TOPBAR HEADER (Welcome greeting, search, toggles) */}
-        <header className="sticky top-0 z-30 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 bg-white/95 px-4 py-3.5 backdrop-blur-md sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex flex-col justify-between gap-3 border-b border-border/80 bg-white/95 px-4 py-3 backdrop-blur-md sm:gap-4 sm:px-6 sm:py-3.5 md:flex-row md:items-center lg:px-8">
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setMobileSidebarOpen(true)}
-              className="rounded-xl border border-border p-2 text-foreground lg:hidden"
+              onClick={() => setMobileSidebarOpen((v) => !v)}
+              aria-label={mobileSidebarOpen ? "Tutup menu sidebar" : "Buka menu sidebar"}
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-white text-foreground transition-all duration-200 active:scale-95 lg:hidden"
             >
-              <Menu className="h-5 w-5" />
+              <Menu
+                className={`absolute h-5 w-5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  mobileSidebarOpen ? "rotate-90 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100"
+                }`}
+              />
+              <X
+                className={`absolute h-5 w-5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  mobileSidebarOpen ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-50 opacity-0"
+                }`}
+              />
             </button>
 
             <div>
@@ -381,16 +397,51 @@ export function AdminDashboardShell({
               <ExternalLink className="h-3 w-3 text-muted-foreground" />
             </Link>
           </div>
+
+          {/* Navigasi Tab Cepat Horizontal khusus Mobile/Tablet (< lg) */}
+          <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto scroll-smooth border-t border-border/60 px-4 pt-2.5 no-scrollbar sm:-mx-6 sm:px-6 lg:hidden">
+            {navMenuItems.map((item) => {
+              const active = activeTab === item.key;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => updateUrlParams({ tab: item.key })}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all duration-200 ${
+                    active
+                      ? "bg-[#0E2A2E] text-white shadow-2xs"
+                      : "border border-border bg-[#F4F7F6] text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Icon className={`h-3.5 w-3.5 ${active ? "text-emerald-400" : "text-primary"}`} />
+                  <span>{item.label}</span>
+                  {item.badge !== undefined && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] font-black ${
+                        active ? "bg-amber-500 text-white" : "bg-amber-500 text-white"
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </header>
 
         {/* WORKSPACE BODY */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] w-full mx-auto">
+        <main
+          id="admin-workspace-top"
+          className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] w-full mx-auto"
+        >
           
           {/* Toast Notification */}
           {toast && (
             <div
               role="status"
-              className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-xs font-semibold shadow-xs ${
+              className={`animate-fade-scale-in flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-xs font-semibold shadow-xs ${
                 toast.type === "success"
                   ? "border-success/40 bg-success/10 text-success"
                   : "border-error/40 bg-error/10 text-error"
@@ -419,7 +470,11 @@ export function AdminDashboardShell({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* Card 1: Total Sales */}
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div
+              style={{ animationDelay: "0ms" }}
+              onClick={() => updateUrlParams({ tab: "reports" })}
+              className="animate-fade-slide-up cursor-pointer rounded-2xl border border-border bg-white p-5 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-md"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">Total Penjualan (Net)</span>
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -436,7 +491,11 @@ export function AdminDashboardShell({
             </div>
 
             {/* Card 2: Orders */}
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div
+              style={{ animationDelay: "55ms" }}
+              onClick={() => updateUrlParams({ tab: "transactions" })}
+              className="animate-fade-slide-up cursor-pointer rounded-2xl border border-border bg-white p-5 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-md"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">Jumlah Pesanan</span>
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -456,7 +515,11 @@ export function AdminDashboardShell({
             </div>
 
             {/* Card 3: Meja Aktif / Customer */}
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div
+              style={{ animationDelay: "110ms" }}
+              onClick={() => updateUrlParams({ tab: "tables" })}
+              className="animate-fade-slide-up cursor-pointer rounded-2xl border border-border bg-white p-5 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-md"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">Okupansi Meja Aktif</span>
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
@@ -476,7 +539,11 @@ export function AdminDashboardShell({
             </div>
 
             {/* Card 4: Avg. Order Value (AOV) */}
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div
+              style={{ animationDelay: "165ms" }}
+              onClick={() => updateUrlParams({ tab: "overview" })}
+              className="animate-fade-slide-up cursor-pointer rounded-2xl border border-border bg-white p-5 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-md"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">Rata-rata Order (AOV)</span>
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -495,7 +562,11 @@ export function AdminDashboardShell({
           </div>
 
           {/* DYNAMIC MODULE VIEW (Berdasarkan Tab Sidebar Aktif) */}
-          <div className="transition-all">
+          <div
+            key={activeTab}
+            style={{ animationDelay: "80ms" }}
+            className="animate-fade-slide-up transition-all"
+          >
             {activeTab === "overview" && (
               <AdminOverviewTab
                 summary={summary}
