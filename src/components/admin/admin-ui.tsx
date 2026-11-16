@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export type AdminTabKey =
@@ -42,6 +43,8 @@ export function ModalFrame({
   maxWidthClass = "max-w-lg",
   children,
 }: ModalFrameProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -50,16 +53,29 @@ export function ModalFrame({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (dialogRef.current) {
+        dialogRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        dialogRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 30);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[1px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-white/25 p-4 backdrop-blur-md transition-all duration-300"
       role="dialog"
       aria-modal="true"
+      onClick={onClose}
     >
       <div
-        className={`w-full ${maxWidthClass} max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-background shadow-xl`}
+        ref={dialogRef}
+        onClick={(e) => e.stopPropagation()}
+        className={`animate-fade-scale-in w-full ${maxWidthClass} max-h-[90vh] overflow-y-auto scroll-smooth rounded-2xl border border-border bg-background shadow-2xl ring-1 ring-black/5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]`}
       >
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-background px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-background/95 px-5 py-4 backdrop-blur-xs">
           <div>
             <h3 className="text-base font-bold text-foreground">{title}</h3>
             {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
@@ -68,7 +84,7 @@ export function ModalFrame({
             type="button"
             onClick={onClose}
             aria-label="Tutup dialog"
-            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary-bg hover:text-foreground"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary-bg hover:text-foreground cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -77,4 +93,10 @@ export function ModalFrame({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 }

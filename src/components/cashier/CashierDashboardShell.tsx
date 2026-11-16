@@ -355,7 +355,7 @@ export function CashierDashboardShell({
       <div
         aria-hidden
         onClick={() => setMobileSidebarOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 z-40 bg-white/25 backdrop-blur-md transition-opacity duration-300 lg:hidden ${
           mobileSidebarOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         }`}
       />

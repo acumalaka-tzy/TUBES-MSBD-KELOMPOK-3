@@ -159,7 +159,10 @@ export function AdminReportsTab({
   return (
     <div className="space-y-6">
       {/* Bar Filter Periode & Tombol Ekspor */}
-      <div className="flex flex-col gap-4 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div
+        style={{ animationDelay: "0ms" }}
+        className="animate-fade-slide-up flex flex-col gap-4 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      >
         {/* Periode Buttons */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 flex items-center gap-1 text-xs font-semibold text-[#78716c]">
@@ -291,7 +294,10 @@ export function AdminReportsTab({
       )}
 
       {/* KPI Cards Finansial */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div
+        style={{ animationDelay: "55ms" }}
+        className="animate-fade-slide-up grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+      >
         {/* Net Sales */}
         <div className="rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm">
           <p className="text-xs font-medium text-[#78716c]">Penjualan Bersih (Net)</p>
@@ -391,7 +397,11 @@ export function AdminReportsTab({
 
       {/* Sub-Tab 1: Rincian Omzet & Penjualan */}
       {activeSubTab === "SALES" && (
-        <div className="space-y-6">
+        <div
+          key="subtab-sales"
+          style={{ animationDelay: "40ms" }}
+          className="animate-fade-slide-up space-y-6"
+        >
           {/* Distribusi Metode Pembayaran & Layanan */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Pembayaran */}
@@ -520,7 +530,11 @@ export function AdminReportsTab({
 
       {/* Sub-Tab 2: Performa Menu */}
       {activeSubTab === "MENU_PERFORMANCE" && (
-        <div className="overflow-hidden rounded-xl border border-[#E7E5E3] bg-white shadow-sm">
+        <div
+          key="subtab-menu-perf"
+          style={{ animationDelay: "40ms" }}
+          className="animate-fade-slide-up overflow-hidden rounded-xl border border-[#E7E5E3] bg-white shadow-sm"
+        >
           <div className="border-b border-[#E7E5E3] bg-[#F6F4F2] px-5 py-3.5 flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#78716c]">
               Peringkat Penjualan Menu & Kontribusi Omzet
@@ -602,7 +616,11 @@ export function AdminReportsTab({
 
       {/* Sub-Tab 3: Mutasi Stok */}
       {activeSubTab === "STOCK_MOVEMENTS" && (
-        <div className="overflow-hidden rounded-xl border border-[#E7E5E3] bg-white shadow-sm">
+        <div
+          key="subtab-stock-mov"
+          style={{ animationDelay: "40ms" }}
+          className="animate-fade-slide-up overflow-hidden rounded-xl border border-[#E7E5E3] bg-white shadow-sm"
+        >
           <div className="border-b border-[#E7E5E3] bg-[#F6F4F2] px-5 py-3.5 flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#78716c]">
               Log Riwayat Mutasi Stok Porsi Menu

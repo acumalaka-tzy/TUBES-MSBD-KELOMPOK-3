@@ -207,7 +207,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           aria-label="Tutup keranjang"
           onClick={onClose}
           className={cn(
-            "absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ease-out",
+            "absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300 ease-out",
             open ? "opacity-100" : "opacity-0",
           )}
         />

@@ -86,7 +86,10 @@ export function AdminSettingsTab({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
       {/* Master Toggle Pemesanan Web */}
-      <div className="space-y-4 lg:col-span-5">
+      <div
+        style={{ animationDelay: "30ms" }}
+        className="animate-fade-slide-up space-y-4 lg:col-span-5"
+      >
         <div
           className={`rounded-2xl border p-5 shadow-xs ${
             settings.isWebOrderingOpen
@@ -200,7 +203,8 @@ export function AdminSettingsTab({
       {/* Form Pengaturan Pajak & Profil Toko */}
       <form
         onSubmit={handleSaveSettings}
-        className="space-y-5 rounded-2xl border border-border bg-background p-5 shadow-xs lg:col-span-7"
+        style={{ animationDelay: "90ms" }}
+        className="animate-fade-slide-up space-y-5 rounded-2xl border border-border bg-background p-5 shadow-xs lg:col-span-7"
       >
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Store className="h-4 w-4 text-primary" />

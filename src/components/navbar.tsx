@@ -411,7 +411,7 @@ function NavbarContent() {
         aria-hidden
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "fixed inset-0 z-30 bg-black/25 backdrop-blur-[1px] transition-opacity duration-300 md:hidden",
+          "fixed inset-0 z-30 bg-white/20 backdrop-blur-sm transition-opacity duration-300 md:hidden",
           mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       />

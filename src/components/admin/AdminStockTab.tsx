@@ -146,7 +146,10 @@ export function AdminStockTab({
   return (
     <div className="space-y-6">
       {/* Toolbar & Filter */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        style={{ animationDelay: "30ms" }}
+        className="animate-fade-slide-up flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div>
           <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
             <Boxes className="h-4 w-4 text-primary" />
@@ -202,8 +205,11 @@ export function AdminStockTab({
       </div>
 
       {/* Tabel Stok Porsi */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-xs">
-        <div className="overflow-x-auto">
+      <div
+        style={{ animationDelay: "80ms" }}
+        className="animate-fade-slide-up overflow-hidden rounded-2xl border border-border bg-background shadow-xs"
+      >
+        <div className="overflow-x-auto scroll-smooth">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary-bg text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -215,7 +221,10 @@ export function AdminStockTab({
                 <th className="px-4 py-3 text-right">Aksi Stok</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody
+              key={`${filter}-${search}`}
+              className="divide-y divide-border"
+            >
               {filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
@@ -223,11 +232,15 @@ export function AdminStockTab({
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((p) => {
+                filteredProducts.map((p, idx) => {
                   const isOut = p.availableQty <= 0;
                   const isLow = !isOut && p.availableQty <= p.minThreshold;
                   return (
-                    <tr key={p.id} className="hover:bg-secondary-bg/40">
+                    <tr
+                      key={p.id}
+                      style={{ animationDelay: `${Math.min(idx * 30, 260)}ms` }}
+                      className="animate-fade-slide-up transition-colors duration-200 hover:bg-secondary-bg/40"
+                    >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <ProductImage
@@ -300,7 +313,10 @@ export function AdminStockTab({
       </div>
 
       {/* Riwayat Mutasi Stok */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-xs">
+      <div
+        style={{ animationDelay: "140ms" }}
+        className="animate-fade-slide-up overflow-hidden rounded-2xl border border-border bg-background shadow-xs"
+      >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <History className="h-4 w-4 text-primary" />
           <div>

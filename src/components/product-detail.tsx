@@ -225,7 +225,7 @@ export function ProductDetail({
         type="button"
         aria-label="Tutup"
         onClick={onClose}
-        className="absolute inset-0 bg-black/55 backdrop-blur-[2px] transition-opacity duration-300"
+        className="absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300"
       />
       
       <div

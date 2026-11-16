@@ -300,7 +300,10 @@ export function AdminTablesTab({
     <div className="space-y-6">
       {/* Kartu Ringkasan Status Meja */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "0ms" }}
+          className="animate-fade-slide-up rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-[#78716c]">Total Meja</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-[#272727]">{totalTables}</span>
@@ -308,7 +311,10 @@ export function AdminTablesTab({
           </div>
         </div>
 
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "45ms" }}
+          className="animate-fade-slide-up rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-emerald-800">Tersedia (Siap)</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-emerald-700">{availableCount}</span>
@@ -316,7 +322,10 @@ export function AdminTablesTab({
           </div>
         </div>
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "90ms" }}
+          className="animate-fade-slide-up rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-amber-800">Terisi (Dine In)</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-amber-700">{occupiedCount}</span>
@@ -324,7 +333,10 @@ export function AdminTablesTab({
           </div>
         </div>
 
-        <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "135ms" }}
+          className="animate-fade-slide-up rounded-xl border border-stone-200 bg-stone-50 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-stone-600">Nonaktif / Rusak</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-stone-700">{inactiveCount}</span>
@@ -334,7 +346,10 @@ export function AdminTablesTab({
       </div>
 
       {/* Toolbar & Filter */}
-      <div className="flex flex-col gap-3 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+      <div
+        style={{ animationDelay: "160ms" }}
+        className="animate-fade-slide-up flex flex-col gap-3 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+      >
         <div className="flex flex-1 flex-col gap-2.5 sm:flex-row sm:items-center">
           <div className="relative w-full sm:flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78716c]" />
@@ -404,7 +419,7 @@ export function AdminTablesTab({
 
       {/* Grid Kartu Meja */}
       {filteredTables.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E7E5E3] bg-white py-16 text-center">
+        <div className="animate-fade-scale-in flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E7E5E3] bg-white py-16 text-center">
           <QrCode className="h-10 w-10 text-[#78716c]/60" />
           <h3 className="mt-3 text-base font-semibold text-[#272727]">Tidak ada meja yang sesuai</h3>
           <p className="mt-1 text-sm text-[#78716c]">
@@ -412,15 +427,19 @@ export function AdminTablesTab({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredTables.map((table) => {
+        <div
+          key={`${filter}-${search}`}
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        >
+          {filteredTables.map((table, idx) => {
             const isAvailable = table.isActive && table.status === "AVAILABLE";
             const isOccupied = table.status === "OCCUPIED";
 
             return (
               <div
                 key={table.id}
-                className="group relative flex flex-col justify-between rounded-xl border border-[#E7E5E3] bg-white p-5 shadow-sm transition hover:border-[#F16F62]/50 hover:shadow-md"
+                style={{ animationDelay: `${Math.min(idx * 45, 320)}ms` }}
+                className="animate-fade-slide-up group relative flex flex-col justify-between rounded-xl border border-[#E7E5E3] bg-white p-5 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-[#F16F62]/50 hover:shadow-md"
               >
                 <div>
                   {/* Top Bar: Meja Number & Status Badge */}

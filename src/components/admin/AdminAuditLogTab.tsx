@@ -52,7 +52,8 @@ export function AdminAuditLogTab({
           e.preventDefault();
           onFilterApply(entity, query);
         }}
-        className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
+        style={{ animationDelay: "20ms" }}
+        className="animate-fade-slide-up flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
@@ -116,7 +117,10 @@ export function AdminAuditLogTab({
       </form>
 
       {/* Tabel Audit */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-xs">
+      <div
+        style={{ animationDelay: "80ms" }}
+        className="animate-fade-slide-up overflow-hidden rounded-2xl border border-border bg-background shadow-xs"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary-bg text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

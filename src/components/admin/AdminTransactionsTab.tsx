@@ -65,7 +65,10 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
     <div className="space-y-6">
       {/* 1. Metric Cards Header */}
       <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-xs">
+        <div
+          style={{ animationDelay: "0ms" }}
+          className="animate-fade-slide-up rounded-2xl border border-border bg-white p-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-bold">Total Transaksi</span>
             <ReceiptText className="size-4 text-primary" />
@@ -74,7 +77,10 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
           <span className="text-[11px] text-muted-foreground">Seluruh transaksi tercatat</span>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-xs">
+        <div
+          style={{ animationDelay: "45ms" }}
+          className="animate-fade-slide-up rounded-2xl border border-border bg-white p-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-bold">Total Lunas</span>
             <CheckCircle2 className="size-4 text-emerald-600" />
@@ -85,7 +91,10 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
           <span className="text-[11px] text-emerald-600">{paidTransactions.length} transaksi selesai</span>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-xs">
+        <div
+          style={{ animationDelay: "90ms" }}
+          className="animate-fade-slide-up rounded-2xl border border-border bg-white p-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-bold">Penerimaan Tunai</span>
             <Banknote className="size-4 text-amber-600" />
@@ -96,7 +105,10 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
           <span className="text-[11px] text-muted-foreground">Uang fisik kasir</span>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-xs">
+        <div
+          style={{ animationDelay: "135ms" }}
+          className="animate-fade-slide-up rounded-2xl border border-border bg-white p-4 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-bold">Penerimaan QRIS</span>
             <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-black text-sky-800">
@@ -111,7 +123,10 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
       </div>
 
       {/* 2. Filter & Pencarian Bar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+      <div
+        style={{ animationDelay: "160ms" }}
+        className="animate-fade-slide-up flex flex-col gap-3 rounded-2xl border border-border bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between"
+      >
         <div className="relative flex-1 max-w-md">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -176,8 +191,11 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
       </div>
 
       {/* 3. Tabel Riwayat Transaksi */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-xs">
-        <div className="overflow-x-auto">
+      <div
+        style={{ animationDelay: "200ms" }}
+        className="animate-fade-slide-up overflow-hidden rounded-2xl border border-border bg-white shadow-xs"
+      >
+        <div className="overflow-x-auto scroll-smooth">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-[#F4F7F6] text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -192,7 +210,10 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
                 <th className="px-4 py-3.5 text-right">Total Akhir</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody
+              key={`${paymentStatusFilter}-${paymentMethodFilter}-${search}`}
+              className="divide-y divide-border"
+            >
               {filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
@@ -204,12 +225,16 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((tx) => {
+                filteredTransactions.map((tx, idx) => {
                   const isPaid = tx.paymentStatus === "PAID";
                   const isCancelled = tx.paymentStatus === "CANCELLED" || tx.orderStatus === "CANCELLED";
 
                   return (
-                    <tr key={tx.id} className="transition-colors hover:bg-secondary-bg/50">
+                    <tr
+                      key={tx.id}
+                      style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
+                      className="animate-fade-slide-up transition-colors hover:bg-secondary-bg/50"
+                    >
                       <td className="px-4 py-3.5">
                         <span className="font-mono font-black text-foreground">{tx.orderNumber}</span>
                       </td>

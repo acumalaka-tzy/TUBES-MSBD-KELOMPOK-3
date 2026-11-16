@@ -167,7 +167,10 @@ export function AdminCatalogTab({
   return (
     <div className="space-y-6">
       {/* Bagian Kategori */}
-      <section className="rounded-2xl border border-border bg-background p-4 shadow-xs">
+      <section
+        style={{ animationDelay: "30ms" }}
+        className="animate-fade-slide-up rounded-2xl border border-border bg-background p-4 shadow-xs"
+      >
         <div className="flex flex-col justify-between gap-3 border-b border-border pb-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
@@ -199,16 +202,20 @@ export function AdminCatalogTab({
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {visibleCategories.map((cat) => {
+        <div
+          key={String(showArchivedCats)}
+          className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        >
+          {visibleCategories.map((cat, idx) => {
             const isArchived = cat.deletedAt !== null;
             return (
               <div
                 key={cat.id}
-                className={`flex flex-col justify-between rounded-xl border p-3 ${
+                style={{ animationDelay: `${Math.min(idx * 45, 280)}ms` }}
+                className={`animate-fade-slide-up flex flex-col justify-between rounded-xl border p-3 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-sm ${
                   isArchived
                     ? "border-dashed border-border bg-secondary-bg/40 opacity-75"
-                    : "border-border bg-background"
+                    : "border-border bg-background hover:border-primary/40"
                 }`}
               >
                 <div>
@@ -275,7 +282,10 @@ export function AdminCatalogTab({
       </section>
 
       {/* Bagian Menu & Varian */}
-      <section className="space-y-4 rounded-2xl border border-border bg-background p-4 shadow-xs">
+      <section
+        style={{ animationDelay: "90ms" }}
+        className="animate-fade-slide-up space-y-4 rounded-2xl border border-border bg-background p-4 shadow-xs"
+      >
         <div className="flex flex-col justify-between gap-3 border-b border-border pb-3 lg:flex-row lg:items-center">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
@@ -352,7 +362,10 @@ export function AdminCatalogTab({
                 <th className="px-3 py-2.5 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody
+              key={`${selectedCatId}-${showArchivedProducts}-${search}`}
+              className="divide-y divide-border"
+            >
               {visibleProducts.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
@@ -360,10 +373,14 @@ export function AdminCatalogTab({
                   </td>
                 </tr>
               ) : (
-                visibleProducts.map((p) => {
+                visibleProducts.map((p, idx) => {
                   const isArchived = p.deletedAt !== null;
                   return (
-                    <tr key={p.id} className="hover:bg-secondary-bg/40">
+                    <tr
+                      key={p.id}
+                      style={{ animationDelay: `${Math.min(idx * 30, 260)}ms` }}
+                      className="animate-fade-slide-up transition-colors duration-200 hover:bg-secondary-bg/40"
+                    >
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-3">
                           <ProductImage

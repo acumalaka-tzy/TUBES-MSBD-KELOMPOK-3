@@ -254,7 +254,10 @@ export function AdminStaffTab({
     <div className="space-y-6">
       {/* Kartu Ringkasan Staf */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "0ms" }}
+          className="animate-fade-slide-up rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-[#78716c]">Total Tim / Staf</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-[#272727]">{totalStaff}</span>
@@ -262,7 +265,10 @@ export function AdminStaffTab({
           </div>
         </div>
 
-        <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "45ms" }}
+          className="animate-fade-slide-up rounded-xl border border-sky-200 bg-sky-50/60 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-sky-800">Akun Kasir (POS)</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-sky-700">{cashierCount}</span>
@@ -270,7 +276,10 @@ export function AdminStaffTab({
           </div>
         </div>
 
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "90ms" }}
+          className="animate-fade-slide-up rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-emerald-800">Staf Aktif (Bisa Login)</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-emerald-700">{activeCount}</span>
@@ -278,7 +287,10 @@ export function AdminStaffTab({
           </div>
         </div>
 
-        <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 shadow-sm">
+        <div
+          style={{ animationDelay: "135ms" }}
+          className="animate-fade-slide-up rounded-xl border border-stone-200 bg-stone-50 p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        >
           <p className="text-xs font-medium text-stone-600">Dinonaktifkan</p>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-stone-700">{inactiveCount}</span>
@@ -288,7 +300,10 @@ export function AdminStaffTab({
       </div>
 
       {/* Toolbar & Filter */}
-      <div className="flex flex-col gap-3 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div
+        style={{ animationDelay: "160ms" }}
+        className="animate-fade-slide-up flex flex-col gap-3 rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      >
         <div className="flex flex-1 items-center gap-2">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78716c]" />
@@ -351,8 +366,11 @@ export function AdminStaffTab({
       </div>
 
       {/* Tabel Staf */}
-      <div className="overflow-hidden rounded-xl border border-[#E7E5E3] bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div
+        style={{ animationDelay: "200ms" }}
+        className="animate-fade-slide-up overflow-hidden rounded-xl border border-[#E7E5E3] bg-white shadow-sm"
+      >
+        <div className="overflow-x-auto scroll-smooth">
           <table className="w-full text-left text-sm text-[#272727]">
             <thead className="border-b border-[#E7E5E3] bg-[#F6F4F2] text-xs font-bold uppercase tracking-wider text-[#78716c]">
               <tr>
@@ -363,7 +381,10 @@ export function AdminStaffTab({
                 <th className="px-5 py-3.5 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E7E5E3]">
+            <tbody
+              key={`${roleFilter}-${search}`}
+              className="divide-y divide-[#E7E5E3]"
+            >
               {filteredStaff.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-sm text-[#78716c]">
@@ -371,11 +392,15 @@ export function AdminStaffTab({
                   </td>
                 </tr>
               ) : (
-                filteredStaff.map((u) => {
+                filteredStaff.map((u, idx) => {
                   const isCurrentAdmin = currentAdminId && u.id === currentAdminId;
 
                   return (
-                    <tr key={u.id} className="transition hover:bg-stone-50/60">
+                    <tr
+                      key={u.id}
+                      style={{ animationDelay: `${Math.min(idx * 40, 260)}ms` }}
+                      className="animate-fade-slide-up transition hover:bg-stone-50/60"
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F6F4F2] text-sm font-bold text-[#F16F62] border border-[#E7E5E3]">
