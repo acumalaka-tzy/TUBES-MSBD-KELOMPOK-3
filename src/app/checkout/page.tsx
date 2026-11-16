@@ -12,6 +12,7 @@ import { PaymentSelector } from "@/components/checkout/PaymentSelector";
 import { CartSummary } from "@/components/checkout/CartSummary";
 import { ProductDetail } from "@/components/product-detail";
 import { getCurrentUserAction } from "@/app/actions/auth";
+import { validateIndonesianWhatsApp } from "@/lib/auth/phone-validation";
 import { Sparkles, AlertCircle, X } from "lucide-react";
 
 function CheckoutContent() {
@@ -120,6 +121,11 @@ function CheckoutContent() {
       setErrorMessage("Silakan masukkan nomor WhatsApp untuk pembaruan status pesanan.");
       return;
     }
+    const phoneValidation = validateIndonesianWhatsApp(customerPhone);
+    if (!phoneValidation.isValid) {
+      setErrorMessage(phoneValidation.error || "Nomor WhatsApp tidak valid. Gunakan format Indonesia (contoh: 081234567890).");
+      return;
+    }
     if (serviceType === "DINE_IN" && !tableNumber) {
       setErrorMessage("Silakan pilih nomor meja Anda.");
       return;
@@ -129,8 +135,8 @@ function CheckoutContent() {
 
     try {
       const res = await createOrder({
-        customerName,
-        customerPhone,
+        customerName: customerName.trim(),
+        customerPhone: phoneValidation.normalized,
         serviceType,
         tableNumber: serviceType === "DINE_IN" ? tableNumber : undefined,
         paymentMethod,

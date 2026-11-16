@@ -25,7 +25,7 @@ export interface Catalog {
 }
 
 const BEST_SELLER_COUNT = 4;
-const DB_TIMEOUT_MS = 4000;
+const DB_TIMEOUT_MS = 12000;
 const PHOTO_EXTENSIONS = [".webp", ".jpg", ".jpeg", ".png", ".avif"];
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -311,10 +311,14 @@ export const getCatalog = cache(async (): Promise<Catalog> => {
   try {
     return await withTimeout(loadFromDatabase(), DB_TIMEOUT_MS);
   } catch (err) {
-    console.warn(
-      "[catalog] Memakai data contoh:",
-      err instanceof Error ? err.message.split("\n").pop() : err,
-    );
-    return memoryCatalog();
+    try {
+      return await withTimeout(loadFromDatabase(), DB_TIMEOUT_MS);
+    } catch (err2) {
+      console.warn(
+        "[catalog] Memakai data contoh:",
+        err2 instanceof Error ? err2.message.split("\n").pop() : err2,
+      );
+      return memoryCatalog();
+    }
   }
 });

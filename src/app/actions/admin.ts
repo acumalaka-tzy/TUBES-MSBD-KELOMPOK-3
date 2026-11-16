@@ -18,7 +18,7 @@ import {
   type AdjustmentReason,
 } from "@/lib/admin/types";
 
-const ACTION_TIMEOUT_MS = 6000;
+const ACTION_TIMEOUT_MS = 15000;
 
 function safeRevalidate(path: string) {
   try {
@@ -33,6 +33,10 @@ function revalidateCatalogAndAdmin() {
   safeRevalidate("/menu");
   safeRevalidate("/checkout");
   safeRevalidate("/admin");
+  safeRevalidate("/cashier");
+  try {
+    revalidatePath("/", "layout");
+  } catch {}
 }
 
 function slugify(value: string): string {
@@ -550,7 +554,7 @@ export async function saveProductAction(input: ProductInput): Promise<ActionResu
                   });
                 }
               }
-            }),
+            }, { maxWait: 10000, timeout: 20000 }),
             ACTION_TIMEOUT_MS,
           );
 
@@ -642,7 +646,7 @@ export async function saveProductAction(input: ProductInput): Promise<ActionResu
                 },
               });
             }
-          }),
+          }, { maxWait: 10000, timeout: 20000 }),
           ACTION_TIMEOUT_MS,
         );
 
@@ -666,9 +670,15 @@ export async function saveProductAction(input: ProductInput): Promise<ActionResu
         revalidateCatalogAndAdmin();
         return { success: true, message: `Menu baru "${d.name}" berhasil ditambahkan.` };
       } catch (err) {
-        invalidateDatabaseCheck();
         return { success: false, error: errorMessage(err, "Gagal menyimpan produk di database.") };
       }
+    }
+
+    if (process.env.DATABASE_URL) {
+      return {
+        success: false,
+        error: "Koneksi ke database sedang sibuk atau terputus. Menu belum tersimpan, silakan coba lagi.",
+      };
     }
 
     // Memory mode

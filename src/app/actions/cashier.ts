@@ -25,7 +25,7 @@ import type {
   PosCreateOrderInput,
 } from "@/lib/cashier/types";
 
-const ACTION_TIMEOUT_MS = 6000;
+const ACTION_TIMEOUT_MS = 15000;
 
 function safeRevalidateAll() {
   for (const p of ["/cashier", "/admin", "/menu", "/checkout", "/"]) {
@@ -188,8 +188,74 @@ async function listCashierOrders(): Promise<{ orders: CashierOrder[]; source: "d
 
       return { orders: mapped, source: "database" };
     } catch (err) {
-      invalidateDatabaseCheck();
-      console.warn("[cashier:orders] Fallback ke memoryOrders:", errorMessage(err));
+      console.warn("[cashier:orders] Percobaan 1 gagal, mencoba ulang:", errorMessage(err));
+      try {
+        const rows = await withTimeout(
+          prisma.order.findMany({
+            take: 120,
+            orderBy: { created_at: "desc" },
+            include: {
+              table: true,
+              payment: {
+                include: {
+                  cashier: { select: { name: true } },
+                },
+              },
+              items: {
+                include: { options: true },
+              },
+            },
+          }),
+          ACTION_TIMEOUT_MS,
+        );
+
+        const mapped: CashierOrder[] = rows.map((r) => ({
+          id: r.id,
+          orderNumber: r.order_number,
+          customerName: r.customer_name,
+          customerPhone: r.customer_phone,
+          trackingToken: r.tracking_token,
+          source: r.source,
+          serviceType: r.service_type,
+          status: r.status,
+          subtotal: Number(r.subtotal),
+          taxAmount: Number(r.tax_amount),
+          totalAmount: Number(r.total_amount),
+          notes: r.notes,
+          expiresAt: r.expires_at ? r.expires_at.toISOString() : null,
+          createdAt: r.created_at.toISOString(),
+          tableNumber: r.table?.table_number ?? null,
+          tableName: r.table?.name ?? null,
+          items: r.items.map((it) => ({
+            id: it.id,
+            productId: it.product_id,
+            name: it.product_name_snapshot,
+            unitPrice: Number(it.unit_price_snapshot),
+            quantity: it.quantity,
+            subtotal: Number(it.subtotal),
+            itemNotes: it.item_notes,
+            options: it.options.map((opt) => ({
+              groupName: opt.option_group_name_snapshot,
+              optionName: opt.option_name_snapshot,
+              priceAdjustment: Number(opt.price_adjustment_snapshot),
+            })),
+          })),
+          payment: {
+            id: r.payment?.id ?? `pay-${r.id}`,
+            method: r.payment?.method ?? "CASH",
+            status: r.payment?.status ?? "UNPAID",
+            amountDue: Number(r.payment?.amount_due ?? r.total_amount),
+            amountPaid: Number(r.payment?.amount_paid ?? 0),
+            changeAmount: Number(r.payment?.change_amount ?? 0),
+            paidAt: r.payment?.paid_at ? r.payment.paid_at.toISOString() : null,
+            cashierName: r.payment?.cashier?.name ?? null,
+          },
+        }));
+
+        return { orders: mapped, source: "database" };
+      } catch (err2) {
+        console.warn("[cashier:orders] Percobaan 2 gagal, fallback ke memoryOrders:", errorMessage(err2));
+      }
     }
   }
 

@@ -220,7 +220,7 @@ export async function applyMidtransPaymentUpdate(
             }
           }
         }
-      });
+      }, { maxWait: 10000, timeout: 20000 });
 
       safeRevalidate(`/orders/${orderNumber}`);
       return { success: true, paymentStatus, orderStatus };
@@ -372,7 +372,7 @@ export async function simulatePaymentSuccess(orderNumber: string) {
             });
           }
         }
-      });
+      }, { maxWait: 10000, timeout: 20000 });
 
       safeRevalidate(`/orders/${orderNumber}`);
       return { success: true };

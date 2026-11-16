@@ -318,28 +318,9 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   <span>Identitas meja terkunci otomatis dari QR Meja {table}.</span>
                 </p>
               ) : effectiveServiceType === "DINE_IN" ? (
-                <div className="mt-2">
-                  <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
-                    Pilih nomor meja cepat (opsional, bisa diubah di Checkout):
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_TABLES.map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setQuickTable((prev) => (prev === num ? "" : num))}
-                        className={cn(
-                          "rounded-lg border px-2 py-1 font-mono text-[11px] font-bold transition-colors cursor-pointer",
-                          quickTable === num
-                            ? "border-primary bg-primary text-white"
-                            : "border-border bg-white text-foreground hover:border-primary/50",
-                        )}
-                      >
-                        Meja {num}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Makan di tempat — nomor meja dapat dipilih saat Checkout.
+                </p>
               ) : (
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
                   Pesanan dibungkus rapi — isi nama &amp; WhatsApp saat Checkout.
