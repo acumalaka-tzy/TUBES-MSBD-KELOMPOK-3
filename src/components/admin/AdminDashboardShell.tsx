@@ -297,12 +297,13 @@ export function AdminDashboardShell({
       </aside>
 
       {/* Overlay Backdrop Mobile */}
-      {mobileSidebarOpen && (
-        <div
-          onClick={() => setMobileSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
-        />
-      )}
+      <div
+        aria-hidden
+        onClick={() => setMobileSidebarOpen(false)}
+        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300 lg:hidden ${
+          mobileSidebarOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">

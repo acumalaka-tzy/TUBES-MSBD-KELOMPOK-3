@@ -297,7 +297,10 @@ export default function LacakPage() {
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:py-10">
       {/* Header Banner Espresso */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#231712] via-[#2F1E17] to-[#41281E] p-5 text-white shadow-lg sm:p-8">
+      <div
+        style={{ animationDelay: "0ms" }}
+        className="animate-fade-slide-up relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#231712] via-[#2F1E17] to-[#41281E] p-5 text-white shadow-lg sm:p-8"
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/25 blur-3xl"
@@ -392,7 +395,8 @@ export default function LacakPage() {
           return (
             <div
               key={step.key}
-              className="flex items-center gap-2.5 rounded-2xl border border-border bg-white px-3 py-2.5 shadow-2xs"
+              style={{ animationDelay: `${70 + idx * 55}ms` }}
+              className="animate-fade-slide-up flex items-center gap-2.5 rounded-2xl border border-border bg-white px-3 py-2.5 shadow-2xs transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="h-4 w-4" aria-hidden />
@@ -409,9 +413,12 @@ export default function LacakPage() {
       </div>
 
       {/* Daftar Riwayat atau Empty State */}
-      <div className="mt-6">
+      <div
+        style={{ animationDelay: "220ms" }}
+        className="animate-fade-slide-up mt-6"
+      >
         {!loaded && allOrders.length === 0 ? (
-          <div className="rounded-3xl border border-border bg-white p-8 text-center shadow-xs">
+          <div className="animate-fade-scale-in rounded-3xl border border-border bg-white p-8 text-center shadow-xs">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <RotateCw className="h-5 w-5 animate-spin" aria-hidden />
             </div>
@@ -421,7 +428,7 @@ export default function LacakPage() {
             </p>
           </div>
         ) : allOrders.length === 0 ? (
-          <div className="rounded-3xl border border-border bg-white p-8 text-center shadow-xs">
+          <div className="animate-fade-scale-in rounded-3xl border border-border bg-white p-8 text-center shadow-xs">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <ShoppingBag className="h-8 w-8" aria-hidden />
             </div>
@@ -515,19 +522,23 @@ export default function LacakPage() {
             </div>
 
             {filteredOrders.length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted-foreground">
+              <p className="animate-fade-scale-in py-8 text-center text-xs text-muted-foreground">
                 Tidak ada pesanan pada kategori status ini.
               </p>
             ) : (
-              <div className="mt-4 space-y-3.5">
-                {filteredOrders.map((o) => {
+              <div
+                key={`${filterTab}-${historyQuery}`}
+                className="mt-4 space-y-3.5"
+              >
+                {filteredOrders.map((o, idx) => {
                   const isCancelled = o.status === "CANCELLED";
                   const stepIdx = getStepIndex(o.status);
 
                   return (
                     <div
                       key={o.orderNumber}
-                      className="rounded-2xl border border-border bg-secondary-bg/40 p-4 transition-all hover:border-primary/50 hover:bg-white hover:shadow-xs"
+                      style={{ animationDelay: `${Math.min(idx * 55, 360)}ms` }}
+                      className="animate-fade-slide-up rounded-2xl border border-border bg-secondary-bg/40 p-4 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-primary/50 hover:bg-white hover:shadow-sm"
                     >
                       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                         <div className="flex min-w-0 items-start gap-3">

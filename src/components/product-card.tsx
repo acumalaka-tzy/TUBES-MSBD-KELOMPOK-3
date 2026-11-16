@@ -9,7 +9,13 @@ import { useCart } from "@/context/cart-context";
 import { getStockStatus, type Product } from "@/lib/menu-data";
 import { cn, formatRupiah } from "@/lib/utils";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  index = 0,
+}: {
+  product: Product;
+  index?: number;
+}) {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const { items, openCart } = useCart();
@@ -29,12 +35,13 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <>
       <article
+        style={{ animationDelay: `${Math.min(index * 45, 360)}ms` }}
         onClick={() => {
           if (!soldOut) setOpen(true);
         }}
         className={cn(
-          "group relative flex flex-row items-center gap-3.5 p-3 sm:flex-col sm:items-stretch sm:p-0 overflow-hidden rounded-2xl border border-border bg-white transition-all cursor-pointer shadow-2xs",
-          !soldOut && "hover:border-primary/60 hover:shadow-sm",
+          "animate-fade-slide-up group relative flex flex-row items-center gap-3.5 p-3 sm:flex-col sm:items-stretch sm:p-0 overflow-hidden rounded-2xl border border-border bg-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shadow-2xs active:scale-[0.99]",
+          !soldOut && "hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md",
         )}
       >
         {/* Kontainer Gambar Produk */}

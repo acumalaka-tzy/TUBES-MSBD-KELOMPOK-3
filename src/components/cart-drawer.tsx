@@ -192,23 +192,36 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     }
   }
 
-  if (!open) return null;
-
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end justify-end md:items-stretch">
+      <div
+        aria-hidden={!open}
+        className={cn(
+          "fixed inset-0 z-50 flex items-end justify-end transition-all duration-300 md:items-stretch",
+          open ? "pointer-events-auto visible" : "pointer-events-none invisible delay-300",
+        )}
+      >
         <button
           type="button"
+          tabIndex={open ? 0 : -1}
           aria-label="Tutup keranjang"
           onClick={onClose}
-          className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+          className={cn(
+            "absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ease-out",
+            open ? "opacity-100" : "opacity-0",
+          )}
         />
 
         <aside
           role="dialog"
           aria-modal="true"
           aria-labelledby="cart-drawer-title"
-          className="relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:h-full md:max-h-none md:max-w-md md:rounded-none"
+          className={cn(
+            "relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:h-full md:max-h-none md:max-w-md md:rounded-none",
+            open
+              ? "translate-y-0 md:translate-x-0"
+              : "translate-y-full md:translate-y-0 md:translate-x-full",
+          )}
         >
           {/* Handle Bar Mobile */}
           <div className="mx-auto mt-2.5 h-1.5 w-12 shrink-0 rounded-full bg-border md:hidden" aria-hidden />

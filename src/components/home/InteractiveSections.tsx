@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,8 +13,64 @@ import {
 import { OutletLocationGrid } from "@/components/restaurant/OutletLocationGrid";
 import { useRecentOrders } from "@/lib/active-table";
 import { type RestaurantInfo } from "@/lib/menu-data";
-import { buildOutletLinks } from "@/lib/restaurant-profile";
+import { buildOutletLinks, OUTLET_PROFILE } from "@/lib/restaurant-profile";
+import {
+  consumePendingScrollOnHome,
+  smoothScrollToSection,
+} from "@/lib/smooth-scroll";
 import { formatRupiah } from "@/lib/utils";
+
+/**
+ * Kartu foto depan outlet Warkop Agam di Hero Beranda.
+ * Saat ditekan, layar langsung bergulir secara smooth menuju seksi Lokasi & Peta (#info) di paling bawah halaman beranda.
+ */
+export function HeroStorefrontCard({ address }: { address: string }) {
+  return (
+    <a
+      href="#info"
+      onClick={(e) => {
+        if (smoothScrollToSection("info", -72, 680)) {
+          e.preventDefault();
+          window.history.replaceState(null, "", "/#info");
+        }
+      }}
+      title="Klik untuk melihat lokasi Warkop Agam di bagian bawah halaman"
+      aria-label="Lihat lokasi Warkop Agam di bagian bawah halaman"
+      className="animate-fade-scale-in group block mx-auto w-full max-w-[340px] sm:max-w-[400px] lg:max-w-[440px] overflow-hidden rounded-2xl border border-border bg-white shadow-md transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:border-primary/60 hover:shadow-xl active:scale-[0.99] cursor-pointer"
+    >
+      <figure>
+        <div className="relative aspect-[4/3] sm:aspect-[4/3.5] lg:aspect-[4/3.2] w-full overflow-hidden bg-secondary-bg">
+          <Image
+            src={OUTLET_PROFILE.storefrontImage}
+            alt={OUTLET_PROFILE.storefrontAlt}
+            fill
+            priority
+            sizes="(max-width: 768px) 95vw, 450px"
+            className="object-cover transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]"
+          />
+          <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white shadow-sm backdrop-blur-xs transition-colors group-hover:bg-primary">
+            <MapPin className="h-3 w-3" aria-hidden />
+            <span>Lihat Lokasi</span>
+          </span>
+        </div>
+        <figcaption className="border-t border-border p-3.5 sm:p-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs sm:text-sm font-extrabold text-foreground transition-colors group-hover:text-primary">
+              {OUTLET_PROFILE.brandTitle}
+            </p>
+            <ArrowRight
+              className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:text-primary"
+              aria-hidden
+            />
+          </div>
+          <p className="mt-0.5 text-[11px] sm:text-xs leading-relaxed text-muted-foreground">
+            {address}
+          </p>
+        </figcaption>
+      </figure>
+    </a>
+  );
+}
 
 const ORDER_STEPS = [
   {
@@ -183,6 +240,20 @@ export function QuickTrackBanner() {
 
 export function RestaurantInfoSection({ restaurant }: { restaurant: RestaurantInfo }) {
   const { mapsUrl } = buildOutletLinks(restaurant);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    consumePendingScrollOnHome("info", -72, 680);
+    const scrollIfHashInfo = () => {
+      if (window.location.hash === "#info") {
+        smoothScrollToSection("info", -72, 680);
+      }
+    };
+    window.addEventListener("hashchange", scrollIfHashInfo);
+    return () => {
+      window.removeEventListener("hashchange", scrollIfHashInfo);
+    };
+  }, []);
 
   return (
     <section id="info" className="scroll-mt-20 border-t border-border bg-secondary-bg">

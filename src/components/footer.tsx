@@ -2,11 +2,13 @@
 
 import React, { Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Coffee } from "lucide-react";
+import { triggerScrollToSectionAcrossPages } from "@/lib/smooth-scroll";
 
 function FooterContent() {
   const pathname = usePathname();
+  const router = useRouter();
 
   // Jangan render footer konsumen di dashboard admin maupun POS kasir
   if (pathname.startsWith("/admin") || pathname.startsWith("/cashier")) {
@@ -27,7 +29,16 @@ function FooterContent() {
           <Link href="/menu" className="hover:text-primary">Katalog Menu</Link>
           <Link href="/checkout" className="hover:text-primary">Checkout</Link>
           <Link href="/lacak" className="hover:text-primary">Lacak Pesanan</Link>
-          <Link href="/#kategori" className="hover:text-primary">Info Restoran</Link>
+          <Link
+            href="/#info"
+            onClick={(e) => {
+              e.preventDefault();
+              triggerScrollToSectionAcrossPages("info", () => router.push("/"), -72, 680);
+            }}
+            className="hover:text-primary"
+          >
+            Info Restoran
+          </Link>
         </nav>
         <p>© Warkop Agam • Tugas Besar MSBD Kelompok 3</p>
       </div>

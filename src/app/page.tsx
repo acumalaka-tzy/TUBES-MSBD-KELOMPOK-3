@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import {
+  HeroStorefrontCard,
   QuickTrackBanner,
   RestaurantInfoSection,
 } from "@/components/home/InteractiveSections";
@@ -100,28 +100,9 @@ async function HomeSections() {
             </div>
           </div>
 
-          {/* Foto Resmi Outlet Warkop Agam Berdikari (Diperbesar) */}
+          {/* Foto Resmi Outlet Warkop Agam Berdikari (Klik langsung menuju lokasi di bawah) */}
           <div className="md:col-span-5">
-            <figure className="mx-auto w-full max-w-[340px] sm:max-w-[400px] lg:max-w-[440px] overflow-hidden rounded-2xl border border-border bg-white shadow-md transition-all hover:shadow-lg">
-              <div className="relative aspect-[4/3] sm:aspect-[4/3.5] lg:aspect-[4/3.2] w-full bg-secondary-bg">
-                <Image
-                  src={OUTLET_PROFILE.storefrontImage}
-                  alt={OUTLET_PROFILE.storefrontAlt}
-                  fill
-                  priority
-                  sizes="(max-width: 768px) 95vw, 450px"
-                  className="object-cover"
-                />
-              </div>
-              <figcaption className="border-t border-border p-3.5 sm:p-4">
-                <p className="text-xs sm:text-sm font-extrabold text-foreground">
-                  {OUTLET_PROFILE.brandTitle}
-                </p>
-                <p className="mt-0.5 text-[11px] sm:text-xs leading-relaxed text-muted-foreground">
-                  {restaurant.address}
-                </p>
-              </figcaption>
-            </figure>
+            <HeroStorefrontCard address={restaurant.address} />
           </div>
         </div>
       </section>
@@ -155,13 +136,14 @@ async function HomeSections() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-4 md:gap-4">
-          {categories.map((c) => {
+          {categories.map((c, idx) => {
             const count = products.filter((p) => p.categoryId === c.id).length;
             return (
               <Link
                 key={c.id}
                 href={`/menu?kategori=${c.slug}`}
-                className="group flex flex-col justify-between rounded-xl border border-border bg-white p-3.5 sm:p-4 transition-colors hover:border-primary/60"
+                style={{ animationDelay: `${idx * 60}ms` }}
+                className="animate-fade-slide-up group flex flex-col justify-between rounded-xl border border-border bg-white p-3.5 sm:p-4 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md active:scale-[0.99]"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -213,8 +195,8 @@ async function HomeSections() {
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
-            {bestSellers.map((p) => (
-              <ProductCard key={p.id} product={p} />
+            {bestSellers.map((p, idx) => (
+              <ProductCard key={p.id} product={p} index={idx} />
             ))}
           </div>
         </div>
