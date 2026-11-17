@@ -22,3 +22,16 @@ export function formatTableDisplay(tableNumber: string | number | null | undefin
   const num = str.replace(/^0+/, "") || str;
   return `Meja ${num}`;
 }
+
+/** Generate collision-resistant order number (ORD-YYYYMMDD-XXXXXX). */
+export function generateOrderNumber(): string {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const timeTail = now.getTime().toString().slice(-4);
+  const randTail = Math.floor(10 + Math.random() * 90);
+  return `ORD-${dateStr}-${timeTail}${randTail}`;
+}
+
+export function generateTrackingToken(): string {
+  return `trk_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+}

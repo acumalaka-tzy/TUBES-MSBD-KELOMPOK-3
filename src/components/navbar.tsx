@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   ReceiptText,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { CartDrawer } from "@/components/cart-drawer";
 import { useCart } from "@/context/cart-context";
 import { useActiveTable } from "@/lib/active-table";
@@ -93,20 +94,20 @@ function NavbarContent() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4">
-          <Link href="/" className="flex min-w-0 items-center gap-2.5" onClick={() => setMobileMenuOpen(false)}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground font-bold text-background">
-              <Coffee className="h-4.5 w-4.5" aria-hidden />
-            </div>
-            <div className="min-w-0">
-              <span className="block truncate text-base font-extrabold leading-tight tracking-tight text-foreground">
-                Warkop Agam
-              </span>
-              <span className="block truncate text-[11px] font-medium text-muted-foreground">Padang Bulan · Medan</span>
-            </div>
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
+          <Link
+            href="/"
+            className="flex min-w-0 shrink items-center gap-2 sm:gap-2.5"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <BrandLogo variant="dark-pill" size="md" priority />
+            <span className="hidden border-l border-border pl-2.5 text-[11px] font-semibold leading-tight text-muted-foreground xl:block">
+              <span className="block text-foreground font-extrabold">Padang Bulan</span>
+              <span>Buka 24 Jam</span>
+            </span>
           </Link>
 
-          <nav aria-label="Navigasi utama" className="hidden items-center gap-1 md:flex">
+          <nav aria-label="Navigasi utama" className="hidden items-center gap-0.5 lg:gap-1 md:flex">
             {links.map((l) => {
               const active = pathname === l.href;
               return (
@@ -115,7 +116,7 @@ function NavbarContent() {
                   href={l.href}
                   onClick={(e) => handleNavLinkClick(e, l.href)}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-semibold transition-all duration-200",
+                    "whitespace-nowrap rounded-lg px-2 py-1.5 text-[13px] font-semibold transition-all duration-200 lg:px-3 lg:text-sm",
                     active
                       ? "bg-secondary-bg text-primary"
                       : "text-foreground/75 hover:bg-secondary-bg/70 hover:text-foreground",
@@ -465,17 +466,9 @@ function NavbarContent() {
 function NavbarFallback() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-3 sm:px-4">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-bold text-white shadow-sm">
-            <Coffee className="h-5 w-5" aria-hidden />
-          </div>
-          <div>
-            <span className="block text-lg font-bold leading-tight tracking-tight text-foreground">
-              Warkop Agam
-            </span>
-            <span className="block text-xs text-muted-foreground">Ordering &amp; POS System</span>
-          </div>
+          <BrandLogo variant="dark-pill" size="md" priority />
         </Link>
       </div>
     </header>

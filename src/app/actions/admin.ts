@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { memoryOrders } from "@/actions/helpers";
 import { requireRole } from "@/lib/auth/session";
 import type { AuthTokenPayload } from "@/lib/auth/jwt";
 import { getUserById } from "@/lib/auth/user-service";
@@ -1734,6 +1735,65 @@ export async function createTableAction(input: CreateTableInput): Promise<Action
   }
 }
 
+const ACTIVE_ORDER_STATUSES = ["PENDING", "CONFIRMED", "PREPARING", "READY"];
+
+function revalidateTableAndOrders(orderNumbers: string[] = []) {
+  safeRevalidate("/admin");
+  safeRevalidate("/cashier");
+  safeRevalidate("/info");
+  safeRevalidate("/lacak");
+  for (const ordNo of orderNumbers) {
+    safeRevalidate(`/orders/${ordNo}`);
+  }
+}
+
+async function prepareTableReleaseDb(tableId: string, tableNumber: string) {
+  const activeOrders = await withTimeout(
+    prisma.order.findMany({
+      where: {
+        table_id: tableId,
+        service_type: "DINE_IN",
+        status: { in: ACTIVE_ORDER_STATUSES },
+      },
+      include: { payment: true },
+    }),
+    ACTION_TIMEOUT_MS,
+  );
+  const unpaidOrders = activeOrders.filter((o) => o.payment?.status !== "PAID");
+  if (unpaidOrders.length > 0) {
+    return {
+      ok: false as const,
+      error: `Meja ${tableNumber} masih memiliki pesanan belum lunas (${unpaidOrders.map((o) => o.order_number).join(", ")}). Selesaikan pembayaran atau batalkan lewat POS Kasir terlebih dahulu.`,
+    };
+  }
+  return {
+    ok: true as const,
+    orderIds: activeOrders.map((o) => o.id),
+    orderNumbers: activeOrders.map((o) => o.order_number),
+  };
+}
+
+function prepareTableReleaseMemory(tableNumber: string) {
+  const activeOrders = [...memoryOrders.values()].filter(
+    (o) =>
+      o.table?.table_number === tableNumber &&
+      o.service_type === "DINE_IN" &&
+      ACTIVE_ORDER_STATUSES.includes(o.status),
+  );
+  const unpaidOrders = activeOrders.filter((o) => o.payment?.status !== "PAID");
+  if (unpaidOrders.length > 0) {
+    return {
+      ok: false as const,
+      error: `Meja ${tableNumber} masih memiliki pesanan belum lunas (${unpaidOrders.map((o) => o.order_number).join(", ")}). Selesaikan pembayaran atau batalkan lewat POS Kasir terlebih dahulu.`,
+    };
+  }
+  return {
+    ok: true as const,
+    orders: activeOrders,
+    orderNumbers: activeOrders.map((o) => o.order_number),
+  };
+}
+
 export async function updateTableAction(input: UpdateTableInput): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();
@@ -1743,6 +1803,7 @@ export async function updateTableAction(input: UpdateTableInput): Promise<Action
     }
 
     const d = parsed.data;
+    const shouldReleaseOrders = d.status === "AVAILABLE" || !d.isActive;
 
     if (await isDatabaseReady()) {
       try {
@@ -1763,16 +1824,33 @@ export async function updateTableAction(input: UpdateTableInput): Promise<Action
           }
         }
 
+        let completedOrderNumbers: string[] = [];
+        let orderIdsToComplete: string[] = [];
+        if (shouldReleaseOrders) {
+          const release = await prepareTableReleaseDb(d.id, prev.table_number);
+          if (!release.ok) return { success: false, error: release.error };
+          orderIdsToComplete = release.orderIds;
+          completedOrderNumbers = release.orderNumbers;
+        }
+
         const updated = await withTimeout(
-          prisma.table.update({
-            where: { id: d.id },
-            data: {
-              table_number: d.tableNumber,
-              name: d.name,
-              capacity: d.capacity,
-              status: d.status,
-              is_active: d.isActive,
-            },
+          prisma.$transaction(async (tx) => {
+            if (orderIdsToComplete.length > 0) {
+              await tx.order.updateMany({
+                where: { id: { in: orderIdsToComplete } },
+                data: { status: "COMPLETED" },
+              });
+            }
+            return tx.table.update({
+              where: { id: d.id },
+              data: {
+                table_number: d.tableNumber,
+                name: d.name,
+                capacity: d.capacity,
+                status: d.status,
+                is_active: d.isActive,
+              },
+            });
           }),
           ACTION_TIMEOUT_MS,
         );
@@ -1797,11 +1875,18 @@ export async function updateTableAction(input: UpdateTableInput): Promise<Action
             capacity: updated.capacity,
             status: updated.status,
             is_active: updated.is_active,
+            completedOrders: completedOrderNumbers,
           },
         });
 
-        safeRevalidate("/admin");
-        return { success: true, message: `Data meja "${updated.name}" berhasil diperbarui.` };
+        revalidateTableAndOrders(completedOrderNumbers);
+        return {
+          success: true,
+          message:
+            completedOrderNumbers.length > 0
+              ? `Data meja "${updated.name}" diperbarui & ${completedOrderNumbers.length} pesanan lunas diselesaikan.`
+              : `Data meja "${updated.name}" berhasil diperbarui.`,
+        };
       } catch (err) {
         invalidateDatabaseCheck();
         console.warn("Prisma error updateTable, fallback ke in-memory:", err);
@@ -1817,6 +1902,16 @@ export async function updateTableAction(input: UpdateTableInput): Promise<Action
       if (id !== d.id && t.table_number.toLowerCase() === d.tableNumber.toLowerCase()) {
         return { success: false, error: `Nomor meja "${d.tableNumber}" sudah digunakan meja lain.` };
       }
+    }
+
+    let completedOrderNumbers: string[] = [];
+    if (shouldReleaseOrders) {
+      const release = prepareTableReleaseMemory(prev.table_number);
+      if (!release.ok) return { success: false, error: release.error };
+      for (const ord of release.orders) {
+        ord.status = "COMPLETED";
+      }
+      completedOrderNumbers = release.orderNumbers;
     }
 
     const updated = {
@@ -1850,11 +1945,18 @@ export async function updateTableAction(input: UpdateTableInput): Promise<Action
         capacity: updated.capacity,
         status: updated.status,
         is_active: updated.is_active,
+        completedOrders: completedOrderNumbers,
       },
     });
 
-    safeRevalidate("/admin");
-    return { success: true, message: `Data meja "${updated.name}" berhasil diperbarui.` };
+    revalidateTableAndOrders(completedOrderNumbers);
+    return {
+      success: true,
+      message:
+        completedOrderNumbers.length > 0
+          ? `Data meja "${updated.name}" diperbarui & ${completedOrderNumbers.length} pesanan lunas diselesaikan.`
+          : `Data meja "${updated.name}" berhasil diperbarui.`,
+    };
   } catch (err) {
     return { success: false, error: errorMessage(err, "Gagal memperbarui data meja.") };
   }
@@ -1872,14 +1974,25 @@ export async function toggleTableStatusAction(tableId: string, isActive: boolean
         );
         if (!prev) return { success: false, error: "Data meja tidak ditemukan." };
 
+        const release = await prepareTableReleaseDb(tableId, prev.table_number);
+        if (!release.ok) return { success: false, error: release.error };
+
         const newStatus = isActive ? "AVAILABLE" : "INACTIVE";
         const updated = await withTimeout(
-          prisma.table.update({
-            where: { id: tableId },
-            data: {
-              is_active: isActive,
-              status: newStatus,
-            },
+          prisma.$transaction(async (tx) => {
+            if (release.orderIds.length > 0) {
+              await tx.order.updateMany({
+                where: { id: { in: release.orderIds } },
+                data: { status: "COMPLETED" },
+              });
+            }
+            return tx.table.update({
+              where: { id: tableId },
+              data: {
+                is_active: isActive,
+                status: newStatus,
+              },
+            });
           }),
           ACTION_TIMEOUT_MS,
         );
@@ -1892,11 +2005,15 @@ export async function toggleTableStatusAction(tableId: string, isActive: boolean
           entityId: updated.id,
           action: "TOGGLE_TABLE_STATUS",
           oldData: { is_active: prev.is_active, status: prev.status },
-          newData: { is_active: updated.is_active, status: updated.status },
+          newData: {
+            is_active: updated.is_active,
+            status: updated.status,
+            completedOrders: release.orderNumbers,
+          },
           reason: isActive ? "Meja diaktifkan kembali" : "Meja dinonaktifkan sementara",
         });
 
-        safeRevalidate("/admin");
+        revalidateTableAndOrders(release.orderNumbers);
         return {
           success: true,
           message: `Meja "${updated.name}" berhasil ${isActive ? "diaktifkan" : "dinonaktifkan"}.`,
@@ -1911,6 +2028,12 @@ export async function toggleTableStatusAction(tableId: string, isActive: boolean
     const store = getMemoryStore();
     const prev = store.tables.get(tableId);
     if (!prev) return { success: false, error: "Data meja tidak ditemukan." };
+
+    const release = prepareTableReleaseMemory(prev.table_number);
+    if (!release.ok) return { success: false, error: release.error };
+    for (const ord of release.orders) {
+      ord.status = "COMPLETED";
+    }
 
     const newStatus = isActive ? "AVAILABLE" : "INACTIVE";
     const updated = {
@@ -1929,11 +2052,15 @@ export async function toggleTableStatusAction(tableId: string, isActive: boolean
       entityId: tableId,
       action: "TOGGLE_TABLE_STATUS",
       oldData: { is_active: prev.is_active, status: prev.status },
-      newData: { is_active: updated.is_active, status: updated.status },
+      newData: {
+        is_active: updated.is_active,
+        status: updated.status,
+        completedOrders: release.orderNumbers,
+      },
       reason: isActive ? "Meja diaktifkan kembali" : "Meja dinonaktifkan sementara",
     });
 
-    safeRevalidate("/admin");
+    revalidateTableAndOrders(release.orderNumbers);
     return {
       success: true,
       message: `Meja "${updated.name}" berhasil ${isActive ? "diaktifkan" : "dinonaktifkan"}.`,

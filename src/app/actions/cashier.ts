@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin/queries";
 import { memoryOrders } from "@/actions/helpers";
 import { cleanupExpiredOrders } from "@/actions/orders";
+import { generateOrderNumber, generateTrackingToken } from "@/lib/utils";
 import type { OrderDetailData } from "@/actions/types";
 import type {
   CashierDashboardPayload,
@@ -44,17 +45,6 @@ async function requireCashierOrAdmin(): Promise<AuthTokenPayload> {
     throw new Error("Akun Kasir Anda sedang dinonaktifkan.");
   }
   return session;
-}
-
-function generateOrderNumber(): string {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
-  const randomSuffix = Math.floor(100 + Math.random() * 900);
-  return `ORD-${dateStr}-${randomSuffix}`;
-}
-
-function generateTrackingToken(): string {
-  return `trk_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 }
 
 function mapMemoryOrderToCashierOrder(o: OrderDetailData): CashierOrder {
@@ -1151,19 +1141,45 @@ export async function setTableStatusCashierAction(input: {
       try {
         const tbl = await prisma.table.findUnique({ where: { table_number: tableNumber } });
         if (tbl) {
-          await prisma.table.update({
-            where: { id: tbl.id },
-            data: { status: nextStatus },
-          });
+          let completedOrderNumbers: string[] = [];
 
-          // Jika meja dikosongkan, tandai order READY di meja tersebut sebagai COMPLETED
           if (nextStatus === "AVAILABLE") {
-            await prisma.order.updateMany({
+            const activeOrders = await prisma.order.findMany({
               where: {
                 table_id: tbl.id,
-                status: "READY",
+                service_type: "DINE_IN",
+                status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] },
               },
-              data: { status: "COMPLETED" },
+              include: { payment: true },
+            });
+
+            const unpaidOrders = activeOrders.filter((o) => o.payment?.status !== "PAID");
+            if (unpaidOrders.length > 0) {
+              const listText = unpaidOrders.map((o) => o.order_number).join(", ");
+              return {
+                success: false,
+                error: `Meja ${tableNumber} masih memiliki pesanan belum lunas (${listText}). Selesaikan pembayaran atau batalkan lewat Antrean Pesanan terlebih dahulu.`,
+              };
+            }
+
+            completedOrderNumbers = activeOrders.map((o) => o.order_number);
+
+            await prisma.$transaction(async (tx) => {
+              if (activeOrders.length > 0) {
+                await tx.order.updateMany({
+                  where: { id: { in: activeOrders.map((o) => o.id) } },
+                  data: { status: "COMPLETED" },
+                });
+              }
+              await tx.table.update({
+                where: { id: tbl.id },
+                data: { status: "AVAILABLE" },
+              });
+            });
+          } else {
+            await prisma.table.update({
+              where: { id: tbl.id },
+              data: { status: nextStatus },
             });
           }
 
@@ -1175,15 +1191,24 @@ export async function setTableStatusCashierAction(input: {
             entityId: tbl.id,
             action: nextStatus === "AVAILABLE" ? "CLEAR_TABLE" : "OCCUPY_TABLE",
             oldData: { table_number: tableNumber, status: tbl.status },
-            newData: { table_number: tableNumber, status: nextStatus },
+            newData: {
+              table_number: tableNumber,
+              status: nextStatus,
+              completedOrders: completedOrderNumbers,
+            },
           });
 
           safeRevalidateAll();
+          for (const ordNo of completedOrderNumbers) {
+            safeRevalidateOrder(ordNo);
+          }
           return {
             success: true,
             message:
               nextStatus === "AVAILABLE"
-                ? `Meja ${tableNumber} telah dikosongkan dan siap digunakan kembali.`
+                ? completedOrderNumbers.length > 0
+                  ? `Meja ${tableNumber} dikosongkan dan ${completedOrderNumbers.length} pesanan lunas diselesaikan.`
+                  : `Meja ${tableNumber} telah dikosongkan dan siap digunakan kembali.`
                 : `Meja ${tableNumber} ditandai sedang terisi.`,
           };
         }
@@ -1200,21 +1225,31 @@ export async function setTableStatusCashierAction(input: {
     }
 
     const prevStatus = tbl.status;
-    tbl.status = nextStatus;
-    tbl.updated_at = new Date();
+    let completedOrderNumbers: string[] = [];
 
     if (nextStatus === "AVAILABLE") {
-      for (const ord of memoryOrders.values()) {
-        if (
+      const activeOrders = [...memoryOrders.values()].filter(
+        (ord) =>
           ord.table?.table_number === tableNumber &&
-          ["PENDING", "CONFIRMED", "PREPARING", "READY"].includes(ord.status)
-        ) {
-          if (ord.payment?.status === "PAID") {
-            ord.status = "COMPLETED";
-          }
-        }
+          ord.service_type === "DINE_IN" &&
+          ["PENDING", "CONFIRMED", "PREPARING", "READY"].includes(ord.status),
+      );
+      const unpaidOrders = activeOrders.filter((ord) => ord.payment?.status !== "PAID");
+      if (unpaidOrders.length > 0) {
+        const listText = unpaidOrders.map((o) => o.order_number).join(", ");
+        return {
+          success: false,
+          error: `Meja ${tableNumber} masih memiliki pesanan belum lunas (${listText}). Selesaikan pembayaran atau batalkan lewat Antrean Pesanan terlebih dahulu.`,
+        };
+      }
+      for (const ord of activeOrders) {
+        ord.status = "COMPLETED";
+        completedOrderNumbers.push(ord.order_number);
       }
     }
+
+    tbl.status = nextStatus;
+    tbl.updated_at = new Date();
 
     await recordAuditLog({
       actorId: staff.sub,

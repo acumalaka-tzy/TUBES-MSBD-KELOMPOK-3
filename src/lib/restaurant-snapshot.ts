@@ -41,12 +41,27 @@ async function loadTableStats(): Promise<OutletTableStats> {
       const rows = await withTimeout(
         prisma.table.findMany({
           where: { is_active: true },
-          select: { status: true, capacity: true },
+          select: {
+            status: true,
+            capacity: true,
+            orders: {
+              where: {
+                service_type: "DINE_IN",
+                status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] },
+              },
+              select: { id: true },
+            },
+          },
         }),
         TABLE_STATS_TIMEOUT_MS,
       );
       if (rows.length > 0) {
-        return computeTableStats(rows);
+        return computeTableStats(
+          rows.map((row) => ({
+            capacity: row.capacity,
+            status: row.status === "OCCUPIED" || row.orders.length > 0 ? "OCCUPIED" : row.status,
+          })),
+        );
       }
     } catch (err) {
       console.warn(

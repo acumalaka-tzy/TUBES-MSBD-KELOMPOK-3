@@ -367,7 +367,7 @@ CREATE INDEX idx_table_qr_active_token ON table_qr_codes (token, is_active);
 CREATE INDEX idx_audit_logs_entity_created ON audit_logs (entity_name, entity_id, created_at DESC);
 
 -- ============================================================================
--- BAGIAN 4: DATABASE VIEWS
+-- BAGIAN 4: DATABASE VIEWS (7 Views)
 -- ============================================================================
 CREATE OR REPLACE VIEW vw_daily_sales_summary AS
 SELECT
@@ -433,6 +433,92 @@ LEFT JOIN tables t ON t.id = o.table_id
 LEFT JOIN payments p ON p.order_id = o.id
 WHERE o.status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY')
 ORDER BY o.created_at ASC;
+
+CREATE OR REPLACE VIEW vw_table_occupancy_status AS
+SELECT
+    t.id AS table_id,
+    t.table_number,
+    t.name AS table_name,
+    t.capacity,
+    t.is_active,
+    t.status AS stored_status,
+    CASE
+        WHEN t.is_active = FALSE THEN 'INACTIVE'
+        WHEN t.status = 'OCCUPIED' OR COALESCE(ao.active_order_count, 0) > 0 THEN 'OCCUPIED'
+        ELSE 'AVAILABLE'
+    END AS effective_status,
+    COALESCE(ao.active_order_count, 0) AS active_order_count,
+    CAST(COALESCE(ao.active_order_total, 0) AS DECIMAL(12, 2)) AS active_order_total,
+    qr.token AS active_qr_token,
+    t.updated_at
+FROM tables t
+LEFT JOIN (
+    SELECT
+        table_id,
+        COUNT(*) AS active_order_count,
+        SUM(total_amount) AS active_order_total
+    FROM orders
+    WHERE service_type = 'DINE_IN'
+      AND table_id IS NOT NULL
+      AND status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY')
+    GROUP BY table_id
+) ao ON ao.table_id = t.id
+LEFT JOIN table_qr_codes qr ON qr.table_id = t.id AND qr.is_active = TRUE;
+
+CREATE OR REPLACE VIEW vw_top_selling_products AS
+SELECT
+    pr.id AS product_id,
+    pr.name AS product_name,
+    c.name AS category_name,
+    pr.base_price,
+    COALESCE(SUM(CASE WHEN o.status <> 'CANCELLED' AND p.status = 'PAID' THEN oi.quantity ELSE 0 END), 0) AS total_qty_sold,
+    COUNT(DISTINCT CASE WHEN o.status <> 'CANCELLED' AND p.status = 'PAID' THEN o.id END) AS paid_order_count,
+    CAST(COALESCE(SUM(CASE WHEN o.status <> 'CANCELLED' AND p.status = 'PAID' THEN oi.subtotal ELSE 0 END), 0) AS DECIMAL(12, 2)) AS total_revenue
+FROM products pr
+INNER JOIN categories c ON c.id = pr.category_id
+LEFT JOIN order_items oi ON oi.product_id = pr.id
+LEFT JOIN orders o ON o.id = oi.order_id
+LEFT JOIN payments p ON p.order_id = o.id
+WHERE pr.deleted_at IS NULL
+GROUP BY pr.id, pr.name, c.name, pr.base_price
+ORDER BY total_qty_sold DESC, total_revenue DESC;
+
+CREATE OR REPLACE VIEW vw_payment_method_summary AS
+SELECT
+    p.method AS payment_method,
+    p.status AS payment_status,
+    COUNT(*) AS transaction_count,
+    CAST(COALESCE(SUM(p.amount_due), 0) AS DECIMAL(12, 2)) AS total_amount_due,
+    CAST(COALESCE(SUM(p.amount_paid), 0) AS DECIMAL(12, 2)) AS total_amount_paid
+FROM payments p
+GROUP BY p.method, p.status
+ORDER BY p.method ASC, p.status ASC;
+
+CREATE OR REPLACE VIEW vw_staff_activity_summary AS
+SELECT
+    u.id AS user_id,
+    u.name,
+    u.email,
+    u.phone,
+    u.role,
+    u.is_active,
+    COALESCE(al.audit_count, 0) AS audit_log_count,
+    COALESCE(pm.handled_payments_count, 0) AS handled_payments_count,
+    CAST(COALESCE(pm.handled_payments_total, 0) AS DECIMAL(12, 2)) AS handled_payments_total
+FROM users u
+LEFT JOIN (
+    SELECT actor_id, COUNT(*) AS audit_count
+    FROM audit_logs
+    WHERE actor_id IS NOT NULL
+    GROUP BY actor_id
+) al ON al.actor_id = u.id
+LEFT JOIN (
+    SELECT cashier_id, COUNT(*) AS handled_payments_count, SUM(amount_paid) AS handled_payments_total
+    FROM payments
+    WHERE cashier_id IS NOT NULL AND status = 'PAID'
+    GROUP BY cashier_id
+) pm ON pm.cashier_id = u.id
+WHERE u.role IN ('ADMIN', 'CASHIER');
 
 -- ============================================================================
 -- BAGIAN 5: TRIGGERS BASIS DATA
@@ -517,14 +603,79 @@ BEGIN
     END IF;
 END//
 
+CREATE TRIGGER trg_audit_order_status_change
+AFTER UPDATE ON orders
+FOR EACH ROW
+BEGIN
+    DECLARE v_actor_id VARCHAR(36);
+    DECLARE v_actor_role VARCHAR(20);
+
+    IF OLD.status <> NEW.status THEN
+        SET v_actor_id = NULLIF(@app_current_user_id, '');
+        SET v_actor_role = COALESCE(NULLIF(@app_current_user_role, ''), 'SYSTEM');
+
+        INSERT INTO audit_logs (id, actor_id, actor_role, entity_name, entity_id, action, old_data, new_data, reason)
+        VALUES (
+            UUID(),
+            v_actor_id,
+            v_actor_role,
+            'orders',
+            NEW.id,
+            'DB_TRIGGER_ORDER_STATUS',
+            JSON_OBJECT('order_number', OLD.order_number, 'status', OLD.status),
+            JSON_OBJECT('order_number', NEW.order_number, 'status', NEW.status),
+            CONCAT('Perubahan status pesanan ', NEW.order_number, ': ', OLD.status, ' -> ', NEW.status)
+        );
+    END IF;
+END//
+
+CREATE TRIGGER trg_validate_stock_non_negative
+BEFORE UPDATE ON product_stocks
+FOR EACH ROW
+BEGIN
+    DECLARE v_err_msg VARCHAR(255);
+
+    IF NEW.available_qty < 0 OR NEW.reserved_qty < 0 THEN
+        SET v_err_msg = CONCAT('Stok produk ', NEW.product_id, ' tidak boleh negatif (available=', NEW.available_qty, ', reserved=', NEW.reserved_qty, ')');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_err_msg;
+    END IF;
+END//
+
+CREATE TRIGGER trg_audit_table_qr_revocation
+AFTER UPDATE ON table_qr_codes
+FOR EACH ROW
+BEGIN
+    DECLARE v_actor_id VARCHAR(36);
+    DECLARE v_actor_role VARCHAR(20);
+
+    IF OLD.is_active = TRUE AND NEW.is_active = FALSE THEN
+        SET v_actor_id = COALESCE(NULLIF(@app_current_user_id, ''), NEW.generated_by);
+        SET v_actor_role = COALESCE(NULLIF(@app_current_user_role, ''), 'SYSTEM');
+
+        INSERT INTO audit_logs (id, actor_id, actor_role, entity_name, entity_id, action, old_data, new_data, reason)
+        VALUES (
+            UUID(),
+            v_actor_id,
+            v_actor_role,
+            'table_qr_codes',
+            NEW.id,
+            'DB_TRIGGER_REVOKE_QR',
+            JSON_OBJECT('table_id', OLD.table_id, 'token', LEFT(OLD.token, 16), 'is_active', OLD.is_active),
+            JSON_OBJECT('table_id', NEW.table_id, 'token', LEFT(NEW.token, 16), 'is_active', NEW.is_active, 'revoked_at', NEW.revoked_at),
+            'Token QR meja dinonaktifkan'
+        );
+    END IF;
+END//
+
 -- ============================================================================
--- BAGIAN 6: STORED FUNCTIONS & STORED PROCEDURES
+-- BAGIAN 6: STORED FUNCTIONS & STORED PROCEDURES (6 Functions, 7 Procedures)
 -- ============================================================================
 CREATE FUNCTION fn_check_table_qr_valid(
     p_table_id VARCHAR(36),
     p_token    VARCHAR(128)
 )
 RETURNS BOOLEAN
+DETERMINISTIC
 READS SQL DATA
 BEGIN
     DECLARE v_count INT DEFAULT 0;
@@ -543,6 +694,7 @@ END//
 
 CREATE FUNCTION fn_get_product_available_stock(p_product_id VARCHAR(36))
 RETURNS INT
+DETERMINISTIC
 READS SQL DATA
 BEGIN
     DECLARE v_qty INT DEFAULT 0;
@@ -560,6 +712,7 @@ END//
 
 CREATE FUNCTION fn_calculate_order_total(p_order_id VARCHAR(36))
 RETURNS DECIMAL(12, 2)
+DETERMINISTIC
 READS SQL DATA
 BEGIN
     DECLARE v_subtotal     DECIMAL(12, 2) DEFAULT 0.00;
@@ -583,6 +736,68 @@ BEGIN
     END IF;
 
     RETURN (v_subtotal + v_tax_amount);
+END//
+
+CREATE FUNCTION fn_get_effective_table_status(p_table_id VARCHAR(36))
+RETURNS VARCHAR(20)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE v_is_active     BOOLEAN DEFAULT TRUE;
+    DECLARE v_stored_status VARCHAR(20) DEFAULT 'AVAILABLE';
+    DECLARE v_active_orders INT DEFAULT 0;
+
+    SELECT is_active, status
+    INTO v_is_active, v_stored_status
+    FROM tables
+    WHERE id = p_table_id
+    LIMIT 1;
+
+    IF v_is_active IS NULL THEN
+        RETURN 'UNKNOWN';
+    END IF;
+
+    IF v_is_active = FALSE THEN
+        RETURN 'INACTIVE';
+    END IF;
+
+    SELECT COUNT(*) INTO v_active_orders
+    FROM orders
+    WHERE table_id = p_table_id
+      AND service_type = 'DINE_IN'
+      AND status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY');
+
+    IF v_stored_status = 'OCCUPIED' OR v_active_orders > 0 THEN
+        RETURN 'OCCUPIED';
+    END IF;
+
+    RETURN 'AVAILABLE';
+END//
+
+CREATE FUNCTION fn_format_rupiah(p_amount DECIMAL(12, 2))
+RETURNS VARCHAR(40)
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN CONCAT('Rp ', REPLACE(FORMAT(ROUND(COALESCE(p_amount, 0), 0), 0), ',', '.'));
+END//
+
+CREATE FUNCTION fn_get_daily_net_revenue(p_target_date DATE)
+RETURNS DECIMAL(12, 2)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE v_total DECIMAL(12, 2) DEFAULT 0.00;
+
+    SELECT COALESCE(SUM(o.total_amount), 0.00)
+    INTO v_total
+    FROM orders o
+    INNER JOIN payments p ON p.order_id = o.id
+    WHERE DATE(o.created_at) = p_target_date
+      AND o.status <> 'CANCELLED'
+      AND p.status = 'PAID';
+
+    RETURN COALESCE(v_total, 0.00);
 END//
 
 CREATE PROCEDURE sp_reserve_product_stock(
@@ -842,6 +1057,130 @@ BEGIN
     );
 END//
 
+CREATE PROCEDURE sp_complete_and_clear_table(
+    IN p_table_number VARCHAR(20),
+    IN p_actor_id     VARCHAR(36)
+)
+BEGIN
+    DECLARE v_table_id     VARCHAR(36);
+    DECLARE v_unpaid_count INT DEFAULT 0;
+    DECLARE v_err_msg      VARCHAR(255);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    SELECT id INTO v_table_id
+    FROM tables
+    WHERE table_number = p_table_number
+    LIMIT 1;
+
+    IF v_table_id IS NULL THEN
+        SET v_err_msg = CONCAT('Meja ', p_table_number, ' tidak ditemukan.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_err_msg;
+    END IF;
+
+    START TRANSACTION;
+
+    SELECT COUNT(*) INTO v_unpaid_count
+    FROM orders o
+    LEFT JOIN payments p ON p.order_id = o.id
+    WHERE o.table_id = v_table_id
+      AND o.service_type = 'DINE_IN'
+      AND o.status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY')
+      AND COALESCE(p.status, 'UNPAID') <> 'PAID'
+    FOR UPDATE;
+
+    IF v_unpaid_count > 0 THEN
+        SET v_err_msg = CONCAT('Meja ', p_table_number, ' masih memiliki ', v_unpaid_count, ' pesanan belum lunas.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_err_msg;
+    END IF;
+
+    UPDATE orders
+    SET status = 'COMPLETED'
+    WHERE table_id = v_table_id
+      AND service_type = 'DINE_IN'
+      AND status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY');
+
+    UPDATE tables
+    SET status = 'AVAILABLE'
+    WHERE id = v_table_id;
+
+    INSERT INTO audit_logs (id, actor_id, actor_role, entity_name, entity_id, action, new_data, reason)
+    VALUES (
+        UUID(),
+        NULLIF(p_actor_id, ''),
+        'STAFF',
+        'tables',
+        v_table_id,
+        'SP_CLEAR_TABLE',
+        JSON_OBJECT('table_number', p_table_number, 'status', 'AVAILABLE'),
+        CONCAT('Pengosongan meja ', p_table_number, ' via sp_complete_and_clear_table')
+    );
+
+    COMMIT;
+END//
+
+CREATE PROCEDURE sp_sales_report_by_range(
+    IN p_start_date DATE,
+    IN p_end_date   DATE
+)
+BEGIN
+    SELECT
+        sales_date,
+        successful_orders,
+        cancelled_orders,
+        gross_sales,
+        total_tax,
+        total_refund,
+        net_sales,
+        average_order_value
+    FROM vw_daily_sales_summary
+    WHERE sales_date BETWEEN p_start_date AND p_end_date
+    ORDER BY sales_date ASC;
+END//
+
+CREATE PROCEDURE sp_rotate_table_qr_token(
+    IN p_table_id  VARCHAR(36),
+    IN p_new_token VARCHAR(128),
+    IN p_actor_id  VARCHAR(36)
+)
+BEGIN
+    DECLARE v_table_exists INT DEFAULT 0;
+    DECLARE v_err_msg      VARCHAR(255);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    SELECT COUNT(*) INTO v_table_exists FROM tables WHERE id = p_table_id;
+    IF v_table_exists = 0 THEN
+        SET v_err_msg = CONCAT('Meja ', p_table_id, ' tidak ditemukan.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_err_msg;
+    END IF;
+
+    IF p_new_token IS NULL OR LENGTH(TRIM(p_new_token)) < 8 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Token QR baru minimal 8 karakter.';
+    END IF;
+
+    START TRANSACTION;
+
+    UPDATE table_qr_codes
+    SET is_active = FALSE,
+        revoked_at = CURRENT_TIMESTAMP
+    WHERE table_id = p_table_id
+      AND is_active = TRUE;
+
+    INSERT INTO table_qr_codes (id, table_id, token, is_active, generated_by)
+    VALUES (UUID(), p_table_id, p_new_token, TRUE, NULLIF(p_actor_id, ''));
+
+    COMMIT;
+END//
+
 DELIMITER ;
 
 -- ============================================================================
@@ -898,9 +1237,10 @@ FLUSH PRIVILEGES;
 -- BAGIAN 8: DATA MANIPULATION LANGUAGE (DML) — SEED DATA WARKOP AGAM
 -- ============================================================================
 INSERT INTO users (id, name, email, phone, password_hash, role, is_active) VALUES
-('usr-admin-001', 'Bang Agam (Owner)', 'admin@warkopagam.id', '081260001001', '$2b$12$examplehashedpasswordadmin0000000000000000000001', 'ADMIN', TRUE),
-('usr-cashier-001', 'Rizky Pratama', 'rizky.kasir@warkopagam.id', '081260001002', '$2b$12$examplehashedpasswordcashier00000000000000000002', 'CASHIER', TRUE),
-('usr-cashier-002', 'Siti Rahma', 'siti.kasir@warkopagam.id', '081260001003', '$2b$12$examplehashedpasswordcashier00000000000000000003', 'CASHIER', TRUE),
+('usr-admin-001', 'Admin Agam 1 (Owner)', 'adminAgam@gmail.com', '081260001001', '$2b$12$examplehashedpasswordadmin0000000000000000000001', 'ADMIN', TRUE),
+('usr-admin-002', 'Admin Agam 2 (Owner)', 'admin1Agam@gmail.com', '087760352023', '$2b$12$examplehashedpasswordadmin0000000000000000000006', 'ADMIN', TRUE),
+('usr-cashier-001', 'Kasir Shift Pagi Sore', 'cashier@gmail.com', '0898777621', '$2b$12$examplehashedpasswordcashier00000000000000000002', 'CASHIER', TRUE),
+('usr-cashier-002', 'Kasir Shift Sore Malam', 'cashier1@gmail.com', '0877663244', '$2b$12$examplehashedpasswordcashier00000000000000000003', 'CASHIER', TRUE),
 ('usr-cust-001', 'Andi Saputra', 'andi.customer@gmail.com', '085270002001', '$2b$12$examplehashedpasswordcust00000000000000000000004', 'CUSTOMER', TRUE),
 ('usr-cust-002', 'Dina Marlina', 'dina.customer@gmail.com', '085270002002', '$2b$12$examplehashedpasswordcust00000000000000000000005', 'CUSTOMER', TRUE);
 

@@ -1,15 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Boxes,
   CheckCircle2,
-  Coffee,
   Database,
-  ExternalLink,
   FileSpreadsheet,
   Globe,
   LayoutDashboard,
@@ -26,13 +23,13 @@ import {
   UtensilsCrossed,
   Wallet,
   ShoppingBag,
-  Store,
   ReceiptText,
   X,
   XCircle,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { toggleWebOrderingAction } from "@/app/actions/admin";
+import { BrandLogo } from "@/components/brand-logo";
 import { smoothScrollToSection } from "@/lib/smooth-scroll";
 import { formatRupiah } from "@/lib/utils";
 import type {
@@ -197,19 +194,12 @@ export function AdminDashboardShell({
       >
         {/* Sidebar Header Brand */}
         <div>
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-md">
-                <Coffee className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-base font-black tracking-tight text-white leading-tight">
-                  Warkop Agam
-                </h1>
-                <p className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">
-                  Admin POS System
-                </p>
-              </div>
+          <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-white/10">
+            <div className="min-w-0 flex-1">
+              <BrandLogo variant="transparent" size="sidebar" priority />
+              <p className="mt-1.5 text-[10px] uppercase font-bold tracking-wider text-emerald-400">
+                Admin POS System
+              </p>
             </div>
 
             {/* Tombol Tutup Mobile */}
@@ -262,18 +252,8 @@ export function AdminDashboardShell({
           </nav>
         </div>
 
-        {/* Sidebar Footer: Shortcut Katalog & User Profile Card */}
-        <div className="p-3 border-t border-white/10 space-y-3">
-          {/* Shortcut Lihat Katalog Menu Publik */}
-          <Link
-            href="/menu"
-            target="_blank"
-            className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 active:scale-[0.99] cursor-pointer"
-          >
-            <Store className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Lihat Menu Pelanggan</span>
-            <ExternalLink className="h-3 w-3 text-white/50" />
-          </Link>
+        {/* Sidebar Footer: User Profile Card */}
+        <div className="p-3 border-t border-white/10">
 
           {/* User Profile Card */}
           <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5">
@@ -387,15 +367,17 @@ export function AdminDashboardShell({
               <span>{dataSource === "database" ? "MySQL Aktif" : "Memori"}</span>
             </span>
 
-            {/* Link ke Web Publik */}
-            <Link
-              href="/"
-              target="_blank"
-              className="inline-flex items-center gap-1 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground hover:bg-secondary-bg shadow-2xs"
-            >
-              <span>Web</span>
-              <ExternalLink className="h-3 w-3 text-muted-foreground" />
-            </Link>
+            {/* Tombol Logout */}
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 shadow-2xs cursor-pointer transition-colors"
+                title="Keluar dari akun Admin"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>Keluar</span>
+              </button>
+            </form>
           </div>
 
           {/* Navigasi Tab Cepat Horizontal khusus Mobile/Tablet (< lg) */}

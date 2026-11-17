@@ -3,7 +3,8 @@
 import React, { useRef, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Coffee, Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { loginAction } from "@/app/actions/auth";
 
 function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -75,8 +76,8 @@ function LoginForm() {
         style={{ animationDelay: "40ms" }}
         className="animate-fade-slide-up mb-6 text-center"
       >
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-300 hover:scale-105">
-          <Coffee className="h-6 w-6" aria-hidden />
+        <div className="mb-3.5 flex justify-center">
+          <BrandLogo variant="dark-pill" size="lg" priority />
         </div>
         <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
           Masuk ke Warkop Agam
@@ -139,7 +140,7 @@ function LoginForm() {
               autoFocus
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Contoh: admin@warkopagam.id / 081260001001"
+              placeholder="Masukkan email atau nomor WhatsApp Anda"
               className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 pl-10 text-sm text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
               disabled={isPending}
             />

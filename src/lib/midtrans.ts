@@ -31,6 +31,7 @@ export function getMidtransConfig(): MidtransConfig {
 
 export interface SnapTransactionParams {
   orderNumber: string;
+  gatewayOrderId?: string;
   grossAmount: number;
   customerName: string;
   customerPhone?: string;
@@ -45,7 +46,17 @@ export interface SnapTransactionParams {
 export interface SnapResponse {
   token: string;
   redirectUrl: string;
+  gatewayOrderId: string;
   isSimulation?: boolean;
+}
+
+function isDuplicateMidtransOrderIdError(errText: string): boolean {
+  const lower = errText.toLowerCase();
+  return (
+    lower.includes("sudah digunakan") ||
+    lower.includes("already been used") ||
+    lower.includes("has already been taken")
+  );
 }
 
 /**
@@ -55,6 +66,7 @@ export async function createSnapTransaction(
   params: SnapTransactionParams
 ): Promise<SnapResponse> {
   const config = getMidtransConfig();
+  const baseGatewayOrderId = (params.gatewayOrderId || params.orderNumber).slice(0, 50);
 
   // Jika Server Key belum diset atau masih dummy, gunakan mode simulasi yang aman
   const isDummyKey =
@@ -67,6 +79,7 @@ export async function createSnapTransaction(
     return {
       token: mockToken,
       redirectUrl: "",
+      gatewayOrderId: baseGatewayOrderId,
       isSimulation: true,
     };
   }
@@ -122,46 +135,65 @@ export async function createSnapTransaction(
     ];
   }
 
-  const payload = {
-    transaction_details: {
-      order_id: params.orderNumber,
-      gross_amount: roundedGrossAmount,
-    },
-    customer_details: {
-      first_name: params.customerName,
-      phone: params.customerPhone || "-",
-    },
-    item_details: itemDetails,
-    credit_card: {
-      secure: true,
-    },
-    callbacks: {
-      finish: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/orders/${params.orderNumber}`,
-    },
-  };
+  const maxAttempts = 3;
+  let lastErrorText = "";
 
-  const res = await fetch(config.snapApiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: authHeader,
-    },
-    body: JSON.stringify(payload),
-  });
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const suffix = `${Date.now().toString(36).slice(-4).toUpperCase()}${attempt}`;
+    const gatewayOrderId =
+      attempt === 0
+        ? baseGatewayOrderId
+        : `${params.orderNumber.slice(0, 50 - suffix.length - 1)}-${suffix}`;
 
-  if (!res.ok) {
-    const errText = await res.text();
-    console.warn(`[Midtrans] Gagal membuat Snap transaction (${res.status}):`, errText);
-    throw new Error(`Midtrans Error: ${errText}`);
+    const payload = {
+      transaction_details: {
+        order_id: gatewayOrderId,
+        gross_amount: roundedGrossAmount,
+      },
+      customer_details: {
+        first_name: params.customerName,
+        phone: params.customerPhone || "-",
+      },
+      item_details: itemDetails,
+      credit_card: {
+        secure: true,
+      },
+      callbacks: {
+        finish: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/orders/${params.orderNumber}`,
+      },
+    };
+
+    const res = await fetch(config.snapApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as { token: string; redirect_url: string };
+      return {
+        token: data.token,
+        redirectUrl: data.redirect_url,
+        gatewayOrderId,
+        isSimulation: false,
+      };
+    }
+
+    lastErrorText = await res.text();
+    if (!isDuplicateMidtransOrderIdError(lastErrorText)) {
+      console.warn(`[Midtrans] Gagal membuat Snap transaction (${res.status}):`, lastErrorText);
+      throw new Error(`Midtrans Error: ${lastErrorText}`);
+    }
+    console.warn(
+      `[Midtrans] order_id "${gatewayOrderId}" sudah digunakan, mencoba ulang dengan ID sesi baru...`,
+    );
   }
 
-  const data = (await res.json()) as { token: string; redirect_url: string };
-  return {
-    token: data.token,
-    redirectUrl: data.redirect_url,
-    isSimulation: false,
-  };
+  throw new Error(`Midtrans Error: ${lastErrorText}`);
 }
 
 export interface MidtransStatusResponse {

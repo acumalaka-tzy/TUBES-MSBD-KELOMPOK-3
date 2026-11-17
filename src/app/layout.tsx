@@ -20,6 +20,11 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Warkop Agam - Ordering & POS System",
   description: "Pemesanan menu Warkop Agam langsung dari meja dan pengelolaan operasional outlet.",
+  icons: {
+    icon: "/images/icon-warkop-agam.png",
+    shortcut: "/images/icon-warkop-agam.png",
+    apple: "/images/icon-warkop-agam.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -29,6 +34,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-scroll-behavior="smooth"
       className={`${jakarta.variable} ${plexMono.variable} h-full antialiased`}
     >
+      <head>
+        <style>{`input[type="password"]::-ms-reveal, input[type="password"]::-ms-clear { display: none !important; }`}</style>
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <CartProvider>
           <TableBanner />

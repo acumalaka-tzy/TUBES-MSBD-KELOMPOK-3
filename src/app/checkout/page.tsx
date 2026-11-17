@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart, CartItem } from "@/context/cart-context";
-import { saveRecentOrder, useActiveTable } from "@/lib/active-table";
+import { getOrderHistoryScope, saveRecentOrder, useActiveTable } from "@/lib/active-table";
 import { createOrder, getTablesList, getCatalogProducts } from "@/actions";
 import { TableItem } from "@/actions/types";
 import { Product } from "@/lib/menu-data";
@@ -48,6 +48,7 @@ function CheckoutContent() {
     email: string | null;
     role: string;
   } | null>(null);
+  const [orderedAsOtherGuest, setOrderedAsOtherGuest] = useState(false);
 
   const [tableNumber, setTableNumber] = useState(urlTable || "01");
   const [tables, setTables] = useState<TableItem[]>([]);
@@ -87,7 +88,7 @@ function CheckoutContent() {
       if (user) {
         setCurrentUser(user);
         setCustomerName((prev) => prev || user.name);
-        setCustomerPhone((prev) => prev || user.phone);
+        setCustomerPhone((prev) => prev || (user.phone && user.phone !== "-" ? user.phone : ""));
       }
     });
   }, [urlTable]);
@@ -135,7 +136,7 @@ function CheckoutContent() {
         tableNumber: serviceType === "DINE_IN" ? tableNumber : undefined,
         paymentMethod,
         notes,
-        userId: currentUser?.id || undefined,
+        userId: orderedAsOtherGuest ? null : currentUser?.id,
         items: items.map((it) => ({
           productId: it.productId,
           name: it.name,
@@ -166,15 +167,19 @@ function CheckoutContent() {
         return;
       }
 
-      // Simpan riwayat pesanan ke localStorage via active-table
-      saveRecentOrder({
-        orderNumber: res.orderNumber,
-        trackingToken: res.trackingToken,
-        totalAmount,
-        serviceType,
-        tableNumber: serviceType === "DINE_IN" ? tableNumber : undefined,
-        createdAt: new Date().toISOString(),
-      });
+      // Simpan riwayat pesanan ke localStorage sesuai pemilik sesi (guest atau user:<id>)
+      const ownerScope = getOrderHistoryScope(res.ownerUserId ?? currentUser?.id);
+      saveRecentOrder(
+        {
+          orderNumber: res.orderNumber,
+          trackingToken: res.trackingToken,
+          totalAmount,
+          serviceType,
+          tableNumber: serviceType === "DINE_IN" ? tableNumber : undefined,
+          createdAt: new Date().toISOString(),
+        },
+        ownerScope,
+      );
 
       clearCart();
       router.push(`/orders/${res.orderNumber}${res.trackingToken ? `?token=${res.trackingToken}` : ""}`);
@@ -245,6 +250,7 @@ function CheckoutContent() {
             onNotesChange={setNotes}
             currentUser={currentUser}
             onClearCurrentUser={() => {
+              setOrderedAsOtherGuest(true);
               setCurrentUser(null);
               setCustomerName("");
               setCustomerPhone("");

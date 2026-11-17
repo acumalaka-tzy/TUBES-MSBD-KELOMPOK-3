@@ -3,7 +3,7 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Coffee } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { triggerScrollToSectionAcrossPages } from "@/lib/smooth-scroll";
 
 function FooterContent() {
@@ -18,11 +18,9 @@ function FooterContent() {
   return (
     <footer className="mt-auto border-t border-border bg-background pb-20 md:pb-0">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-xs text-muted-foreground lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-2 font-bold text-foreground">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-foreground text-background">
-            <Coffee className="h-3.5 w-3.5" aria-hidden />
-          </span>
-          <span>Warkop Agam — Padang Bulan, Medan</span>
+        <div className="flex flex-wrap items-center gap-2.5 font-bold text-foreground">
+          <BrandLogo variant="dark-pill" size="sm" />
+          <span className="text-muted-foreground font-semibold">Padang Bulan, Medan</span>
         </div>
         <nav aria-label="Navigasi footer" className="flex flex-wrap gap-x-5 gap-y-2.5 font-semibold">
           <Link href="/" className="hover:text-primary">Beranda</Link>

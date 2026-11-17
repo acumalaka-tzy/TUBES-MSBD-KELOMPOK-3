@@ -30,6 +30,15 @@ export function hasRole(currentRole: UserRole | undefined | null, allowedRoles: 
   return allowedRoles.includes(currentRole);
 }
 
+const CUSTOMER_FACING_PREFIXES = ["/", "/menu", "/lacak", "/checkout", "/orders", "/info"];
+
+export function isCustomerFacingPath(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return CUSTOMER_FACING_PREFIXES.some(
+    (prefix) => prefix !== "/" && (pathname === prefix || pathname.startsWith(`${prefix}/`)),
+  );
+}
+
 /**
  * Evaluasi izin akses terhadap suatu path URL
  */
@@ -65,7 +74,16 @@ export function evaluatePathAccess(
     }
   }
 
-  // Bukan rute terproteksi
+  // Admin & Kasir yang masih aktif login dikunci di dashboard masing-masing (tidak bisa membuka halaman user)
+  if ((userRole === "ADMIN" || userRole === "CASHIER") && isCustomerFacingPath(pathname)) {
+    return {
+      isProtected: true,
+      allowed: false,
+      redirectUrl: getDefaultRedirectForRole(userRole),
+    };
+  }
+
+  // Bukan rute terproteksi (atau guest/customer pada rute user)
   return { isProtected: false, allowed: true };
 }
 

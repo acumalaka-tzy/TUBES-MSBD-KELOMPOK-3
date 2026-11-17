@@ -7,17 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { getPublicStoreSettings } from "@/lib/admin/queries";
 import { getMemoryStore, memoryId } from "@/lib/admin/memory-store";
 import { invalidateDatabaseCheck } from "@/lib/admin/db";
-
-function generateOrderNumber(): string {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
-  const randomSuffix = Math.floor(100 + Math.random() * 900);
-  return `ORD-${dateStr}-${randomSuffix}`;
-}
-
-function generateTrackingToken(): string {
-  return `trk_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-}
+import { generateOrderNumber, generateTrackingToken } from "@/lib/utils";
 
 /**
  * Otomatis membersihkan pesanan PENDING yang telah melewati batas waktu expires_at,
@@ -283,8 +273,9 @@ export async function createOrder(input: CheckoutInput) {
     if (!input.customerName?.trim()) {
       return { success: false, error: "Nama pelanggan wajib diisi." };
     }
-    if (!input.customerPhone?.trim()) {
-      return { success: false, error: "Nomor WhatsApp aktif wajib diisi." };
+    const cleanPhone = (input.customerPhone || "").trim();
+    if (!cleanPhone || cleanPhone === "-" || cleanPhone.replace(/\D/g, "").length < 8) {
+      return { success: false, error: "Nomor WhatsApp aktif wajib diisi dengan benar (minimal 8 digit)." };
     }
     if (input.serviceType === "DINE_IN" && !input.tableNumber) {
       return { success: false, error: "Pilih nomor meja untuk pesanan Dine In." };
@@ -317,9 +308,9 @@ export async function createOrder(input: CheckoutInput) {
     const orderNumber = generateOrderNumber();
     const trackingToken = generateTrackingToken();
 
-    // Sesi login & identitas user jika ada (Guest Checkout: null)
+    // Sesi login & identitas user jika ada (bila user memilih "Pesan Tamu Lain", input.userId === null -> Guest Checkout)
     const session = await getSession();
-    const effectiveUserId = input.userId !== undefined ? input.userId : (session?.sub || null);
+    const effectiveUserId = input.userId === null ? null : (session?.sub ?? null);
 
     const expiryMinutes =
       input.paymentMethod === "CASH"
@@ -335,7 +326,14 @@ export async function createOrder(input: CheckoutInput) {
           where: { table_number: input.tableNumber },
         });
         if (table) {
-          if (table.status === "OCCUPIED") {
+          const activeOrdersAtTable = await prisma.order.count({
+            where: {
+              table_id: table.id,
+              service_type: "DINE_IN",
+              status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] },
+            },
+          });
+          if (table.status === "OCCUPIED" || activeOrdersAtTable > 0) {
             const cleanNum = String(input.tableNumber).replace(/^0+/, "") || input.tableNumber;
             return {
               success: false,
@@ -464,6 +462,7 @@ export async function createOrder(input: CheckoutInput) {
         success: true,
         orderNumber: created.order_number,
         trackingToken: created.tracking_token,
+        ownerUserId: effectiveUserId,
       };
     } catch (dbError: unknown) {
       const msg = dbError instanceof Error ? dbError.message : String(dbError);
@@ -601,6 +600,7 @@ export async function createOrder(input: CheckoutInput) {
         success: true,
         orderNumber,
         trackingToken,
+        ownerUserId: effectiveUserId,
       };
     }
   } catch (err: unknown) {
@@ -687,27 +687,29 @@ export interface CustomerRecentOrderSummary {
 }
 
 /**
- * Mengambil daftar riwayat pesanan milik pelanggan yang sedang login dari database
+ * Mengambil daftar riwayat pesanan milik akun pelanggan yang sedang login dari database.
+ * Guest (belum login) mengembalikan userId: null dan orders: [] agar tidak bercampur dengan histori akun.
  */
 export async function getCustomerRecentOrders(): Promise<{
   success: boolean;
   orders: CustomerRecentOrderSummary[];
+  userId: string | null;
+  userName: string | null;
 }> {
+  const session = await getSession();
+  if (!session || !session.sub) {
+    return { success: true, orders: [], userId: null, userName: null };
+  }
+
   try {
-    const session = await getSession();
-    if (!session || !session.sub) {
-      return { success: true, orders: [] };
-    }
+    await cleanupExpiredOrders().catch(() => {});
 
     const dbOrders = await prisma.order.findMany({
       where: {
-        OR: [
-          { user_id: session.sub },
-          ...(session.phone ? [{ customer_phone: session.phone }] : []),
-        ],
+        user_id: session.sub,
       },
       orderBy: { created_at: "desc" },
-      take: 20,
+      take: 25,
       include: {
         table: true,
         items: true,
@@ -726,9 +728,40 @@ export async function getCustomerRecentOrders(): Promise<{
       itemsSummary: o.items.map((it) => `${it.quantity}x ${it.product_name_snapshot}`).join(", "),
     }));
 
-    return { success: true, orders };
+    // Sertakan fallback in-memory milik user ini saja (bila ada saat koneksi DB sempat terganggu)
+    const seen = new Set(orders.map((o) => o.orderNumber));
+    for (const memOrd of memoryOrders.values()) {
+      if (memOrd.user_id === session.sub && !seen.has(memOrd.order_number)) {
+        seen.add(memOrd.order_number);
+        orders.push({
+          orderNumber: memOrd.order_number,
+          trackingToken: memOrd.tracking_token,
+          totalAmount: Number(memOrd.total_amount),
+          status: memOrd.status,
+          itemCount: memOrd.items.reduce((sum, it) => sum + it.quantity, 0),
+          createdAt: new Date(memOrd.created_at).toISOString(),
+          serviceType: memOrd.service_type,
+          tableNumber: memOrd.table?.table_number || null,
+          itemsSummary: memOrd.items.map((it) => `${it.quantity}x ${it.product_name_snapshot}`).join(", "),
+        });
+      }
+    }
+
+    orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return {
+      success: true,
+      orders,
+      userId: session.sub,
+      userName: session.name || null,
+    };
   } catch (err) {
     console.warn("Gagal mengambil riwayat pesanan dari DB:", err);
-    return { success: true, orders: [] };
+    return {
+      success: true,
+      orders: [],
+      userId: session.sub,
+      userName: session.name || null,
+    };
   }
 }

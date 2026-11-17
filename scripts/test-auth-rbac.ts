@@ -94,12 +94,16 @@ async function runTests() {
   // 4. Uji User Authentication & Registration Service
   // --------------------------------------------------------------------------
   console.log("\n--- 4. Uji User Authentication & Registration Service ---");
-  // Login Admin
-  const adminLogin = await authenticateUser("admin@warkopagam.id", "admin123");
-  assert(adminLogin.user !== null && adminLogin.user.role === "ADMIN", "Admin dapat login dengan kredensial yang sah.");
+  // Login Admin 1 (Owner)
+  const adminLogin = await authenticateUser("adminAgam@gmail.com", "admin123");
+  assert(adminLogin.user !== null && adminLogin.user.role === "ADMIN", "Admin 1 (Owner) dapat login dengan kredensial yang sah.");
+
+  // Login Admin 2 (Owner)
+  const admin2Login = await authenticateUser("admin1Agam@gmail.com", "admin123");
+  assert(admin2Login.user !== null && admin2Login.user.role === "ADMIN", "Admin 2 (Owner) dapat login dengan kredensial yang sah.");
 
   // Login Kasir
-  const cashierLogin = await authenticateUser("081260001002", "kasir123");
+  const cashierLogin = await authenticateUser("0898777621", "kasir123");
   assert(cashierLogin.user !== null && cashierLogin.user.role === "CASHIER", "Kasir dapat login via nomor HP.");
 
   // Login Customer Terdaftar
@@ -107,7 +111,7 @@ async function runTests() {
   assert(custLogin.user !== null && custLogin.user.role === "CUSTOMER", "Customer terdaftar dapat login.");
 
   // Login Gagal (Password salah)
-  const failLogin = await authenticateUser("admin@warkopagam.id", "salahpassword");
+  const failLogin = await authenticateUser("adminAgam@gmail.com", "salahpassword");
   assert(failLogin.user === null && !!failLogin.error, "Login ditolak jika password salah.");
 
   // Registrasi Customer Baru

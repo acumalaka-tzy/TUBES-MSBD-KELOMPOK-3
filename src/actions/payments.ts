@@ -10,99 +10,339 @@ import {
   type MidtransStatusResponse,
 } from "@/lib/midtrans";
 
-/**
- * Buat Snap Token & Redirect URL untuk pembayaran Midtrans
- */
-export async function createMidtransSnapAction(orderNumber: string) {
+interface CachedSnapSession {
+  orderNumber: string;
+  gatewayOrderId: string;
+  token: string;
+  redirectUrl: string;
+}
+
+const gSnap = globalThis as unknown as {
+  __warkopSnapSessions?: Map<string, CachedSnapSession>;
+};
+const snapSessionsCache =
+  gSnap.__warkopSnapSessions ?? (gSnap.__warkopSnapSessions = new Map());
+
+async function resolveInternalOrderNumber(gatewayOrOrderNumber: string): Promise<string> {
   try {
+    const exact = await prisma.order.findUnique({
+      where: { order_number: gatewayOrOrderNumber },
+      select: { order_number: true },
+    });
+    if (exact) return exact.order_number;
+
+    const tx = await prisma.paymentTransaction.findFirst({
+      where: { gateway_order_id: gatewayOrOrderNumber },
+      orderBy: { received_at: "desc" },
+      select: { payment: { select: { order: { select: { order_number: true } } } } },
+    });
+    if (tx?.payment?.order?.order_number) return tx.payment.order.order_number;
+  } catch {
+    // Abaikan jika DB belum terhubung
+  }
+
+  for (const s of snapSessionsCache.values()) {
+    if (s.gatewayOrderId === gatewayOrOrderNumber) return s.orderNumber;
+  }
+
+  if (memoryOrders.has(gatewayOrOrderNumber)) return gatewayOrOrderNumber;
+
+  const baseMatch = gatewayOrOrderNumber.match(/^(ORD-\d{8}-\d+)(?:-[A-Z0-9]+)?$/i);
+  return baseMatch ? baseMatch[1] : gatewayOrOrderNumber;
+}
+
+async function resolveLatestGatewayOrderId(orderNumber: string): Promise<string> {
+  const cached = snapSessionsCache.get(orderNumber);
+  if (cached?.gatewayOrderId) return cached.gatewayOrderId;
+
+  try {
+    const order = await prisma.order.findUnique({
+      where: { order_number: orderNumber },
+      select: {
+        payment: {
+          select: {
+            transactions: {
+              orderBy: { received_at: "desc" },
+              take: 1,
+              select: { gateway_order_id: true },
+            },
+          },
+        },
+      },
+    });
+    const dbGatewayId = order?.payment?.transactions?.[0]?.gateway_order_id;
+    if (dbGatewayId) return dbGatewayId;
+  } catch {
+    // Fallback
+  }
+  return orderNumber;
+}
+
+/**
+ * Ambil sesi Snap aktif yang sudah tersimpan atau buat transaksi Snap baru.
+ * Mencegah error Midtrans "transaction_details.order_id sudah digunakan"
+ * saat tombol Bayar Sekarang diklik ulang atau nomor order bentrok di Sandbox.
+ */
+export async function createOrReuseSnapSession(orderNumber: string): Promise<{
+  success: boolean;
+  statusCode?: number;
+  alreadyPaid?: boolean;
+  token?: string;
+  redirectUrl?: string;
+  clientKey?: string;
+  isProduction?: boolean;
+  isSimulation?: boolean;
+  gatewayOrderId?: string;
+  error?: string;
+}> {
+  try {
+    if (!orderNumber) {
+      return { success: false, statusCode: 400, error: "Nomor pesanan wajib disertakan." };
+    }
+
     let customerName = "Pelanggan Warkop";
     let customerPhone = "-";
     let grossAmount = 0;
     let items: { id: string; price: number; quantity: number; name: string }[] = [];
+    let dbPaymentId: string | null = null;
+    let cachedSession: CachedSnapSession | undefined = snapSessionsCache.get(orderNumber);
 
-    // Cek di Prisma Database
     try {
       const order = await prisma.order.findUnique({
         where: { order_number: orderNumber },
-        include: { items: true, payment: true },
+        include: {
+          items: true,
+          payment: {
+            include: {
+              transactions: {
+                where: { transaction_status: "SNAP_INIT" },
+                orderBy: { received_at: "desc" },
+                take: 1,
+              },
+            },
+          },
+        },
       });
 
       if (order) {
+        if (order.status === "CANCELLED" || (order.expires_at && new Date(order.expires_at) < new Date())) {
+          return {
+            success: false,
+            statusCode: 400,
+            error: "Batas waktu pembayaran telah habis (Kedaluwarsa). Meja telah dikosongkan.",
+          };
+        }
+        if (order.payment?.status === "PAID") {
+          return {
+            success: false,
+            statusCode: 400,
+            alreadyPaid: true,
+            error: "Pesanan ini sudah lunas.",
+          };
+        }
+
+        dbPaymentId = order.payment?.id ?? null;
+        const dbInit = order.payment?.transactions?.[0];
+        if (!cachedSession && dbInit?.raw_payload && typeof dbInit.raw_payload === "object") {
+          const raw = dbInit.raw_payload as { token?: unknown; redirectUrl?: unknown };
+          if (typeof raw.token === "string" && raw.token) {
+            cachedSession = {
+              orderNumber,
+              gatewayOrderId: dbInit.gateway_order_id,
+              token: raw.token,
+              redirectUrl: typeof raw.redirectUrl === "string" ? raw.redirectUrl : "",
+            };
+            snapSessionsCache.set(orderNumber, cachedSession);
+          }
+        }
+
         customerName = order.customer_name;
         customerPhone = order.customer_phone || "-";
         grossAmount = Number(order.total_amount);
         items = order.items.map((it: any) => ({
           id: it.product_id || it.id,
           name: it.product_name_snapshot,
-          price: Number(it.unit_price_snapshot),
+          price: it.subtotal ? Math.round(Number(it.subtotal) / it.quantity) : Number(it.unit_price_snapshot),
           quantity: it.quantity,
         }));
       }
     } catch {
-      // Fallback ke memory store
+      // Fallback ke memory
     }
 
-    // Jika belum ketemu dari DB, cari di fallback memory
     if (grossAmount === 0) {
       const fallback = memoryOrders.get(orderNumber);
       if (fallback) {
+        if (
+          fallback.status === "CANCELLED" ||
+          (fallback.expires_at && new Date(fallback.expires_at) < new Date())
+        ) {
+          return {
+            success: false,
+            statusCode: 400,
+            error: "Batas waktu pembayaran telah habis (Kedaluwarsa). Meja telah dikosongkan.",
+          };
+        }
+        if (fallback.payment?.status === "PAID") {
+          return {
+            success: false,
+            statusCode: 400,
+            alreadyPaid: true,
+            error: "Pesanan ini sudah lunas.",
+          };
+        }
+
         customerName = fallback.customer_name;
         customerPhone = fallback.customer_phone || "-";
         grossAmount = Number(fallback.total_amount);
         items = fallback.items.map((it) => ({
           id: it.product_id || it.id,
           name: it.product_name_snapshot,
-          price: Number(it.unit_price_snapshot),
+          price: it.subtotal ? Math.round(Number(it.subtotal) / it.quantity) : Number(it.unit_price_snapshot),
           quantity: it.quantity,
         }));
       }
     }
 
     if (grossAmount <= 0) {
-      return {
-        success: false,
-        error: `Pesanan ${orderNumber} tidak ditemukan atau nominal tidak valid.`,
-      };
+      return { success: false, statusCode: 404, error: `Pesanan ${orderNumber} tidak ditemukan.` };
+    }
+
+    const isProduction = process.env.MIDTRANS_IS_PRODUCTION === "true";
+    const clientKey =
+      process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ||
+      process.env.MIDTRANS_CLIENT_KEY ||
+      "";
+
+    // Jika pernah membuat token Snap sebelumnya, periksa apakah masih valid atau sudah dibayar
+    let nextGatewayOrderId: string | undefined = undefined;
+    if (cachedSession?.token) {
+      const midStatus = await checkMidtransStatus(cachedSession.gatewayOrderId);
+      const txSt = midStatus?.transaction_status?.toLowerCase();
+
+      if (txSt === "settlement" || (txSt === "capture" && midStatus?.fraud_status !== "challenge")) {
+        await applyMidtransPaymentUpdate(orderNumber, {
+          transaction_status: midStatus!.transaction_status,
+          fraud_status: midStatus!.fraud_status,
+          payment_type: midStatus!.payment_type,
+          gross_amount: midStatus!.gross_amount,
+          transaction_id: midStatus!.transaction_id,
+          gateway_order_id: cachedSession.gatewayOrderId,
+          signature_verified: true,
+          raw_payload: midStatus as unknown as Record<string, unknown>,
+        });
+        return {
+          success: false,
+          statusCode: 400,
+          alreadyPaid: true,
+          error: "Pembayaran pesanan ini sudah diterima oleh Midtrans.",
+        };
+      }
+
+      if (txSt === "expire" || txSt === "cancel" || txSt === "deny" || txSt === "failure") {
+        // Sesi Snap lama sudah mati di Midtrans -> paksa ID gateway baru dengan suffix
+        snapSessionsCache.delete(orderNumber);
+        const retryTag = Date.now().toString(36).slice(-4).toUpperCase();
+        nextGatewayOrderId = `${orderNumber.slice(0, 44)}-${retryTag}`;
+      } else {
+        // Belum kadaluwarsa / belum dipilih metode -> pakai kembali token yang sama
+        return {
+          success: true,
+          token: cachedSession.token,
+          redirectUrl: cachedSession.redirectUrl,
+          clientKey,
+          isProduction,
+          isSimulation: false,
+          gatewayOrderId: cachedSession.gatewayOrderId,
+        };
+      }
     }
 
     const snapResult = await createSnapTransaction({
       orderNumber,
+      gatewayOrderId: nextGatewayOrderId,
       customerName,
       customerPhone,
       grossAmount,
       items,
     });
 
+    if (!snapResult.isSimulation && snapResult.token) {
+      const savedSession: CachedSnapSession = {
+        orderNumber,
+        gatewayOrderId: snapResult.gatewayOrderId,
+        token: snapResult.token,
+        redirectUrl: snapResult.redirectUrl,
+      };
+      snapSessionsCache.set(orderNumber, savedSession);
+
+      if (dbPaymentId) {
+        try {
+          await prisma.paymentTransaction.create({
+            data: {
+              payment_id: dbPaymentId,
+              gateway_provider: "MIDTRANS",
+              gateway_order_id: snapResult.gatewayOrderId,
+              payment_type: "SNAP",
+              transaction_status: "SNAP_INIT",
+              gross_amount: grossAmount,
+              signature_verified: false,
+              raw_payload: {
+                token: snapResult.token,
+                redirectUrl: snapResult.redirectUrl,
+              },
+            },
+          });
+        } catch {
+          // Cache in-memory tetap aktif
+        }
+      }
+    }
+
     return {
       success: true,
       token: snapResult.token,
       redirectUrl: snapResult.redirectUrl,
+      clientKey,
+      isProduction,
       isSimulation: snapResult.isSimulation ?? false,
+      gatewayOrderId: snapResult.gatewayOrderId,
     };
   } catch (err) {
     console.error(`[Midtrans] Gagal membuat Snap Action untuk ${orderNumber}:`, err);
     return {
       success: false,
+      statusCode: 500,
       error: err instanceof Error ? err.message : "Gagal menghubungi Midtrans.",
     };
   }
 }
 
 /**
+ * Buat Snap Token & Redirect URL untuk pembayaran Midtrans
+ */
+export async function createMidtransSnapAction(orderNumber: string) {
+  return createOrReuseSnapSession(orderNumber);
+}
+
+/**
  * Terapkan pembaruan status pembayaran Midtrans ke Database / Memory
  */
 export async function applyMidtransPaymentUpdate(
-  orderNumber: string,
+  gatewayOrOrderNumber: string,
   payload: {
     transaction_status: string;
     fraud_status?: string;
     payment_type?: string;
     gross_amount?: string | number;
     transaction_id?: string;
+    gateway_order_id?: string;
     signature_verified?: boolean;
     raw_payload?: Record<string, unknown>;
   }
 ) {
+  const orderNumber = await resolveInternalOrderNumber(gatewayOrOrderNumber);
+  const gatewayOrderId = payload.gateway_order_id || gatewayOrOrderNumber;
   const { paymentStatus, orderStatus } = mapMidtransStatusToInternal(
     payload.transaction_status,
     payload.fraud_status
@@ -141,7 +381,7 @@ export async function applyMidtransPaymentUpdate(
             create: {
               payment_id: order.payment!.id,
               gateway_provider: "MIDTRANS",
-              gateway_order_id: orderNumber,
+              gateway_order_id: gatewayOrderId,
               gateway_transaction_id: payload.transaction_id,
               payment_type: payload.payment_type || "MIDTRANS",
               transaction_status: payload.transaction_status,
@@ -157,8 +397,8 @@ export async function applyMidtransPaymentUpdate(
           });
         }
 
-        // Update status order
-        if (order.status !== "COMPLETED") {
+        // Update status order hanya jika belum berlanjut ke tahap dapur / selesai
+        if (order.status === "PENDING") {
           await tx.order.update({
             where: { id: order.id },
             data: { status: orderStatus },
@@ -265,7 +505,9 @@ export async function applyMidtransPaymentUpdate(
       fallback.payment.amount_paid = fallback.total_amount;
       fallback.payment.paid_at = new Date();
     }
-    fallback.status = orderStatus;
+    if (fallback.status === "PENDING") {
+      fallback.status = orderStatus;
+    }
     memoryOrders.set(orderNumber, fallback);
     safeRevalidate(`/orders/${orderNumber}`);
     return { success: true, paymentStatus, orderStatus };
@@ -279,7 +521,14 @@ export async function applyMidtransPaymentUpdate(
  */
 export async function checkMidtransStatusAction(orderNumber: string) {
   try {
-    const statusData = await checkMidtransStatus(orderNumber);
+    const gatewayOrderId = await resolveLatestGatewayOrderId(orderNumber);
+    let queriedOrderId = gatewayOrderId;
+    let statusData = await checkMidtransStatus(gatewayOrderId);
+
+    if (!statusData && gatewayOrderId !== orderNumber) {
+      statusData = await checkMidtransStatus(orderNumber);
+      if (statusData) queriedOrderId = orderNumber;
+    }
 
     if (statusData && statusData.transaction_status) {
       const updateResult = await applyMidtransPaymentUpdate(orderNumber, {
@@ -288,6 +537,7 @@ export async function checkMidtransStatusAction(orderNumber: string) {
         payment_type: statusData.payment_type,
         gross_amount: statusData.gross_amount,
         transaction_id: statusData.transaction_id,
+        gateway_order_id: statusData.order_id || queriedOrderId,
         signature_verified: true,
         raw_payload: statusData as unknown as Record<string, unknown>,
       });

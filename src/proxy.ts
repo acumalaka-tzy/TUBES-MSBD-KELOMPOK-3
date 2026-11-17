@@ -31,13 +31,23 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Konfigurasi Matcher: hanya jalankan proxy pada rute aplikasi yang relevan
+// Konfigurasi Matcher: jalankan proxy pada rute terproteksi, auth, dan halaman pelanggan
 export const config = {
   matcher: [
     "/admin/:path*",
     "/cashier/:path*",
     "/login",
     "/register",
+    "/",
+    "/menu",
+    "/menu/:path*",
+    "/lacak",
+    "/lacak/:path*",
+    "/checkout",
+    "/checkout/:path*",
+    "/orders/:path*",
+    "/info",
+    "/info/:path*",
   ],
 };
 

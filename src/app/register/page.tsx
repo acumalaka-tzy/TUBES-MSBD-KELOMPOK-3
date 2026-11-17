@@ -3,7 +3,6 @@
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  Coffee,
   Lock,
   Mail,
   Phone,
@@ -14,6 +13,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { registerAction } from "@/app/actions/auth";
 import { validateIndonesianWhatsApp } from "@/lib/auth/phone-validation";
 
@@ -118,8 +118,8 @@ export default function RegisterPage() {
           style={{ animationDelay: "40ms" }}
           className="animate-fade-slide-up mb-6 text-center"
         >
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-300 hover:scale-105">
-            <Coffee className="h-6 w-6" aria-hidden />
+          <div className="mb-3.5 flex justify-center">
+            <BrandLogo variant="dark-pill" size="lg" priority />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
             Daftar Akun Pelanggan

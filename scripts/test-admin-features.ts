@@ -107,12 +107,12 @@ async function runAdminTests() {
   // --- 2. UJI MANAJEMEN STAF / AKUN KASIR ---
   console.log("\n--- 2. Uji Manajemen Staf & Akun Kasir ---");
   const staffList = await listAdminStaff();
-  assert(staffList.data.length >= 2, "Staf kasir bawaan ditemukan (Rizky Pratama & Siti Rahma).");
+  assert(staffList.data.length >= 2, "Staf kasir bawaan ditemukan (Kasir Shift Pagi Sore & Kasir Shift Sore Malam).");
 
-  const rizky = staffList.data.find((s) => s.name.includes("Rizky"));
-  assert(Boolean(rizky), "Kasir Rizky Pratama ada di daftar staf.");
-  assert(rizky?.role === "CASHIER", "Peran akun adalah CASHIER.");
-  assert(rizky?.isActive === true, "Status akun kasir Rizky aktif.");
+  const shiftPagi = staffList.data.find((s) => s.name.includes("Shift Pagi"));
+  assert(Boolean(shiftPagi), "Kasir Shift Pagi Sore ada di daftar staf.");
+  assert(shiftPagi?.role === "CASHIER", "Peran akun adalah CASHIER.");
+  assert(shiftPagi?.isActive === true, "Status akun kasir aktif.");
 
   // Simulasi pembuatan akun kasir baru
   const newStaffId = memoryId("usr");

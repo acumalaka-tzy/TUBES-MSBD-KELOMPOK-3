@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   AlertCircle,
   Copy,
@@ -730,12 +731,11 @@ export function AdminTablesTab({
               id="printable-qr-sticker"
               className="mx-auto max-w-sm rounded-2xl border-2 border-dashed border-[#272727] bg-white p-4 text-center shadow-md sm:p-6 print:border-none print:shadow-none"
             >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-lg font-black tracking-widest text-[#F16F62] uppercase">
-                  WARKOP AGAM
-                </span>
+              <div className="flex flex-col items-center justify-center gap-1.5">
+                <BrandLogo variant="dark-pill" size="md" className="mx-auto" />
+                <span className="sr-only">WARKOP AGAM</span>
               </div>
-              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-widest">
+              <p className="mt-1.5 text-[11px] font-medium text-stone-500 uppercase tracking-widest">
                 Kelezatan Autentik Khas Medan
               </p>
 

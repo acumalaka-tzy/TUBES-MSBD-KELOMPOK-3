@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -9,17 +9,26 @@ import {
   ChefHat,
   Clock,
   CreditCard,
+  LogIn,
   ReceiptText,
   RotateCw,
   Search,
   ShoppingBag,
   Sparkles,
+  UserCheck,
+  UserRound,
   UtensilsCrossed,
   XCircle,
 } from "lucide-react";
 import { getCustomerRecentOrders, getOrderDetail } from "@/actions";
 import { useCart } from "@/context/cart-context";
-import { useRecentOrders, type RecentOrderSummary } from "@/lib/active-table";
+import {
+  getOrderHistoryScope,
+  getRecentOrders,
+  removeRecentOrders,
+  useRecentOrders,
+  type RecentOrderSummary,
+} from "@/lib/active-table";
 import { cn, formatRupiah } from "@/lib/utils";
 
 interface MergedOrderSummary {
@@ -145,11 +154,22 @@ export default function LacakPage() {
   const [filterTab, setFilterTab] = useState<OrderFilterTab>("ALL");
   const [reorderingId, setReorderingId] = useState<string | null>(null);
   const [reorderFeedback, setReorderFeedback] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<{
+    resolved: boolean;
+    userId: string | null;
+    userName: string | null;
+  }>({
+    resolved: false,
+    userId: null,
+    userName: null,
+  });
+  const prevViewerIdRef = useRef<string | null | undefined>(undefined);
 
-  const localOrders = useRecentOrders();
+  const orderScope = viewer.resolved ? getOrderHistoryScope(viewer.userId) : null;
+  const localOrders = useRecentOrders(orderScope);
   const allOrders = useMemo(
-    () => mergeWithLocalOrders(dbOrders, localOrders, liveOverrides),
-    [dbOrders, localOrders, liveOverrides],
+    () => (viewer.resolved ? mergeWithLocalOrders(dbOrders, localOrders, liveOverrides) : []),
+    [viewer.resolved, dbOrders, localOrders, liveOverrides],
   );
 
   const { addItem, openCart } = useCart();
@@ -158,18 +178,44 @@ export default function LacakPage() {
     setSyncing(true);
     try {
       const dbRes = await getCustomerRecentOrders();
+      const nextUserId = dbRes.userId ?? null;
+      const nextUserName = dbRes.userName ?? null;
+      const currentScope = getOrderHistoryScope(nextUserId);
       const fetchedDb = dbRes.success ? dbRes.orders : [];
+
+      if (prevViewerIdRef.current !== undefined && prevViewerIdRef.current !== nextUserId) {
+        setLiveOverrides({});
+        setFilterTab("ALL");
+        setHistoryQuery("");
+      }
+      prevViewerIdRef.current = nextUserId;
+
+      setViewer({
+        resolved: true,
+        userId: nextUserId,
+        userName: nextUserName,
+      });
       setDbOrders(fetchedDb);
 
-      // Sinkronkan status live & ringkasan item bagi pesanan guest di perangkat
+      // Sinkronkan status live & validasi kepemilikan untuk histori lokal sesuai scope aktif
+      const scopedLocalOrders = getRecentOrders(currentScope);
       const dbSet = new Set(fetchedDb.map((o) => o.orderNumber));
-      const missingLocal = localOrders.filter((lo) => !dbSet.has(lo.orderNumber));
+      const missingLocal = scopedLocalOrders.filter((lo) => !dbSet.has(lo.orderNumber));
       if (missingLocal.length > 0) {
+        const staleOrders: string[] = [];
         const entries = await Promise.all(
           missingLocal.map(async (lo) => {
             try {
               const detail = await getOrderDetail(lo.orderNumber);
               if (detail.success && detail.data) {
+                const orderOwnerId = detail.data.user_id ?? null;
+                const ownerMismatch = nextUserId
+                  ? orderOwnerId !== nextUserId
+                  : orderOwnerId !== null;
+                if (ownerMismatch) {
+                  staleOrders.push(lo.orderNumber);
+                  return null;
+                }
                 const summary = (detail.data.items ?? [])
                   .map((it) => `${it.quantity}x ${it.product_name_snapshot}`)
                   .join(", ");
@@ -178,12 +224,18 @@ export default function LacakPage() {
                   { status: detail.data.status, itemsSummary: summary || undefined },
                 ] as const;
               }
+              if (!detail.success && detail.error?.toLowerCase().includes("tidak ditemukan")) {
+                staleOrders.push(lo.orderNumber);
+              }
             } catch {
               // Abaikan kegagalan sinkron individual
             }
             return null;
           }),
         );
+        if (staleOrders.length > 0) {
+          removeRecentOrders(staleOrders, currentScope);
+        }
         const nextOverrides: Record<string, { status?: string; itemsSummary?: string }> = {};
         for (const entry of entries) {
           if (entry) nextOverrides[entry[0]] = entry[1];
@@ -198,11 +250,12 @@ export default function LacakPage() {
       );
     } catch (err) {
       console.warn("Gagal sinkron DB orders:", err);
+      setViewer((prev) => (prev.resolved ? prev : { resolved: true, userId: null, userName: null }));
     } finally {
       setLoaded(true);
       setSyncing(false);
     }
-  }, [localOrders]);
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -211,7 +264,14 @@ export default function LacakPage() {
     const timer = setInterval(() => {
       void syncOrders();
     }, 10000);
-    return () => clearInterval(timer);
+    const handleFocus = () => {
+      void syncOrders();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [syncOrders]);
 
   const filteredOrders = useMemo(() => {
@@ -417,14 +477,58 @@ export default function LacakPage() {
         style={{ animationDelay: "220ms" }}
         className="animate-fade-slide-up mt-6"
       >
-        {!loaded && allOrders.length === 0 ? (
+        {/* Banner Identitas Pemilik Riwayat */}
+        {viewer.resolved && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-white px-4 py-2.5 text-xs shadow-2xs">
+            <div className="flex min-w-0 items-center gap-2">
+              {viewer.userId ? (
+                <>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                    <UserCheck className="h-3.5 w-3.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-foreground">
+                      Riwayat Akun: {viewer.userName || "Pelanggan"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Hanya menampilkan pesanan milik akun ini.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                    <UserRound className="h-3.5 w-3.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-foreground">Mode Tamu (Belum Login)</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Hanya menampilkan pesanan tamu di perangkat ini.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+            {!viewer.userId && (
+              <Link
+                href="/login?redirect=/lacak"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/8 px-3 py-1.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary hover:text-white"
+              >
+                <LogIn className="h-3.5 w-3.5" aria-hidden />
+                <span>Masuk ke Akun</span>
+              </Link>
+            )}
+          </div>
+        )}
+
+        {!loaded || !viewer.resolved ? (
           <div className="animate-fade-scale-in rounded-3xl border border-border bg-white p-8 text-center shadow-xs">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <RotateCw className="h-5 w-5 animate-spin" aria-hidden />
             </div>
             <p className="text-sm font-bold text-foreground">Memuat riwayat pesanan...</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Mengambil data pesanan perangkat dan akun Anda.
+              Menyesuaikan data pesanan dengan akun atau sesi tamu Anda.
             </p>
           </div>
         ) : allOrders.length === 0 ? (
@@ -433,13 +537,16 @@ export default function LacakPage() {
               <ShoppingBag className="h-8 w-8" aria-hidden />
             </div>
             <h2 className="text-lg font-bold text-foreground sm:text-xl">
-              Anda Belum Memiliki Pesanan
+              {viewer.userId
+                ? "Akun Ini Belum Memiliki Pesanan"
+                : "Belum Ada Pesanan Tamu di Perangkat Ini"}
             </h2>
             <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground sm:text-sm">
-              Pesanan yang Anda buat melalui web atau akun ini akan muncul di sini sehingga mudah
-              dipantau kapan saja dan dipesan ulang dalam 1 klik.
+              {viewer.userId
+                ? `Pesanan yang dibuat saat login sebagai ${viewer.userName || "akun ini"} akan muncul secara eksklusif di sini.`
+                : "Pesanan yang Anda buat sebelum login (sebagai tamu) akan tampil di sini. Untuk melihat riwayat akun Anda, silakan masuk terlebih dahulu."}
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
               <Link
                 href="/menu"
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-6 text-xs font-bold text-white shadow-md transition-all hover:bg-primary-hover sm:text-sm"
@@ -448,6 +555,15 @@ export default function LacakPage() {
                 <span>Pilih Menu Sekarang</span>
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
+              {!viewer.userId && (
+                <Link
+                  href="/login?redirect=/lacak"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-secondary-bg px-5 text-xs font-bold text-foreground transition-colors hover:border-primary hover:text-primary sm:text-sm"
+                >
+                  <LogIn className="h-4 w-4" aria-hidden />
+                  <span>Masuk Akun</span>
+                </Link>
+              )}
             </div>
           </div>
         ) : (

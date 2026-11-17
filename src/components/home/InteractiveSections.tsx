@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,8 +10,9 @@ import {
   MapPin,
   Search,
 } from "lucide-react";
+import { getCustomerRecentOrders, type CustomerRecentOrderSummary } from "@/actions";
 import { OutletLocationGrid } from "@/components/restaurant/OutletLocationGrid";
-import { useRecentOrders } from "@/lib/active-table";
+import { getOrderHistoryScope, useRecentOrders } from "@/lib/active-table";
 import { type RestaurantInfo } from "@/lib/menu-data";
 import { buildOutletLinks, OUTLET_PROFILE } from "@/lib/restaurant-profile";
 import {
@@ -94,7 +95,70 @@ export function QuickTrackBanner() {
   const router = useRouter();
   const [orderInput, setOrderInput] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const recentOrders = useRecentOrders().slice(0, 2);
+  const [viewer, setViewer] = useState<{
+    resolved: boolean;
+    userId: string | null;
+    userName: string | null;
+    dbOrders: CustomerRecentOrderSummary[];
+  }>({
+    resolved: false,
+    userId: null,
+    userName: null,
+    dbOrders: [],
+  });
+
+  useEffect(() => {
+    let active = true;
+    const loadViewerOrders = async () => {
+      try {
+        const res = await getCustomerRecentOrders();
+        if (!active) return;
+        setViewer({
+          resolved: true,
+          userId: res.userId ?? null,
+          userName: res.userName ?? null,
+          dbOrders: res.success ? res.orders : [],
+        });
+      } catch {
+        if (!active) return;
+        setViewer((prev) => ({ ...prev, resolved: true }));
+      }
+    };
+    void loadViewerOrders();
+    const onFocus = () => void loadViewerOrders();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+
+  const orderScope = viewer.resolved ? getOrderHistoryScope(viewer.userId) : null;
+  const scopedLocalOrders = useRecentOrders(orderScope);
+
+  const recentOrders = useMemo(() => {
+    if (!viewer.resolved) return [];
+    const seen = new Set<string>();
+    const merged: Array<{
+      orderNumber: string;
+      trackingToken?: string | null;
+      totalAmount: number;
+      serviceType: string;
+      tableNumber?: string | null;
+    }> = [];
+
+    for (const dbo of viewer.dbOrders) {
+      seen.add(dbo.orderNumber);
+      merged.push(dbo);
+    }
+    for (const lo of scopedLocalOrders) {
+      if (!seen.has(lo.orderNumber)) {
+        seen.add(lo.orderNumber);
+        merged.push(lo);
+      }
+    }
+    return merged.slice(0, 2);
+  }, [viewer.resolved, viewer.dbOrders, scopedLocalOrders]);
 
   function handleTrackSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -195,7 +259,9 @@ export function QuickTrackBanner() {
             {recentOrders.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-[11px] font-semibold text-white/65">
-                  Pesanan terakhir di perangkat ini:
+                  {viewer.userId
+                    ? `Pesanan terakhir akun ${viewer.userName || "Anda"}:`
+                    : "Pesanan terakhir tamu di perangkat ini:"}
                 </p>
                 {recentOrders.map((ord) => (
                   <Link

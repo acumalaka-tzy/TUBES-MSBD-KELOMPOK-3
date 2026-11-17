@@ -144,6 +144,15 @@ export function PaymentInstructions({
       const data = await res.json();
 
       if (!data.success || !data.token) {
+        if (data.alreadyPaid && typeof onPaymentSuccess === "function") {
+          setStatusFeedback({
+            type: "success",
+            message: data.error || "Pembayaran pesanan ini sudah diterima oleh Midtrans!",
+          });
+          onPaymentSuccess();
+          setIsLoadingSnap(false);
+          return;
+        }
         setStatusFeedback({
           type: "error",
           message: data.error || "Gagal membuat sesi transaksi Midtrans.",

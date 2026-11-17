@@ -1,21 +1,17 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   BellRing,
   Boxes,
   Calculator,
   CheckCircle2,
   ChefHat,
-  Coffee,
   Database,
-  ExternalLink,
   History,
   LayoutDashboard,
   LogOut,
   Menu,
-  QrCode,
   RefreshCw,
   Search,
   Volume2,
@@ -27,6 +23,7 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { getCashierDashboardData } from "@/app/actions/cashier";
+import { BrandLogo } from "@/components/brand-logo";
 import type {
   CashierDashboardPayload,
   CashierOrder,
@@ -243,19 +240,12 @@ export function CashierDashboardShell({
       >
         {/* Sidebar Header Brand */}
         <div>
-          <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-md">
-                <Coffee className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-base leading-tight font-black tracking-tight text-white">
-                  {settings.restaurantName || "Warkop Agam"}
-                </h1>
-                <p className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase">
-                  Cashier POS System
-                </p>
-              </div>
+          <div className="flex items-center justify-between gap-2 border-b border-white/10 px-5 py-4">
+            <div className="min-w-0 flex-1">
+              <BrandLogo variant="transparent" size="sidebar" priority />
+              <p className="mt-1.5 text-[10px] font-bold tracking-wider text-emerald-400 uppercase">
+                Cashier POS System
+              </p>
             </div>
 
             <button
@@ -312,17 +302,8 @@ export function CashierDashboardShell({
           </nav>
         </div>
 
-        {/* Sidebar Footer: Shortcut Katalog & User Profile Card */}
-        <div className="space-y-3 border-t border-white/10 p-3">
-          <Link
-            href="/menu"
-            target="_blank"
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 active:scale-[0.99]"
-          >
-            <QrCode className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Lihat Katalog Pelanggan</span>
-            <ExternalLink className="h-3 w-3 text-white/50" />
-          </Link>
+        {/* Sidebar Footer: User Profile Card */}
+        <div className="border-t border-white/10 p-3">
 
           {/* User Profile Card */}
           <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5">
@@ -451,15 +432,17 @@ export function CashierDashboardShell({
               <span>Sync</span>
             </button>
 
-            {/* Link ke Web Publik */}
-            <Link
-              href="/"
-              target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-2.5 py-1.5 text-[11px] font-bold text-foreground shadow-2xs hover:bg-secondary-bg sm:px-3 sm:text-xs"
-            >
-              <span>Web Menu</span>
-              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-            </Link>
+            {/* Tombol Logout */}
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-bold text-red-700 shadow-2xs hover:bg-red-100 cursor-pointer transition-colors sm:px-3 sm:text-xs"
+                title="Keluar dari akun Kasir"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>Keluar</span>
+              </button>
+            </form>
           </div>
 
           {/* Navigasi Tab Cepat Horizontal khusus Mobile/Tablet (< lg) */}

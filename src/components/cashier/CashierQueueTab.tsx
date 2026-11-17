@@ -577,16 +577,6 @@ export function CashierQueueTab({
                             <ChefHat className="h-3.5 w-3.5 shrink-0" />
                             <span>Langsung Masak</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleQuickStatusUpdate(order.orderNumber, "CANCELLED")}
-                            disabled={isOrderBusy}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-extrabold text-red-700 hover:bg-red-500/20 disabled:opacity-50 cursor-pointer sm:py-2"
-                            title="Batalkan pesanan dan segera kosongkan meja"
-                          >
-                            <XCircle className="h-3.5 w-3.5" />
-                            <span>Batal &amp; Kosongkan Meja</span>
-                          </button>
                         </div>
                       )}
 

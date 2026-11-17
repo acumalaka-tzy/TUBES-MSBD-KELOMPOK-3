@@ -600,6 +600,8 @@ export async function getDashboardSummary(period: PeriodKey, fromStr?: string, t
  * Manajemen Meja & QR Code
  * ------------------------------------------------------------------------- */
 
+const ACTIVE_DINE_IN_ORDER_STATUSES = ["PENDING", "CONFIRMED", "PREPARING", "READY"];
+
 export async function listAdminTables() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -614,6 +616,13 @@ export async function listAdminTables() {
             orderBy: { created_at: "desc" },
             take: 1,
           },
+          orders: {
+            where: {
+              service_type: "DINE_IN",
+              status: { in: ACTIVE_DINE_IN_ORDER_STATUSES },
+            },
+            select: { id: true },
+          },
           _count: { select: { orders: true } },
         },
       });
@@ -625,13 +634,19 @@ export async function listAdminTables() {
           ? `${appUrl}/menu?table=${encodeURIComponent(r.table_number)}&token=${encodeURIComponent(token)}`
           : null;
 
+        const effectiveStatus: AdminTable["status"] = !r.is_active
+          ? "INACTIVE"
+          : r.status === "OCCUPIED" || r.orders.length > 0
+            ? "OCCUPIED"
+            : "AVAILABLE";
+
         const cleanName = `Meja ${String(r.table_number).replace(/^0+/, "") || String(r.table_number)}`;
         return {
           id: r.id,
           tableNumber: r.table_number,
           name: cleanName,
           capacity: r.capacity,
-          status: r.status as AdminTable["status"],
+          status: effectiveStatus,
           isActive: r.is_active,
           activeQrToken: token,
           activeQrUrl: qrUrl,
@@ -644,6 +659,17 @@ export async function listAdminTables() {
     },
     () => {
       const mem = getMemoryStore();
+      const occupiedTableNumbers = new Set(
+        [...memoryOrders.values()]
+          .filter(
+            (o) =>
+              o.service_type === "DINE_IN" &&
+              o.table?.table_number &&
+              ACTIVE_DINE_IN_ORDER_STATUSES.includes(o.status),
+          )
+          .map((o) => o.table!.table_number),
+      );
+
       return [...mem.tables.values()]
         .sort((a, b) => a.table_number.localeCompare(b.table_number, undefined, { numeric: true }))
         .map((r) => {
@@ -654,13 +680,19 @@ export async function listAdminTables() {
             ? `${appUrl}/menu?table=${encodeURIComponent(r.table_number)}&token=${encodeURIComponent(token)}`
             : null;
 
+          const effectiveStatus: AdminTable["status"] = !r.is_active
+            ? "INACTIVE"
+            : r.status === "OCCUPIED" || occupiedTableNumbers.has(r.table_number)
+              ? "OCCUPIED"
+              : "AVAILABLE";
+
           const cleanName = `Meja ${String(r.table_number).replace(/^0+/, "") || String(r.table_number)}`;
           return {
             id: r.id,
             tableNumber: r.table_number,
             name: cleanName,
             capacity: r.capacity,
-            status: r.status,
+            status: effectiveStatus,
             isActive: r.is_active,
             activeQrToken: token,
             activeQrUrl: qrUrl,
@@ -683,8 +715,8 @@ export async function listAdminStaff() {
     "staff",
     async () => {
       const rows = await prisma.user.findMany({
-        where: { role: "CASHIER" },
-        orderBy: { created_at: "asc" },
+        where: { role: { in: ["ADMIN", "CASHIER"] } },
+        orderBy: [{ role: "asc" }, { created_at: "asc" }],
       });
 
       return rows.map((u) => ({
@@ -700,7 +732,7 @@ export async function listAdminStaff() {
     },
     () => {
       return [...memoryUsers.values()]
-        .filter((u) => u.role === "CASHIER")
+        .filter((u) => u.role === "ADMIN" || u.role === "CASHIER")
         .map((u) => ({
           id: u.id,
           name: u.name,

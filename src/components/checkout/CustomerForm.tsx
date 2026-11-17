@@ -69,7 +69,8 @@ export function CustomerForm({
                 </span>
               </div>
               <p className="truncate text-[11px] text-muted-foreground">
-                {currentUser.phone} • {currentUser.email || "Pesanan tersimpan di akun Anda"}
+                {currentUser.phone && currentUser.phone !== "-" ? `${currentUser.phone} • ` : ""}
+                {currentUser.email || "Pesanan tersimpan di akun Anda"}
               </p>
             </div>
           </div>
