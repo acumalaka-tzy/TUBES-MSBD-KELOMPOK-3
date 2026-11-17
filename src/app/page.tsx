@@ -41,7 +41,7 @@ async function HomeSections() {
       {/* Hero & Profil Outlet Berdikari (Versi Bersih & Gambar Diperbesar) */}
       <section className="border-b border-border bg-secondary-bg text-foreground">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-8 sm:gap-10 sm:py-10 md:grid-cols-12 md:py-14">
-          <div className="min-w-0 md:col-span-7">
+          <div className="order-2 min-w-0 md:order-1 md:col-span-7">
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem]">
               {restaurant.name} Medan
             </h1>
@@ -101,7 +101,7 @@ async function HomeSections() {
           </div>
 
           {/* Foto Resmi Outlet Warkop Agam Berdikari (Klik langsung menuju lokasi di bawah) */}
-          <div className="md:col-span-5">
+          <div className="order-1 md:order-2 md:col-span-5">
             <HeroStorefrontCard address={restaurant.address} />
           </div>
         </div>

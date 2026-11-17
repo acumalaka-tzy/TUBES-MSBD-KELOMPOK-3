@@ -41,7 +41,10 @@ export function CashierOverviewTab({
   // Kalkulasi Metrik Shift Kasir
   const paidOrders = orders.filter((o) => o.payment.status === "PAID");
   const pendingOrders = orders.filter(
-    (o) => o.payment.status === "PENDING" && o.status !== "CANCELLED",
+    (o) =>
+      o.status !== "CANCELLED" &&
+      o.status !== "COMPLETED" &&
+      (o.payment.status === "UNPAID" || o.payment.status === "PENDING"),
   );
   const preparingOrders = orders.filter((o) => o.status === "PREPARING");
 

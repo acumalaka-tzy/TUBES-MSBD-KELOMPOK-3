@@ -311,6 +311,18 @@ export async function createOrder(input: CheckoutInput) {
     // Sesi login & identitas user jika ada (bila user memilih "Pesan Tamu Lain", input.userId === null -> Guest Checkout)
     const session = await getSession();
     const effectiveUserId = input.userId === null ? null : (session?.sub ?? null);
+    let validUserId: string | null = null;
+    if (effectiveUserId) {
+      try {
+        const userCheck = await prisma.user.findUnique({
+          where: { id: effectiveUserId },
+          select: { id: true },
+        });
+        if (userCheck) validUserId = userCheck.id;
+      } catch {
+        validUserId = null;
+      }
+    }
 
     const expiryMinutes =
       input.paymentMethod === "CASH"
@@ -322,8 +334,17 @@ export async function createOrder(input: CheckoutInput) {
     try {
       let selectedTableId: string | null = null;
       if (input.serviceType === "DINE_IN" && input.tableNumber) {
-        const table = await prisma.table.findUnique({
-          where: { table_number: input.tableNumber },
+        const rawTable = String(input.tableNumber).trim();
+        const cleanNum = rawTable.replace(/^0+/, "") || rawTable;
+        const paddedNum = cleanNum.padStart(2, "0");
+        const table = await prisma.table.findFirst({
+          where: {
+            OR: [
+              { table_number: rawTable },
+              { table_number: cleanNum },
+              { table_number: paddedNum },
+            ],
+          },
         });
         if (table) {
           const activeOrdersAtTable = await prisma.order.count({
@@ -334,7 +355,6 @@ export async function createOrder(input: CheckoutInput) {
             },
           });
           if (table.status === "OCCUPIED" || activeOrdersAtTable > 0) {
-            const cleanNum = String(input.tableNumber).replace(/^0+/, "") || input.tableNumber;
             return {
               success: false,
               error: `Meja ${cleanNum} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
@@ -347,8 +367,32 @@ export async function createOrder(input: CheckoutInput) {
       const created = await prisma.$transaction(async (tx) => {
         // 1. Cek & Reservasi Stok untuk setiap produk
         for (const item of input.items) {
+          let resolvedProductId = item.productId;
+          let existingProduct = await tx.product.findUnique({
+            where: { id: resolvedProductId },
+            select: { id: true, is_available: true, deleted_at: true },
+          });
+
+          if (!existingProduct) {
+            existingProduct = await tx.product.findFirst({
+              where: { name: item.name, deleted_at: null },
+              select: { id: true, is_available: true, deleted_at: true },
+            });
+            if (existingProduct) {
+              resolvedProductId = existingProduct.id;
+              item.productId = existingProduct.id;
+            }
+          }
+
+          if (!existingProduct || existingProduct.deleted_at !== null) {
+            throw new Error(`Menu "${item.name}" sudah tidak tersedia di katalog.`);
+          }
+          if (!existingProduct.is_available) {
+            throw new Error(`Menu "${item.name}" saat ini sedang habis atau dinonaktifkan.`);
+          }
+
           const stock = await tx.productStock.findUnique({
-            where: { product_id: item.productId },
+            where: { product_id: resolvedProductId },
           });
 
           if (stock) {
@@ -360,7 +404,7 @@ export async function createOrder(input: CheckoutInput) {
 
             // Kurangi available_qty, tambah reserved_qty
             await tx.productStock.update({
-              where: { product_id: item.productId },
+              where: { product_id: resolvedProductId },
               data: {
                 available_qty: stock.available_qty - item.quantity,
                 reserved_qty: stock.reserved_qty + item.quantity,
@@ -370,7 +414,7 @@ export async function createOrder(input: CheckoutInput) {
             // Catat log mutasi stok
             await tx.stockMovement.create({
               data: {
-                product_id: item.productId,
+                product_id: resolvedProductId,
                 movement_type: "RESERVE",
                 qty_change: -item.quantity,
                 available_before: stock.available_qty,
@@ -387,7 +431,7 @@ export async function createOrder(input: CheckoutInput) {
         const order = await tx.order.create({
           data: {
             order_number: orderNumber,
-            user_id: effectiveUserId,
+            user_id: validUserId,
             table_id: selectedTableId,
             customer_name: input.customerName.trim(),
             customer_phone: input.customerPhone.trim(),
@@ -456,151 +500,24 @@ export async function createOrder(input: CheckoutInput) {
         }
 
         return order;
-      });
+      }, { maxWait: 10000, timeout: 20000 });
 
       return {
         success: true,
         orderNumber: created.order_number,
         trackingToken: created.tracking_token,
-        ownerUserId: effectiveUserId,
+        ownerUserId: validUserId,
       };
     } catch (dbError: unknown) {
       const msg = dbError instanceof Error ? dbError.message : String(dbError);
-      if (msg.startsWith("Stok ") || msg.startsWith("Menu ")) {
+      console.error("[createOrder Database Transaction Error]:", dbError);
+      if (msg.startsWith("Stok ") || msg.startsWith("Menu ") || msg.startsWith("Meja ")) {
         return { success: false, error: msg };
       }
 
-      invalidateDatabaseCheck();
-      console.warn(
-        "Prisma DB belum tersambung langsung, menyimpan di mock memory order:",
-        msg,
-      );
-
-      const mem = getMemoryStore();
-      for (const item of input.items) {
-        const prod = mem.products.get(item.productId);
-        if (prod && prod.deleted_at !== null) {
-          return { success: false, error: `Menu "${item.name}" sudah tidak tersedia.` };
-        }
-        const st = mem.stocks.get(item.productId);
-        if (st && (!prod?.is_available || st.available_qty < item.quantity)) {
-          const tersisa = prod?.is_available ? st.available_qty : 0;
-          return {
-            success: false,
-            error: `Stok "${item.name}" hanya tersisa ${tersisa} porsi.`,
-          };
-        }
-      }
-
-      for (const item of input.items) {
-        const st = mem.stocks.get(item.productId);
-        const prod = mem.products.get(item.productId);
-        if (st) {
-          const availBefore = st.available_qty;
-          const resBefore = st.reserved_qty;
-          st.available_qty = availBefore - item.quantity;
-          st.reserved_qty = resBefore + item.quantity;
-          st.updated_at = new Date();
-          if (prod && st.available_qty <= 0) {
-            prod.is_available = false;
-          }
-          mem.movements.unshift({
-            id: memoryId("mov"),
-            product_id: item.productId,
-            actor_id: effectiveUserId,
-            actor_name: input.customerName,
-            movement_type: "RESERVE",
-            qty_change: -item.quantity,
-            available_before: availBefore,
-            available_after: st.available_qty,
-            reserved_before: resBefore,
-            reserved_after: st.reserved_qty,
-            reason: `Reservasi order ${orderNumber}`,
-            created_at: new Date(),
-          });
-        }
-      }
-
-      let resolvedTableInfo: { table_number: string; name: string } | null = null;
-      if (input.serviceType === "DINE_IN" && input.tableNumber) {
-        const matchedTable = Array.from(mem.tables.values()).find(
-          (t) => t.table_number === input.tableNumber
-        );
-        if (matchedTable) {
-          if (matchedTable.status === "OCCUPIED") {
-            const cleanNum = String(input.tableNumber).replace(/^0+/, "") || input.tableNumber;
-            return {
-              success: false,
-              error: `Meja ${cleanNum} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
-            };
-          }
-          matchedTable.status = "OCCUPIED";
-          matchedTable.updated_at = new Date();
-          resolvedTableInfo = {
-            table_number: matchedTable.table_number,
-            name: matchedTable.name,
-          };
-        } else {
-          resolvedTableInfo = {
-            table_number: input.tableNumber,
-            name: `Meja ${input.tableNumber}`,
-          };
-        }
-      }
-
-      // Simpan di Memory Fallback agar user tetap bisa menguji alur 100%
-      const fallbackOrder: OrderDetailData = {
-        id: `mock-${Date.now()}`,
-        order_number: orderNumber,
-        user_id: effectiveUserId,
-        customer_name: input.customerName.trim(),
-        customer_phone: input.customerPhone.trim(),
-        tracking_token: trackingToken,
-        source: "WEB",
-        service_type: input.serviceType,
-        status: "PENDING",
-        subtotal,
-        tax_amount: taxAmount,
-        total_amount: totalAmount,
-        notes: input.notes?.trim() || null,
-        expires_at: expiresAt,
-        created_at: new Date(),
-        table: resolvedTableInfo,
-        items: input.items.map((it, idx) => {
-          const optTotal = it.options.reduce((s, o) => s + (Number(o.priceAdjustment) || 0), 0);
-          return {
-            id: `mock-item-${idx}`,
-            product_id: it.productId,
-            product_name_snapshot: it.name,
-            unit_price_snapshot: it.unitPrice,
-            quantity: it.quantity,
-            subtotal: (it.unitPrice + optTotal) * it.quantity,
-            item_notes: it.itemNotes || null,
-            options: it.options.map((opt) => ({
-              option_group_name_snapshot: opt.groupName,
-              option_name_snapshot: opt.optionName,
-              price_adjustment_snapshot: opt.priceAdjustment,
-            })),
-          };
-        }),
-        payment: {
-          id: `mock-pay-${Date.now()}`,
-          method: input.paymentMethod,
-          status: "UNPAID",
-          amount_due: totalAmount,
-          amount_paid: 0,
-          change_amount: 0,
-          paid_at: null,
-        },
-      };
-
-      memoryOrders.set(orderNumber, fallbackOrder);
-
       return {
-        success: true,
-        orderNumber,
-        trackingToken,
-        ownerUserId: effectiveUserId,
+        success: false,
+        error: `Gagal memproses pesanan ke database: ${msg}. Silakan coba lagi.`,
       };
     }
   } catch (err: unknown) {

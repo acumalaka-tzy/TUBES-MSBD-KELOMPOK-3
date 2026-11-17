@@ -23,7 +23,7 @@ import type {
   TopProduct,
 } from "./types";
 
-const QUERY_TIMEOUT_MS = 5000;
+const QUERY_TIMEOUT_MS = 12000;
 
 /**
  * Menjalankan query database bila tersedia; jika gagal otomatis memakai
@@ -38,8 +38,12 @@ async function readWithFallback<T>(
     try {
       return { data: await withTimeout(fromDb(), QUERY_TIMEOUT_MS), source: "database" };
     } catch (err) {
-      invalidateDatabaseCheck();
-      console.warn(`[admin:${label}] Query MySQL gagal, memakai data memori:`, err instanceof Error ? err.message.split("\n").pop() : err);
+      console.warn(`[admin:${label}] Query MySQL percobaan 1 gagal:`, err instanceof Error ? err.message.split("\n").pop() : err);
+      try {
+        return { data: await withTimeout(fromDb(), QUERY_TIMEOUT_MS), source: "database" };
+      } catch (err2) {
+        console.warn(`[admin:${label}] Query MySQL percobaan 2 gagal, memakai data memori:`, err2 instanceof Error ? err2.message.split("\n").pop() : err2);
+      }
     }
   }
   return { data: fromMemory(), source: "memory" };

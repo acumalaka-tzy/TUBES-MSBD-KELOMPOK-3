@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
-const CHECK_TTL_MS = 15_000;
-const CHECK_TIMEOUT_MS = 2500;
+const CHECK_SUCCESS_TTL_MS = 30_000;
+const CHECK_FAILURE_TTL_MS = 1_500;
+const CHECK_TIMEOUT_MS = 8000;
 
 const globalForDb = globalThis as unknown as {
   __warkopDbCheck?: { ready: boolean; checkedAt: number; error?: string };
@@ -25,21 +26,36 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 /**
  * Mengecek apakah database MySQL tersambung dan skema tabel sudah dibuat.
- * Hasil di-cache 15 detik agar tidak membebani setiap request.
+ * Hasil sukses di-cache 30 detik agar tidak membebani setiap request.
+ * Jika gagal, di-cache hanya 1.5 detik agar segera mencoba ulang (resilien terhadap cold-start).
  */
 export async function isDatabaseReady(): Promise<boolean> {
   const cached = globalForDb.__warkopDbCheck;
-  if (cached && Date.now() - cached.checkedAt < CHECK_TTL_MS) {
+  const ttl = cached?.ready ? CHECK_SUCCESS_TTL_MS : CHECK_FAILURE_TTL_MS;
+  if (cached && Date.now() - cached.checkedAt < ttl) {
     return cached.ready;
   }
+
+  const ping = async () => {
+    // findFirst jauh lebih cepat daripada count() karena tidak melakukan agregasi seluruh row
+    await prisma.category.findFirst({ select: { id: true } });
+  };
+
   try {
-    await withTimeout(prisma.category.count(), CHECK_TIMEOUT_MS);
+    await withTimeout(ping(), CHECK_TIMEOUT_MS);
     globalForDb.__warkopDbCheck = { ready: true, checkedAt: Date.now() };
     return true;
   } catch (err) {
-    const message = err instanceof Error ? err.message.split("\n").pop() : String(err);
-    globalForDb.__warkopDbCheck = { ready: false, checkedAt: Date.now(), error: message };
-    return false;
+    // Retry sekali sebelum menyimpulkan database down (mengatasi handshake latency cloud)
+    try {
+      await withTimeout(ping(), CHECK_TIMEOUT_MS);
+      globalForDb.__warkopDbCheck = { ready: true, checkedAt: Date.now() };
+      return true;
+    } catch (err2) {
+      const message = err2 instanceof Error ? err2.message.split("\n").pop() : String(err2);
+      globalForDb.__warkopDbCheck = { ready: false, checkedAt: Date.now(), error: message };
+      return false;
+    }
   }
 }
 

@@ -30,7 +30,6 @@ import { cn, formatRupiah } from "@/lib/utils";
 
 const ITEM_NOTE_CHIPS = ["Less Sugar", "Es Terpisah", "Pedas Sedang", "Tanpa Bawang"];
 const ORDER_NOTE_CHIPS = ["Sajikan bersamaan", "Minta sendok & tisu", "Bungkus rapi terpisah"];
-const QUICK_TABLES = ["01", "02", "03", "04", "05", "06"];
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const {
@@ -55,7 +54,6 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   } = useCart();
 
   const table = useActiveTable();
-  const [quickTable, setQuickTable] = useState<string>("");
   const [confirmClear, setConfirmClear] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -72,7 +70,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   } | null>(null);
 
   const effectiveServiceType = table ? "DINE_IN" : serviceType;
-  const activeTableDisplay = table || (effectiveServiceType === "DINE_IN" ? quickTable : "");
+  const activeTableDisplay = table || "";
   const checkoutHref = useMemo(() => {
     const params = new URLSearchParams();
     if (activeTableDisplay) params.set("table", activeTableDisplay);
@@ -331,28 +329,9 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   <span>Identitas meja terkunci otomatis dari QR Meja {table}.</span>
                 </p>
               ) : effectiveServiceType === "DINE_IN" ? (
-                <div className="mt-2">
-                  <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
-                    Pilih nomor meja cepat (opsional, bisa diubah di Checkout):
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_TABLES.map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setQuickTable((prev) => (prev === num ? "" : num))}
-                        className={cn(
-                          "rounded-lg border px-2 py-1 font-mono text-[11px] font-bold transition-colors cursor-pointer",
-                          quickTable === num
-                            ? "border-primary bg-primary text-white"
-                            : "border-border bg-white text-foreground hover:border-primary/50",
-                        )}
-                      >
-                        Meja {num}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Makan di tempat — nomor meja dapat dipilih saat Checkout.
+                </p>
               ) : (
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
                   Pesanan dibungkus rapi — isi nama &amp; WhatsApp saat Checkout.

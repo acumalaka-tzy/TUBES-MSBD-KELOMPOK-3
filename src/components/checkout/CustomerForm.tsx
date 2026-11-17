@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Utensils, Package, User, Phone, FileText, ChevronDown, UserCheck, Zap, AlertCircle } from "lucide-react";
+import { Utensils, Package, User, Phone, FileText, ChevronDown, UserCheck, Zap, AlertCircle, Check } from "lucide-react";
 import { TableItem } from "@/actions/types";
+import { validateIndonesianWhatsApp } from "@/lib/auth/phone-validation";
 
 interface CustomerFormProps {
   serviceType: "DINE_IN" | "TAKEAWAY";
@@ -38,6 +39,9 @@ export function CustomerForm({
   currentUser,
   onClearCurrentUser,
 }: CustomerFormProps) {
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const phoneValidation = validateIndonesianWhatsApp(customerPhone);
+
   return (
     <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-xs space-y-5 sm:space-y-6">
       <div className="border-b border-border pb-4">
@@ -239,10 +243,32 @@ export function CustomerForm({
               required
               placeholder="Contoh: 081234567890"
               value={customerPhone}
-              onChange={(e) => onCustomerPhoneChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-secondary-bg/40 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono"
+              onChange={(e) => {
+                onCustomerPhoneChange(e.target.value);
+                if (!phoneTouched) setPhoneTouched(true);
+              }}
+              onBlur={() => setPhoneTouched(true)}
+              className={`w-full pl-10 pr-9 py-2.5 bg-secondary-bg/40 border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 transition-all font-mono ${
+                phoneTouched && customerPhone.length > 0 && !phoneValidation.isValid
+                  ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                  : customerPhone.length > 0 && phoneValidation.isValid
+                  ? "border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  : "border-border focus:border-primary focus:ring-primary/20"
+              }`}
             />
+            {customerPhone.length > 0 && phoneValidation.isValid && (
+              <Check className="w-4 h-4 text-emerald-500 absolute right-3 top-1/2 -translate-y-1/2" />
+            )}
           </div>
+          {phoneTouched && customerPhone.length > 0 && !phoneValidation.isValid ? (
+            <p className="mt-1.5 text-[11px] font-medium text-destructive">
+              {phoneValidation.error}
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Format Indonesia: 08... atau 628... (10 - 14 digit)
+            </p>
+          )}
         </div>
       </div>
 
