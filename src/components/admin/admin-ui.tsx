@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useScrollLock } from "@/lib/scroll-lock";
 
 export type AdminTabKey =
   | "overview"
@@ -45,6 +46,8 @@ export function ModalFrame({
 }: ModalFrameProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  useScrollLock(true);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -65,7 +68,7 @@ export function ModalFrame({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-white/25 p-4 backdrop-blur-md transition-all duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-none bg-white/25 p-4 backdrop-blur-md transition-all duration-300"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
@@ -73,7 +76,7 @@ export function ModalFrame({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className={`animate-fade-scale-in w-full ${maxWidthClass} max-h-[90vh] overflow-y-auto scroll-smooth rounded-2xl border border-border bg-background shadow-2xl ring-1 ring-black/5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]`}
+        className={`animate-fade-scale-in w-full ${maxWidthClass} max-h-[90vh] overflow-y-auto overscroll-contain scroll-smooth rounded-2xl border border-border bg-background shadow-2xl ring-1 ring-black/5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]`}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-background/95 px-5 py-4 backdrop-blur-xs">
           <div>

@@ -26,6 +26,7 @@ import { ProductDetail } from "@/components/product-detail";
 import { ProductImage } from "@/components/product-image";
 import { useActiveTable } from "@/lib/active-table";
 import { sampleProducts, type Product } from "@/lib/menu-data";
+import { useScrollLock } from "@/lib/scroll-lock";
 import { cn, formatRupiah } from "@/lib/utils";
 
 const ITEM_NOTE_CHIPS = ["Less Sugar", "Es Terpisah", "Pedas Sedang", "Tanpa Bawang"];
@@ -79,6 +80,8 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     return qs ? `/checkout?${qs}` : "/checkout";
   }, [activeTableDisplay, effectiveServiceType]);
 
+  useScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -87,11 +90,8 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       }
     };
     document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
     };
   }, [open, onClose, editingCartItem, previewState]);
 
@@ -195,7 +195,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       <div
         aria-hidden={!open}
         className={cn(
-          "fixed inset-0 z-50 flex items-end justify-end transition-all duration-300 md:items-stretch",
+          "fixed inset-0 z-50 flex items-end justify-end overscroll-none transition-all duration-300 md:items-stretch",
           open ? "pointer-events-auto visible" : "pointer-events-none invisible delay-300",
         )}
       >
@@ -205,7 +205,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           aria-label="Tutup keranjang"
           onClick={onClose}
           className={cn(
-            "absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300 ease-out",
+            "touch-none absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300 ease-out",
             open ? "opacity-100" : "opacity-0",
           )}
         />
@@ -361,7 +361,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           )}
 
           {/* Daftar Item Keranjang */}
-          <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
             {items.length === 0 ? (
               <div className="flex flex-col items-center py-6 text-center">
                 <div className="flex size-16 items-center justify-center rounded-2xl bg-secondary-bg text-primary">

@@ -810,9 +810,9 @@ async function main() {
     console.log(`- StockMovements awal dibuat: ${sampleProducts.length}`);
   }
 
-  // 7. Historical & Active Orders, Items, Options, Payments & Receipts
+  // 7. Historical & Active Orders, Items, Options, Payments & Receipts (opt-in via SEED_DEMO_ORDERS=true)
   const existingOrderCount = await prisma.order.count();
-  if (existingOrderCount === 0) {
+  if (existingOrderCount === 0 && process.env.SEED_DEMO_ORDERS === "true") {
     const productMap = new Map(sampleProducts.map((p) => [p.id, p]));
     const specs = buildHistoricalOrderSpecs();
     const now = new Date();

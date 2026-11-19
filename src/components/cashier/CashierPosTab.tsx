@@ -26,6 +26,7 @@ import {
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
 import { getStockStatus } from "@/lib/menu-data";
+import { useScrollLock } from "@/lib/scroll-lock";
 import { cn } from "@/lib/utils";
 import type {
   AdminCategory,
@@ -104,6 +105,8 @@ export function CashierPosTab({
   const [selectedOptionsMap, setSelectedOptionsMap] = useState<Record<string, string[]>>({});
   const [modalItemNotes, setModalItemNotes] = useState<string>("");
   const [modalQty, setModalQty] = useState<number>(1);
+
+  useScrollLock(Boolean(customizingProduct));
 
   const [isPending, startTransition] = useTransition();
 
@@ -991,12 +994,12 @@ export function CashierPosTab({
        * MODAL PILIH VARIAN / TOPPING PRODUK POS (GAYA CUSTOMER PRODUCT-DETAIL)
        * =================================================================== */}
       {customizingProduct && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
+        <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none md:items-center md:p-6">
           <button
             type="button"
             aria-label="Tutup"
             onClick={() => setCustomizingProduct(null)}
-            className="absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300"
+            className="touch-none absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300"
           />
 
           <div
@@ -1018,7 +1021,7 @@ export function CashierPosTab({
             </button>
 
             {/* Kontainer Form Varian Scrollable */}
-            <div className="overflow-y-auto no-scrollbar flex-1">
+            <div className="overflow-y-auto overscroll-contain no-scrollbar flex-1">
               <ProductImage
                 product={{
                   id: customizingProduct.id,

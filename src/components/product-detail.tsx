@@ -6,6 +6,7 @@ import { useCart, type CartItem, type CartOption } from "@/context/cart-context"
 import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "@/components/stock-badge";
 import { getStockStatus, type Product } from "@/lib/menu-data";
+import { useScrollLock } from "@/lib/scroll-lock";
 import { cn, formatRupiah } from "@/lib/utils";
 
 export interface ProductDetailInitialEdit {
@@ -130,14 +131,13 @@ export function ProductDetail({
 
   const quickNotes = useMemo(() => getQuickNoteSuggestions(product), [product]);
 
+  useScrollLock(true);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
     };
   }, [onClose]);
 
@@ -220,12 +220,12 @@ export function ProductDetail({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none md:items-center md:p-6">
       <button
         type="button"
         aria-label="Tutup"
         onClick={onClose}
-        className="absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300"
+        className="touch-none absolute inset-0 bg-white/25 backdrop-blur-md transition-opacity duration-300"
       />
       
       <div
@@ -267,7 +267,7 @@ export function ProductDetail({
             </div>
 
             {/* List Item yang Sudah Berada di Keranjang */}
-            <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4">
+            <div className="flex-1 overflow-y-auto overscroll-contain no-scrollbar p-5 space-y-4">
               <div className="flex flex-col gap-0.5 text-xs font-bold text-muted-foreground uppercase tracking-wider sm:flex-row sm:items-center sm:justify-between">
                 <span className="flex items-center gap-1.5">
                   <ShoppingBag className="w-3.5 h-3.5 shrink-0 text-primary" />
@@ -409,7 +409,7 @@ export function ProductDetail({
             )}
 
             {/* Kontainer Form Varian */}
-            <div className="overflow-y-auto no-scrollbar flex-1">
+            <div className="overflow-y-auto overscroll-contain no-scrollbar flex-1">
               <ProductImage
                 product={product}
                 className="aspect-[4/3] max-h-60 w-full border-b border-border/50 sm:aspect-[16/10] sm:max-h-72"

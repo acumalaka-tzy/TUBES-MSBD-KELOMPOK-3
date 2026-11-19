@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { CashierOrder } from "@/lib/cashier/types";
 import { confirmCashPaymentAction } from "@/app/actions/cashier";
+import { useScrollLock } from "@/lib/scroll-lock";
 
 interface CashierPaymentModalProps {
   order: CashierOrder | null;
@@ -34,6 +35,8 @@ export function CashierPaymentModal({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useScrollLock(Boolean(order));
 
   if (!order) return null;
 
@@ -136,7 +139,7 @@ export function CashierPaymentModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 space-y-5 overflow-y-auto p-6">
+        <div className="flex-1 space-y-5 overflow-y-auto overscroll-contain p-6">
           {/* Ringkasan Tagihan */}
           <div className="rounded-2xl border border-border bg-[#F4F7F6] p-4">
             <div className="flex items-center justify-between">

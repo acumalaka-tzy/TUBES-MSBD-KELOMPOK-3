@@ -12,6 +12,7 @@ import {
 import type { AdminSettings } from "@/lib/admin/types";
 import type { CashierOrder } from "@/lib/cashier/types";
 import { recordReceiptPrintAction } from "@/app/actions/cashier";
+import { useScrollLock } from "@/lib/scroll-lock";
 
 interface CashierReceiptModalProps {
   order: CashierOrder | null;
@@ -49,6 +50,8 @@ export function CashierReceiptModal({
   const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
   const [printSuccessMsg, setPrintSuccessMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useScrollLock(Boolean(order));
 
   if (!order) return null;
 
@@ -314,7 +317,7 @@ export function CashierReceiptModal({
         )}
 
         {/* Pratinjau Kertas Struk Termal */}
-        <div className="flex-1 overflow-x-auto overflow-y-auto bg-neutral-200/70 p-3 sm:p-6">
+        <div className="flex-1 overflow-x-auto overflow-y-auto overscroll-contain bg-neutral-200/70 p-3 sm:p-6">
           <div
             id="warkop-thermal-receipt-area"
             className={`mx-auto max-w-full rounded-md border border-neutral-300 bg-white font-mono text-black shadow-lg transition-all ${

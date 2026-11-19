@@ -146,58 +146,6 @@ export interface AdminMemoryStore {
   tableQrCodes: Map<string, MemTableQrCode[]>;
 }
 
-/** Pseudo-random deterministik agar data contoh stabil setiap restart. */
-function seededRandom(seed: number) {
-  let s = seed % 2147483647;
-  if (s <= 0) s += 2147483646;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
-function buildDemoOrders(): MemAnalyticsOrder[] {
-  const rand = seededRandom(20261113);
-  const orders: MemAnalyticsOrder[] = [];
-  const now = new Date();
-  const sellable = sampleProducts;
-
-  for (let dayOffset = 29; dayOffset >= 0; dayOffset--) {
-    const count = 3 + Math.floor(rand() * 6);
-    for (let i = 0; i < count; i++) {
-      const created = new Date(now);
-      created.setDate(now.getDate() - dayOffset);
-      created.setHours(8 + Math.floor(rand() * 14), Math.floor(rand() * 60), 0, 0);
-      if (created > now) created.setTime(now.getTime() - (i + 1) * 60_000);
-
-      const lineCount = 1 + Math.floor(rand() * 3);
-      const items: MemAnalyticsOrder["items"] = [];
-      for (let l = 0; l < lineCount; l++) {
-        const p = sellable[Math.floor(rand() * sellable.length)];
-        const qty = 1 + Math.floor(rand() * 2);
-        items.push({ product_id: p.id, name: p.name, quantity: qty, subtotal: p.basePrice * qty });
-      }
-      const subtotal = items.reduce((s, it) => s + it.subtotal, 0);
-      const tax = 0;
-      const roll = rand();
-      const cancelled = roll < 0.07;
-      const refunded = !cancelled && roll < 0.09;
-      orders.push({
-        id: `demo-${dayOffset}-${i}`,
-        status: cancelled ? "CANCELLED" : "COMPLETED",
-        created_at: created,
-        subtotal,
-        tax_amount: 0,
-        total_amount: subtotal,
-        payment_method: rand() < 0.45 ? "CASH" : rand() < 0.8 ? "QRIS" : "VIRTUAL_ACCOUNT",
-        payment_status: cancelled ? "UNPAID" : refunded ? "REFUNDED" : "PAID",
-        items,
-      });
-    }
-  }
-  return orders;
-}
-
 function createStore(): AdminMemoryStore {
   const now = new Date();
   const categories = new Map<string, MemCategory>(
@@ -323,7 +271,7 @@ function createStore(): AdminMemoryStore {
       receipt_footer_note: "Terima kasih telah berkunjung ke Warkop Agam!",
       updated_at: null,
     },
-    demoOrders: buildDemoOrders(),
+    demoOrders: [],
     tables,
     tableQrCodes,
   };

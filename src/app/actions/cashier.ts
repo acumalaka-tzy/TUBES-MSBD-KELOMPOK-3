@@ -168,14 +168,6 @@ async function listCashierOrders(): Promise<{ orders: CashierOrder[]; source: "d
         },
       }));
 
-      // Jika di DB belum ada order sama sekali tetapi di memoryOrders ada (mis. hasil checkout fallback), gabungkan
-      if (mapped.length === 0 && memoryOrders.size > 0) {
-        const memList = [...memoryOrders.values()]
-          .map(mapMemoryOrderToCashierOrder)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        return { orders: memList, source: "memory" };
-      }
-
       return { orders: mapped, source: "database" };
     } catch (err) {
       console.warn("[cashier:orders] Percobaan 1 gagal, mencoba ulang:", errorMessage(err));
