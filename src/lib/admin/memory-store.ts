@@ -98,19 +98,6 @@ export interface MemSettings {
   updated_at: Date | null;
 }
 
-/** Ringkasan pesanan contoh untuk analitik dashboard saat database belum aktif. */
-export interface MemAnalyticsOrder {
-  id: string;
-  status: string;
-  created_at: Date;
-  subtotal: number;
-  tax_amount: number;
-  total_amount: number;
-  payment_method: string;
-  payment_status: string;
-  items: { product_id: string; name: string; quantity: number; subtotal: number }[];
-}
-
 export interface MemTable {
   id: string;
   table_number: string;
@@ -180,7 +167,6 @@ export interface AdminMemoryStore {
   movements: MemStockMovement[];
   auditLogs: MemAuditLog[];
   settings: MemSettings;
-  demoOrders: MemAnalyticsOrder[];
   tables: Map<string, MemTable>;
   tableQrCodes: Map<string, MemTableQrCode[]>;
   tableSessions: Map<string, MemTableSession>;
@@ -310,7 +296,6 @@ function createStore(): AdminMemoryStore {
       receipt_footer_note: "Terima kasih telah berkunjung ke Warkop Agam!",
       updated_at: null,
     },
-    demoOrders: [],
     tables,
     tableQrCodes,
     tableSessions: new Map<string, MemTableSession>(),

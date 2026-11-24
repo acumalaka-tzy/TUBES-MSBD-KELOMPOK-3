@@ -47,6 +47,7 @@ import type {
   DataSource,
   PeriodKey,
 } from "@/lib/admin/types";
+import { DistributedDatabaseModal } from "@/components/db/DistributedDatabaseModal";
 import type { AdminTabKey } from "./admin-ui";
 import { AdminOverviewTab } from "./AdminOverviewTab";
 import { AdminCatalogTab } from "./AdminCatalogTab";
@@ -103,6 +104,7 @@ export function AdminDashboardShell({
   const [quickToggling, setQuickToggling] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dbModalOpen, setDbModalOpen] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -367,16 +369,20 @@ export function AdminDashboardShell({
             </button>
 
             {/* Database indicator */}
-            <span
-              className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold ${
+            <button
+              type="button"
+              onClick={() => setDbModalOpen(true)}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold cursor-pointer transition-colors shadow-2xs ${
                 dataSource === "database"
-                  ? "border-emerald-500/30 bg-emerald-50 text-emerald-700"
-                  : "border-amber-500/30 bg-amber-50 text-amber-800"
+                  ? "border-emerald-500/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  : "border-amber-500/30 bg-amber-50 text-amber-800 hover:bg-amber-100"
               }`}
+              title="Klik untuk melihat Status & Arsitektur Distributed Database"
             >
               <Database className="h-3 w-3" />
-              <span>{dataSource === "database" ? "MySQL Aktif" : "Memori"}</span>
-            </span>
+              <span>{dataSource === "database" ? "Distributed DB Aktif" : "Memori"}</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+            </button>
 
             {/* Tombol Logout */}
             <form action={logoutAction}>
@@ -660,9 +666,13 @@ export function AdminDashboardShell({
               />
             )}
           </div>
-
         </main>
       </div>
+
+      <DistributedDatabaseModal
+        isOpen={dbModalOpen}
+        onClose={() => setDbModalOpen(false)}
+      />
     </div>
   );
 }

@@ -1,0 +1,76 @@
+# ============================================================================
+# DOCKER COMPOSE: TIDB DISTRIBUTED SQL CLUSTER (WARKOP AGAM)
+# ============================================================================
+# Arsitektur Database Terdistribusi NewSQL TiDB Multi-Component:
+# 1. PD (Placement Driver): Metadata Coordinator, TSO Allocator & Raft Scheduler.
+# 2. TiKV: Distributed Transactional Key-Value Storage dengan Multi-Raft Consensus.
+# 3. TiDB: Stateless Compute Layer, Distributed SQL Optimizer & 2PC Coordinator.
+# 4. TiFlash: Columnar Analytical Engine (MPP) untuk akselerasi laporan realtime.
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # 1. Placement Driver (PD) - Koordinator Metadata & Konsensus Raft
+  pd:
+    image: pingcap/pd:v7.5.0
+    container_name: warkop-agam-tidb-pd
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    command:
+      - --name=pd
+      - --client-urls=http://0.0.0.0:2379
+      - --peer-urls=http://0.0.0.0:2380
+      - --advertise-client-urls=http://pd:2379
+      - --advertise-peer-urls=http://pd:2380
+      - --initial-cluster=pd=http://pd:2380
+      - --data-dir=/data/pd
+    volumes:
+      - pd_data:/data/pd
+    restart: unless-stopped
+    networks:
+      - tidb-net
+
+  # 2. TiKV - Storage Engine Terdistribusi (Multi-Raft Consensus)
+  tikv:
+    image: pingcap/tikv:v7.5.0
+    container_name: warkop-agam-tidb-tikv
+    ports:
+      - "20160:20160"
+    command:
+      - --addr=0.0.0.0:20160
+      - --advertise-addr=tikv:20160
+      - --data-dir=/data/tikv
+      - --pd=pd:2379
+    volumes:
+      - tikv_data:/data/tikv
+    depends_on:
+      - pd
+    restart: unless-stopped
+    networks:
+      - tidb-net
+
+  # 3. TiDB Server - Stateless Distributed SQL Compute Layer (MySQL Protocol compatible)
+  tidb:
+    image: pingcap/tidb:v7.5.0
+    container_name: warkop-agam-tidb-server
+    ports:
+      - "4000:4000"
+      - "10080:10080"
+    command:
+      - --store=tikv
+      - --path=pd:2379
+    depends_on:
+      - tikv
+    restart: unless-stopped
+    networks:
+      - tidb-net
+
+networks:
+  tidb-net:
+    driver: bridge
+
+volumes:
+  pd_data:
+  tikv_data:

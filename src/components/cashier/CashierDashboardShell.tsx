@@ -38,6 +38,7 @@ import { CashierTablesTab } from "./CashierTablesTab";
 import { CashierHistoryTab, CashierStockTab } from "./CashierHistoryStockTabs";
 import { CashierPaymentModal } from "./CashierPaymentModal";
 import { CashierReceiptModal } from "./CashierReceiptModal";
+import { DistributedDatabaseModal } from "@/components/db/DistributedDatabaseModal";
 
 interface CashierDashboardShellProps {
   cashierUser: {
@@ -86,6 +87,7 @@ export function CashierDashboardShell({
 
   // Preselected table saat kasir klik "Input POS" dari tab Status Meja
   const [preselectedPosTable, setPreselectedPosTable] = useState<string | null>(null);
+  const [dbModalOpen, setDbModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -443,6 +445,18 @@ export function CashierDashboardShell({
               <span>Sync</span>
             </button>
 
+            {/* Tombol Status Distributed Database */}
+            <button
+              type="button"
+              onClick={() => setDbModalOpen(true)}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 shadow-2xs transition hover:bg-emerald-100 sm:px-3 sm:text-xs"
+              title="Periksa Topologi & Status Distributed Database Cluster"
+            >
+              <Database className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Cluster DB</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+            </button>
+
             {/* Tombol Logout */}
             <form action={logoutAction}>
               <button
@@ -733,6 +747,13 @@ export function CashierDashboardShell({
           onClose={() => setReceiptModalOrder(null)}
         />
       )}
+      {/* =====================================================================
+       * MODAL STATUS DISTRIBUTED DATABASE CLUSTER
+       * =================================================================== */}
+      <DistributedDatabaseModal
+        isOpen={dbModalOpen}
+        onClose={() => setDbModalOpen(false)}
+      />
     </div>
   );
 }

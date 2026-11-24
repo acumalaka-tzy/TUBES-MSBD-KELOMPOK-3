@@ -45,4 +45,5 @@ next-env.d.ts
 
 # local database backups (contains sensitive data)
 /backups/
+AGENTS.md
 

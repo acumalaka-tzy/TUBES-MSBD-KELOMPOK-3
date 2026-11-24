@@ -2,6 +2,7 @@
 
 import { getMemoryStore, memoryId } from "@/lib/admin/memory-store";
 import { prisma } from "@/lib/prisma";
+import { withDistributedTransaction } from "@/lib/db/distributed";
 import { safeRevalidate, memoryOrders } from "./helpers";
 import { cleanupExpiredOrders } from "./orders";
 import {
@@ -365,7 +366,8 @@ export async function applyMidtransPaymentUpdate(
     if (order && order.payment) {
       const amount = payload.gross_amount ? Number(payload.gross_amount) : Number(order.total_amount);
 
-      await prisma.$transaction(async (tx: any) => {
+      await withDistributedTransaction(
+        async (tx: any) => {
         // Update payment
         await tx.payment.update({
           where: { id: order.payment!.id },
@@ -643,7 +645,8 @@ export async function simulatePaymentSuccess(orderNumber: string) {
           error: "Pesanan sudah kedaluwarsa atau dibatalkan dan tidak dapat dibayar.",
         };
       }
-      await prisma.$transaction(async (tx: any) => {
+      await withDistributedTransaction(
+        async (tx: any) => {
         // Update payment to PAID
         await tx.payment.update({
           where: { id: order.payment!.id },
@@ -759,7 +762,7 @@ export async function simulateStatusUpdate(orderNumber: string, nextStatus: stri
     });
 
     if (order) {
-      await prisma.$transaction(async (tx) => {
+      await withDistributedTransaction(async (tx) => {
         await tx.order.update({
           where: { id: order.id },
           data: { status: nextStatus },

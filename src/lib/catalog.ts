@@ -102,13 +102,6 @@ function memoryCatalog(): Catalog {
   const sampleMap = new Map(sampleProducts.map((sp) => [sp.id, sp]));
   const soldByProduct = new Map<string, number>();
 
-  for (const ord of store.demoOrders) {
-    if (ord.status !== "CANCELLED") {
-      for (const it of ord.items) {
-        soldByProduct.set(it.product_id, (soldByProduct.get(it.product_id) ?? 0) + it.quantity);
-      }
-    }
-  }
   for (const ord of memoryOrders.values()) {
     if (ord.status !== "CANCELLED") {
       for (const it of ord.items) {

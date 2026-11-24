@@ -149,9 +149,13 @@ export async function listAdminCategories() {
 
 function memorySoldMap(): Map<string, number> {
   const sold = new Map<string, number>();
-  for (const o of getMemoryStore().demoOrders) {
+  for (const o of memoryOrders.values()) {
     if (o.status === "CANCELLED") continue;
-    for (const it of o.items) sold.set(it.product_id, (sold.get(it.product_id) ?? 0) + it.quantity);
+    for (const it of o.items) {
+      if (it.product_id) {
+        sold.set(it.product_id, (sold.get(it.product_id) ?? 0) + it.quantity);
+      }
+    }
   }
   return sold;
 }
@@ -563,16 +567,6 @@ export async function getDashboardSummary(period: PeriodKey, fromStr?: string, t
       return summarize(orders, period, range, stock);
     },
     () => {
-      const demo: NormalizedOrder[] = getMemoryStore().demoOrders.map((o) => ({
-        status: o.status,
-        createdAt: o.created_at,
-        subtotal: o.subtotal,
-        tax: o.tax_amount,
-        total: o.total_amount,
-        paymentMethod: o.payment_method,
-        paymentStatus: o.payment_status,
-        items: o.items.map((it) => ({ key: it.product_id, name: it.name, quantity: it.quantity, subtotal: it.subtotal })),
-      }));
       const live: NormalizedOrder[] = [...memoryOrders.values()].map((o) => ({
         status: o.status,
         createdAt: new Date(o.created_at),
@@ -588,7 +582,7 @@ export async function getDashboardSummary(period: PeriodKey, fromStr?: string, t
           subtotal: Number(it.subtotal),
         })),
       }));
-      return summarize([...demo, ...live], period, range, stock);
+      return summarize(live, period, range, stock);
     },
   );
 }
@@ -987,55 +981,30 @@ export async function getDetailedSalesReport(
       );
     },
     () => {
-      const demoOrders = getMemoryStore().demoOrders;
       const memOrders = [...memoryOrders.values()];
 
-      const combined = [
-        ...demoOrders.map((o) => ({
-          id: o.id,
-          orderNumber: `ORD-DEMO-${o.id}`,
-          createdAt: o.created_at,
-          customerName: "Pelanggan Demo",
-          customerPhone: "08123456789",
-          serviceType: "DINE_IN",
-          tableNumber: "01",
-          status: o.status,
-          subtotal: o.subtotal,
-          taxAmount: o.tax_amount,
-          totalAmount: o.total_amount,
-          paymentMethod: o.payment_method,
-          paymentStatus: o.payment_status,
-          items: o.items.map((it) => ({
-            productId: it.product_id,
-            name: it.name,
-            categoryName: "Katalog",
-            quantity: it.quantity,
-            subtotal: it.subtotal,
-          })),
+      const combined = memOrders.map((o) => ({
+        id: o.id,
+        orderNumber: o.order_number,
+        createdAt: new Date(o.created_at),
+        customerName: o.customer_name,
+        customerPhone: o.customer_phone,
+        serviceType: o.service_type,
+        tableNumber: o.table?.table_number ?? null,
+        status: o.status,
+        subtotal: Number(o.subtotal),
+        taxAmount: Number(o.tax_amount),
+        totalAmount: Number(o.total_amount),
+        paymentMethod: o.payment?.method ?? "CASH",
+        paymentStatus: o.payment?.status ?? "UNPAID",
+        items: o.items.map((it) => ({
+          productId: it.id,
+          name: it.product_name_snapshot,
+          categoryName: "Menu",
+          quantity: it.quantity,
+          subtotal: Number(it.subtotal),
         })),
-        ...memOrders.map((o) => ({
-          id: o.id,
-          orderNumber: o.order_number,
-          createdAt: new Date(o.created_at),
-          customerName: o.customer_name,
-          customerPhone: o.customer_phone,
-          serviceType: o.service_type,
-          tableNumber: o.table?.table_number ?? null,
-          status: o.status,
-          subtotal: Number(o.subtotal),
-          taxAmount: Number(o.tax_amount),
-          totalAmount: Number(o.total_amount),
-          paymentMethod: o.payment?.method ?? "CASH",
-          paymentStatus: o.payment?.status ?? "UNPAID",
-          items: o.items.map((it) => ({
-            productId: it.id,
-            name: it.product_name_snapshot,
-            categoryName: "Menu",
-            quantity: it.quantity,
-            subtotal: Number(it.subtotal),
-          })),
-        })),
-      ].filter((o) => o.createdAt >= range.from && o.createdAt <= range.to);
+      })).filter((o) => o.createdAt >= range.from && o.createdAt <= range.to);
 
       return buildDetailedReport(combined, period, range);
     },

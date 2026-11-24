@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import type { CashierOrder, QueueFilterKey } from "@/lib/cashier/types";
 import {
-  simulateIncomingWebOrderAction,
   updateOrderStatusCashierAction,
 } from "@/app/actions/cashier";
 import { simulatePaymentSuccess, checkMidtransStatusAction } from "@/actions/payments";
@@ -221,25 +220,6 @@ export function CashierQueueTab({
         }
       } else {
         onNotify(res.error || "Gagal mengecek status ke Midtrans.", "error");
-      }
-    });
-  };
-
-  const handleSimulateWebOrder = () => {
-    setPendingOrderNo("SIMULATE");
-    startTransition(async () => {
-      const res = await simulateIncomingWebOrderAction();
-      setPendingOrderNo(null);
-      if (res.success) {
-        onPlayAudioAlert();
-        onNotify(
-          res.message || "Pesanan Web baru masuk ke antrean! Notifikasi suara dibunyikan.",
-          "info",
-        );
-        setActiveFilter("action");
-        await onRefreshData();
-      } else {
-        onNotify(res.error || "Gagal membuat simulasi pesanan web.", "error");
       }
     });
   };

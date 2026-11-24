@@ -67,8 +67,11 @@ export async function getActiveKitchenQueueAction(): Promise<KitchenQueueItem[]>
           ACTION_TIMEOUT_MS
         );
 
-        if (rawQueue && rawQueue.length > 0) {
-          const orderIds = rawQueue.map((q) => q.order_id);
+        if (!rawQueue || rawQueue.length === 0) {
+          return [];
+        }
+
+        const orderIds = rawQueue.map((q) => q.order_id);
           const orderItems = await prisma.orderItem.findMany({
             where: { order_id: { in: orderIds } },
             include: {
@@ -107,7 +110,6 @@ export async function getActiveKitchenQueueAction(): Promise<KitchenQueueItem[]>
             created_at: new Date(row.created_at).toISOString(),
             items: itemsByOrderId.get(row.order_id) || [],
           }));
-        }
       } catch (err) {
         console.warn("Prisma error querying vw_active_kitchen_queue, falling back to memory:", err);
       }

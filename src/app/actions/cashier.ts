@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { withDistributedTransaction } from "@/lib/db/distributed";
 import { requireRole } from "@/lib/auth/session";
 import type { AuthTokenPayload } from "@/lib/auth/jwt";
 import { getUserById } from "@/lib/auth/user-service";
@@ -401,7 +402,7 @@ export async function confirmCashPaymentAction(input: {
             select: { id: true },
           });
 
-          await prisma.$transaction(async (tx) => {
+          await withDistributedTransaction(async (tx) => {
             await tx.payment.update({
               where: { id: order.payment!.id },
               data: {
@@ -605,7 +606,7 @@ export async function updateOrderStatusCashierAction(input: {
             select: { id: true },
           });
 
-          await prisma.$transaction(async (tx) => {
+          await withDistributedTransaction(async (tx) => {
             // Jika dibatalkan dan belum dibayar, kembalikan stok reservasi (RELEASE_RESERVE)
             if (
               nextStatus === "CANCELLED" &&
@@ -856,7 +857,7 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
           select: { id: true },
         });
 
-        const createdOrder = await prisma.$transaction(async (tx) => {
+        const createdOrder = await withDistributedTransaction(async (tx) => {
           let resolvedSessionId: string | null = null;
           if (selectedTable) {
             const activeSess = await tx.tableSession.findFirst({
@@ -1264,7 +1265,7 @@ export async function setTableStatusCashierAction(input: {
               );
             } catch (spErr) {
               // Fallback ORM transaction bila SP tidak tersedia
-              await prisma.$transaction(async (tx) => {
+              await withDistributedTransaction(async (tx) => {
                 if (activeOrders.length > 0) {
                   await tx.order.updateMany({
                     where: { id: { in: activeOrders.map((o) => o.id) } },
@@ -1383,210 +1384,6 @@ export async function setTableStatusCashierAction(input: {
     };
   } catch (err) {
     return { success: false, error: errorMessage(err, "Gagal mengubah status meja.") };
-  }
-}
-
-/* ----------------------------------------------------------------------------
- * 5. Simulasi Pesanan Web Baru Masuk (Untuk Uji Real-Time & Audio Alert)
- * ------------------------------------------------------------------------- */
-
-export async function simulateIncomingWebOrderAction(): Promise<{
-  success: boolean;
-  message?: string;
-  orderNumber?: string;
-  error?: string;
-}> {
-  try {
-    await requireCashierOrAdmin();
-    const sampleNames = [
-      { name: "Farhan Maulana", phone: "081234998877", table: "01" },
-      { name: "Dewi Lestari", phone: "081355667788", table: "03" },
-      { name: "Tengku Firmansyah", phone: "082144556677", table: "05" },
-      { name: "Cut Syifa", phone: "085288990011", table: "06" },
-    ];
-    const pick = sampleNames[Math.floor(Math.random() * sampleNames.length)];
-    const isCash = Math.random() < 0.65;
-
-    const orderNumber = generateOrderNumber();
-    const trackingToken = generateTrackingToken();
-    const now = new Date();
-
-    const items = [
-      {
-        productId: "prd-bangladesh-06",
-        name: "Indomie Bangladesh Spesial",
-        unitPrice: 18000,
-        quantity: 1,
-        itemNotes: "Pedas mantap",
-        options: [
-          { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-          {
-            groupName: "Tambahan Topping",
-            optionName: "Tambah Telur Setengah Matang",
-            priceAdjustment: 4000,
-          },
-        ],
-      },
-      {
-        productId: "prd-sanger-01",
-        name: "Kopi Sanger Espresso",
-        unitPrice: 14000,
-        quantity: 1,
-        itemNotes: "Panas berbusa",
-        options: [
-          { groupName: "Suhu Penyajian", optionName: "Panas", priceAdjustment: 0 },
-          { groupName: "Tingkat Manis", optionName: "Manis Normal", priceAdjustment: 0 },
-        ],
-      },
-    ];
-
-    const subtotal = 22000 + 14000;
-    const taxAmount = 0;
-    const totalAmount = subtotal;
-
-    if (await isDatabaseReady()) {
-      try {
-        const tbl = await prisma.table.findUnique({ where: { table_number: pick.table } });
-        await prisma.$transaction(async (tx) => {
-          const order = await tx.order.create({
-            data: {
-              order_number: orderNumber,
-              table_id: tbl?.id ?? null,
-              customer_name: pick.name,
-              customer_phone: pick.phone,
-              tracking_token: trackingToken,
-              source: "WEB",
-              service_type: "DINE_IN",
-              status: "PENDING",
-              subtotal,
-              tax_amount: taxAmount,
-              total_amount: totalAmount,
-              notes: "Pesanan via QR Meja",
-              expires_at: new Date(Date.now() + 30 * 60 * 1000),
-            },
-          });
-
-          for (const it of items) {
-            const optSum = it.options.reduce((s, o) => s + o.priceAdjustment, 0);
-            const oi = await tx.orderItem.create({
-              data: {
-                order_id: order.id,
-                product_id: it.productId,
-                product_name_snapshot: it.name,
-                unit_price_snapshot: it.unitPrice,
-                quantity: it.quantity,
-                subtotal: (it.unitPrice + optSum) * it.quantity,
-                item_notes: it.itemNotes,
-              },
-            });
-            for (const opt of it.options) {
-              await tx.orderItemOption.create({
-                data: {
-                  order_item_id: oi.id,
-                  option_group_name_snapshot: opt.groupName,
-                  option_name_snapshot: opt.optionName,
-                  price_adjustment_snapshot: opt.priceAdjustment,
-                },
-              });
-            }
-          }
-
-          await tx.payment.create({
-            data: {
-              order_id: order.id,
-              method: isCash ? "CASH" : "QRIS",
-              status: "UNPAID",
-              amount_due: totalAmount,
-              amount_paid: 0,
-              change_amount: 0,
-            },
-          });
-
-          if (tbl) {
-            await tx.table.update({
-              where: { id: tbl.id },
-              data: { status: "OCCUPIED" },
-            });
-          }
-        });
-
-        safeRevalidateAll();
-        return {
-          success: true,
-          orderNumber,
-          message: `Pesanan Web baru ${orderNumber} (Meja ${pick.table}) masuk ke antrean!`,
-        };
-      } catch (dbErr) {
-        invalidateDatabaseCheck();
-        console.warn("[cashier:simulateIncoming] Fallback ke memory:", errorMessage(dbErr));
-      }
-    }
-
-    const mem = getMemoryStore();
-    const tbl = [...mem.tables.values()].find((t) => t.table_number === pick.table);
-    if (tbl) {
-      tbl.status = "OCCUPIED";
-      tbl.updated_at = now;
-    }
-
-    const simOrder: OrderDetailData = {
-      id: `sim-web-${Date.now()}`,
-      order_number: orderNumber,
-      user_id: null,
-      customer_name: pick.name,
-      customer_phone: pick.phone,
-      tracking_token: trackingToken,
-      source: "WEB",
-      service_type: "DINE_IN",
-      status: "PENDING",
-      subtotal,
-      tax_amount: taxAmount,
-      total_amount: totalAmount,
-      notes: "Pesanan via QR Meja",
-      expires_at: new Date(Date.now() + 30 * 60 * 1000),
-      created_at: now,
-      table: {
-        table_number: pick.table,
-        name: tbl?.name ?? `Meja ${pick.table}`,
-      },
-      items: items.map((it, idx) => {
-        const optSum = it.options.reduce((s, o) => s + o.priceAdjustment, 0);
-        return {
-          id: `sim-item-${Date.now()}-${idx}`,
-          product_id: it.productId,
-          product_name_snapshot: it.name,
-          unit_price_snapshot: it.unitPrice,
-          quantity: it.quantity,
-          subtotal: (it.unitPrice + optSum) * it.quantity,
-          item_notes: it.itemNotes,
-          options: it.options.map((o) => ({
-            option_group_name_snapshot: o.groupName,
-            option_name_snapshot: o.optionName,
-            price_adjustment_snapshot: o.priceAdjustment,
-          })),
-        };
-      }),
-      payment: {
-        id: `sim-pay-${Date.now()}`,
-        method: isCash ? "CASH" : "QRIS",
-        status: "UNPAID",
-        amount_due: totalAmount,
-        amount_paid: 0,
-        change_amount: 0,
-        paid_at: null,
-      },
-    };
-
-    memoryOrders.set(orderNumber, simOrder);
-    safeRevalidateAll();
-
-    return {
-      success: true,
-      orderNumber,
-      message: `Pesanan Web baru ${orderNumber} (Meja ${pick.table}) masuk ke antrean!`,
-    };
-  } catch (err) {
-    return { success: false, error: errorMessage(err, "Gagal membuat simulasi pesanan web.") };
   }
 }
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { withDistributedTransaction } from "@/lib/db/distributed";
 import { CheckoutInput, OrderDetailData } from "./types";
 import { memoryOrders, safeRevalidate } from "./helpers";
 import { getSession } from "@/lib/auth/session";
@@ -564,7 +565,7 @@ export async function createOrder(input: CheckoutInput) {
     // 6A. Jalankan melalui Prisma MySQL (ACID) jika DB tersedia
     if (dbReady) {
       try {
-        const created = await prisma.$transaction(
+        const created = await withDistributedTransaction(
           async (tx) => {
             let selectedTableId: string | null = null;
             let resolvedTableSessionId: string | null = null;
@@ -816,7 +817,7 @@ export async function createOrder(input: CheckoutInput) {
               tableSessionToken: resolvedTableSessionToken,
             };
           },
-          { maxWait: 10000, timeout: 20000 }
+          { operationName: "CheckoutOrder", timeoutMs: 20000 }
         );
 
         // Sinkronkan juga fallback memori cart
