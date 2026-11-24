@@ -64,9 +64,10 @@ CREATE TABLE users (
     password_hash   VARCHAR(255),
     role            VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER',
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    deleted_at      TIMESTAMP NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT chk_users_role CHECK (role IN ('CUSTOMER', 'CASHIER', 'ADMIN'))
+    CONSTRAINT chk_users_role CHECK (role IN ('CUSTOMER', 'CASHIER', 'CHEF', 'ADMIN'))
 ) ENGINE=InnoDB;
 
 -- 2. Tabel categories
@@ -1237,8 +1238,8 @@ FLUSH PRIVILEGES;
 -- BAGIAN 8: DATA MANIPULATION LANGUAGE (DML) — SEED DATA WARKOP AGAM
 -- ============================================================================
 INSERT INTO users (id, name, email, phone, password_hash, role, is_active) VALUES
-('usr-admin-001', 'Admin Agam 1 (Owner)', 'adminAgam@gmail.com', '081260001001', '$2b$12$examplehashedpasswordadmin0000000000000000000001', 'ADMIN', TRUE),
-('usr-admin-002', 'Admin Agam 2 (Owner)', 'admin1Agam@gmail.com', '087760352023', '$2b$12$examplehashedpasswordadmin0000000000000000000006', 'ADMIN', TRUE),
+('usr-admin-001', 'Admin Agam (Owner)', 'adminAgam@gmail.com', '081260001001', '$2b$12$examplehashedpasswordadmin0000000000000000000001', 'ADMIN', TRUE),
+('usr-chef-001', 'Chef Agam (Kepala Dapur)', 'chefAgam@gmail.com', '087760352023', '$2b$12$examplehashedpasswordchef00000000000000000000001', 'CHEF', TRUE),
 ('usr-cashier-001', 'Kasir Shift Pagi Sore', 'cashier@gmail.com', '0898777621', '$2b$12$examplehashedpasswordcashier00000000000000000002', 'CASHIER', TRUE),
 ('usr-cashier-002', 'Kasir Shift Sore Malam', 'cashier1@gmail.com', '0877663244', '$2b$12$examplehashedpasswordcashier00000000000000000003', 'CASHIER', TRUE),
 ('usr-cust-001', 'Andi Saputra', 'andi.customer@gmail.com', '085270002001', '$2b$12$examplehashedpasswordcust00000000000000000000004', 'CUSTOMER', TRUE),

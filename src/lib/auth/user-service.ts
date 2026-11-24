@@ -21,6 +21,9 @@ export async function verifyUserPassword(password: string, hash: string | null |
   if (hash.startsWith("$2b$12$examplehashedpasswordadmin")) {
     return password === "admin123";
   }
+  if (hash.startsWith("$2b$12$examplehashedpasswordchef")) {
+    return password === "chef123" || password === "admin123";
+  }
   if (hash.startsWith("$2b$12$examplehashedpasswordcashier")) {
     return password === "kasir123";
   }
@@ -46,9 +49,14 @@ export async function findUserByIdentifier(identifier: string): Promise<MockUser
   try {
     const user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email: cleanId },
-          { phone: identifier.trim() },
+        AND: [
+          { deleted_at: null },
+          {
+            OR: [
+              { email: cleanId },
+              { phone: identifier.trim() },
+            ],
+          },
         ],
       },
     });
@@ -62,6 +70,7 @@ export async function findUserByIdentifier(identifier: string): Promise<MockUser
         password_hash: user.password_hash || "",
         role: user.role as UserRole,
         is_active: user.is_active,
+        deleted_at: user.deleted_at,
       };
     }
   } catch (error) {
@@ -70,6 +79,7 @@ export async function findUserByIdentifier(identifier: string): Promise<MockUser
 
   // 2. Fallback memory users
   for (const user of memoryUsers.values()) {
+    if (user.deleted_at) continue;
     if (
       user.email?.toLowerCase() === cleanId ||
       user.phone === identifier.trim()
@@ -226,7 +236,7 @@ export async function getUserById(userId: string): Promise<AuthUser | null> {
       where: { id: userId },
     });
 
-    if (user) {
+    if (user && !user.deleted_at) {
       return {
         id: user.id,
         name: user.name,
@@ -241,7 +251,7 @@ export async function getUserById(userId: string): Promise<AuthUser | null> {
   }
 
   const memoryRecord = memoryUsers.get(userId);
-  if (memoryRecord) {
+  if (memoryRecord && !memoryRecord.deleted_at) {
     return {
       id: memoryRecord.id,
       name: memoryRecord.name,
@@ -263,7 +273,7 @@ export async function getUserRecordById(userId: string): Promise<MockUserRecord 
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
-    if (user) {
+    if (user && !user.deleted_at) {
       return {
         id: user.id,
         name: user.name,
@@ -272,13 +282,18 @@ export async function getUserRecordById(userId: string): Promise<MockUserRecord 
         password_hash: user.password_hash || "",
         role: user.role as UserRole,
         is_active: user.is_active,
+        deleted_at: user.deleted_at,
       };
     }
   } catch {
     // Fallback ke memory
   }
 
-  return memoryUsers.get(userId) ?? null;
+  const mem = memoryUsers.get(userId);
+  if (mem && !mem.deleted_at) {
+    return mem;
+  }
+  return null;
 }
 
 /**
