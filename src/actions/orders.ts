@@ -56,9 +56,15 @@ export async function cleanupExpiredOrders(): Promise<number> {
   const now = new Date();
   let expiredCount = 0;
 
-  // 1. Bersihkan di Database Prisma (hanya jika DB ready agar tidak latency spike)
+  // 1. Bersihkan di Database Prisma (memanfaatkan Stored Procedure sp_release_expired_orders jika tersedia)
   try {
     if (await isDatabaseReady()) {
+      try {
+        // Panggil Stored Procedure MySQL sp_release_expired_orders
+        await prisma.$executeRawUnsafe(`CALL sp_release_expired_orders()`);
+      } catch (spErr) {
+        // Fallback orm transaction jika SP belum di-load
+      }
       const expiredOrders = await prisma.order.findMany({
         where: {
           status: "PENDING",

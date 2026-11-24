@@ -21,8 +21,14 @@ export const PROTECTED_ROUTES: RoutePermission[] = [
     unauthorizedRedirect: "/unauthorized",
   },
   {
+    pathPrefix: "/chef",
+    allowedRoles: ["CHEF", "ADMIN"],
+    loginRedirect: "/login?redirect=/chef",
+    unauthorizedRedirect: "/unauthorized",
+  },
+  {
     pathPrefix: "/account",
-    allowedRoles: ["CUSTOMER", "CASHIER", "ADMIN"],
+    allowedRoles: ["CUSTOMER", "CASHIER", "CHEF", "ADMIN"],
     loginRedirect: "/login?redirect=/account",
     unauthorizedRedirect: "/login",
   },
@@ -80,8 +86,8 @@ export function evaluatePathAccess(
     }
   }
 
-  // Admin & Kasir yang masih aktif login dikunci di dashboard masing-masing (tidak bisa membuka halaman user)
-  if ((userRole === "ADMIN" || userRole === "CASHIER") && isCustomerFacingPath(pathname)) {
+  // Admin, Kasir, dan Chef yang masih aktif login dikunci di dashboard masing-masing
+  if ((userRole === "ADMIN" || userRole === "CASHIER" || userRole === "CHEF") && isCustomerFacingPath(pathname)) {
     return {
       isProtected: true,
       allowed: false,
@@ -102,6 +108,8 @@ export function getDefaultRedirectForRole(role: UserRole): string {
       return "/admin";
     case "CASHIER":
       return "/cashier";
+    case "CHEF":
+      return "/chef";
     case "CUSTOMER":
     default:
       return "/";

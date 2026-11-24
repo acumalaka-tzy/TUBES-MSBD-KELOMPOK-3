@@ -1255,22 +1255,32 @@ export async function setTableStatusCashierAction(input: {
 
             completedOrderNumbers = activeOrders.map((o) => o.order_number);
 
-            await prisma.$transaction(async (tx) => {
-              if (activeOrders.length > 0) {
-                await tx.order.updateMany({
-                  where: { id: { in: activeOrders.map((o) => o.id) } },
-                  data: { status: "COMPLETED" },
+            try {
+              // Panggil Stored Procedure sp_complete_and_clear_table di MySQL
+              await prisma.$executeRawUnsafe(
+                `CALL sp_complete_and_clear_table(?, ?)`,
+                tbl.id,
+                staff.sub
+              );
+            } catch (spErr) {
+              // Fallback ORM transaction bila SP tidak tersedia
+              await prisma.$transaction(async (tx) => {
+                if (activeOrders.length > 0) {
+                  await tx.order.updateMany({
+                    where: { id: { in: activeOrders.map((o) => o.id) } },
+                    data: { status: "COMPLETED" },
+                  });
+                }
+                await tx.tableSession.updateMany({
+                  where: { table_id: tbl.id, status: "ACTIVE" },
+                  data: { status: "CLOSED", closed_at: new Date() },
                 });
-              }
-              await tx.tableSession.updateMany({
-                where: { table_id: tbl.id, status: "ACTIVE" },
-                data: { status: "CLOSED", closed_at: new Date() },
+                await tx.table.update({
+                  where: { id: tbl.id },
+                  data: { status: "AVAILABLE" },
+                });
               });
-              await tx.table.update({
-                where: { id: tbl.id },
-                data: { status: "AVAILABLE" },
-              });
-            });
+            }
           } else {
             await prisma.table.update({
               where: { id: tbl.id },
