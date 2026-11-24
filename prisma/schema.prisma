@@ -378,8 +378,6 @@ model RestaurantSetting {
   phone_whatsapp         String?  @db.VarChar(20)
   opening_hours          String?  @db.VarChar(100)
   is_web_ordering_open   Boolean  @default(true)
-  tax_enabled            Boolean  @default(true)
-  tax_percentage         Decimal  @default(10.00) @db.Decimal(5, 2)
   digital_expiry_minutes Int      @default(15)
   cash_expiry_minutes    Int      @default(30)
   receipt_footer_note    String?  @db.Text

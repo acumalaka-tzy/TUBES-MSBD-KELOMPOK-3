@@ -7,8 +7,6 @@ import type { PublicStoreSettings } from "@/lib/admin/types";
 
 const DEFAULT_STORE_SETTINGS: PublicStoreSettings = {
   isWebOrderingOpen: true,
-  taxEnabled: true,
-  taxPercentage: 10,
   digitalExpiryMinutes: 15,
   cashExpiryMinutes: 30,
 };
@@ -49,7 +47,6 @@ interface CartContextType {
   clearCart: () => void;
   loadSampleItems: () => void;
   subtotal: number;
-  taxAmount: number;
   totalAmount: number;
   itemCount: number;
   isCartOpen: boolean;
@@ -60,7 +57,6 @@ interface CartContextType {
   orderNotes: string;
   setOrderNotes: (notes: string) => void;
   storeSettings: PublicStoreSettings;
-  taxLabel: string;
   refreshStoreSettings: () => Promise<void>;
 }
 
@@ -476,8 +472,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const taxAmount = 0;
-  const taxLabel = "";
   const totalAmount = subtotal;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -496,7 +490,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         loadSampleItems,
         subtotal,
-        taxAmount,
         totalAmount,
         itemCount,
         isCartOpen,
@@ -507,7 +500,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         orderNotes,
         setOrderNotes,
         storeSettings,
-        taxLabel,
         refreshStoreSettings,
       }}
     >

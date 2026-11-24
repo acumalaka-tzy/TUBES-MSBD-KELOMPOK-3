@@ -86,8 +86,6 @@ export interface AdminSettings {
   phoneWhatsapp: string;
   openingHours: string;
   isWebOrderingOpen: boolean;
-  taxEnabled: boolean;
-  taxPercentage: number;
   digitalExpiryMinutes: number;
   cashExpiryMinutes: number;
   receiptFooterNote: string;
@@ -97,8 +95,6 @@ export interface AdminSettings {
 /** Pengaturan yang dibutuhkan alur pemesanan pelanggan (checkout & cart). */
 export interface PublicStoreSettings {
   isWebOrderingOpen: boolean;
-  taxEnabled: boolean;
-  taxPercentage: number;
   digitalExpiryMinutes: number;
   cashExpiryMinutes: number;
 }
@@ -122,7 +118,6 @@ export interface DashboardSummary {
   from: string;
   to: string;
   grossSales: number;
-  taxCollected: number;
   refunds: number;
   netSales: number;
   successfulOrders: number;
@@ -229,7 +224,6 @@ export interface DailySalesItem {
   date: string;
   ordersCount: number;
   grossAmount: number;
-  taxAmount: number;
   netAmount: number;
 }
 
@@ -254,7 +248,6 @@ export interface ReportTransactionItem {
   paymentStatus: string;
   orderStatus: string;
   subtotal: number;
-  taxAmount: number;
   totalAmount: number;
 }
 
@@ -266,7 +259,6 @@ export interface DetailedSalesReport {
   generatedAt: string;
   summary: {
     grossSales: number;
-    taxCollected: number;
     refunds: number;
     netSales: number;
     totalOrders: number;

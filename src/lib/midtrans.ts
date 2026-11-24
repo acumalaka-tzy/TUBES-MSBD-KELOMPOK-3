@@ -103,12 +103,12 @@ export async function createSnapTransaction(
     if (diff === 0) {
       itemDetails = rawItems;
     } else if (diff > 0) {
-      // Tambahkan item pajak / selisih agar total sama persis dengan gross_amount
+      // Tambahkan penyesuaian selisih agar total sama persis dengan gross_amount
       itemDetails = [
         ...rawItems,
         {
-          id: "TAX-SERVICE",
-          name: "Pajak PB1 / Penyesuaian",
+          id: "FEE-ADJUSTMENT",
+          name: "Penyesuaian Nominal",
           price: diff,
           quantity: 1,
         },

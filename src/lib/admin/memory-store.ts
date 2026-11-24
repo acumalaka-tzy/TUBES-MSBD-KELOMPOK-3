@@ -92,8 +92,6 @@ export interface MemSettings {
   phone_whatsapp: string;
   opening_hours: string;
   is_web_ordering_open: boolean;
-  tax_enabled: boolean;
-  tax_percentage: number;
   digital_expiry_minutes: number;
   cash_expiry_minutes: number;
   receipt_footer_note: string;
@@ -278,8 +276,6 @@ function createStore(): AdminMemoryStore {
       phone_whatsapp: sampleRestaurant.whatsapp,
       opening_hours: sampleRestaurant.openingHours,
       is_web_ordering_open: sampleRestaurant.isWebOrderingOpen,
-      tax_enabled: false,
-      tax_percentage: 0,
       digital_expiry_minutes: 15,
       cash_expiry_minutes: 30,
       receipt_footer_note: "Terima kasih telah berkunjung ke Warkop Agam!",
