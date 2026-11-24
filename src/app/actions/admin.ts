@@ -2297,7 +2297,7 @@ const CreateStaffSchema = z.object({
   email: z.string().trim().email("Format email tidak valid.").or(z.literal("")).optional(),
   phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter.").max(20),
   password: z.string().min(6, "Password minimal 6 karakter."),
-  role: z.enum(["CASHIER", "ADMIN"]).default("CASHIER"),
+  role: z.enum(["CASHIER", "CHEF", "ADMIN"]).default("CASHIER"),
 });
 
 export type CreateStaffInput = z.infer<typeof CreateStaffSchema>;
@@ -2307,7 +2307,7 @@ const UpdateStaffSchema = z.object({
   name: z.string().trim().min(2, "Nama staf minimal 2 karakter.").max(100),
   email: z.string().trim().email("Format email tidak valid.").or(z.literal("")).optional(),
   phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter.").max(20),
-  role: z.enum(["CASHIER", "ADMIN"]).default("CASHIER"),
+  role: z.enum(["CASHIER", "CHEF", "ADMIN"]).default("CASHIER"),
 });
 
 export type UpdateStaffInput = z.infer<typeof UpdateStaffSchema>;
@@ -2331,6 +2331,14 @@ export async function createStaffAction(input: CreateStaffInput): Promise<Action
     const cleanEmail = d.email && d.email.length > 0 ? d.email.toLowerCase() : null;
     const cleanPhone = d.phone.trim();
     const hashedPassword = await hashPassword(d.password);
+
+    // Aturan Bisnis & Database: Sistem HANYA boleh memiliki satu akun ADMIN yang aktif
+    if (d.role === "ADMIN") {
+      return {
+        success: false,
+        error: "Aturan Sistem: Hanya diperbolehkan satu akun Administrator aktif. Tidak dapat menambahkan akun Admin baru.",
+      };
+    }
 
     if (await isDatabaseReady()) {
       try {
@@ -2400,7 +2408,7 @@ export async function createStaffAction(input: CreateStaffInput): Promise<Action
         });
 
         safeRevalidate("/admin");
-        return { success: true, message: `Akun staf ${d.role === "ADMIN" ? "Admin" : "Kasir"} "${createdUser.name}" berhasil dibuat.` };
+        return { success: true, message: `Akun staf ${d.role} "${createdUser.name}" berhasil dibuat.` };
       } catch (err) {
         invalidateDatabaseCheck();
         console.warn("Prisma error createStaff, fallback ke in-memory:", err);
@@ -2446,7 +2454,7 @@ export async function createStaffAction(input: CreateStaffInput): Promise<Action
     });
 
     safeRevalidate("/admin");
-    return { success: true, message: `Akun staf ${d.role === "ADMIN" ? "Admin" : "Kasir"} "${mockUser.name}" berhasil dibuat.` };
+    return { success: true, message: `Akun staf ${d.role} "${mockUser.name}" berhasil dibuat.` };
   } catch (err) {
     return { success: false, error: errorMessage(err, "Gagal membuat akun staf baru.") };
   }
@@ -2463,6 +2471,14 @@ export async function updateStaffAction(input: UpdateStaffInput): Promise<Action
     const d = parsed.data;
     const cleanEmail = d.email && d.email.length > 0 ? d.email.toLowerCase() : null;
     const cleanPhone = d.phone.trim();
+
+    // Aturan Bisnis & Database: Tidak boleh mengubah user lain menjadi ADMIN jika sudah ada admin aktif
+    if (d.role === "ADMIN" && d.userId !== admin.sub) {
+      return {
+        success: false,
+        error: "Aturan Sistem: Hanya diperbolehkan satu akun Administrator aktif. Pengguna lain tidak dapat diubah menjadi ADMIN.",
+      };
+    }
 
     if (await isDatabaseReady()) {
       try {
@@ -2745,11 +2761,15 @@ export async function deleteStaffAction(userId: string): Promise<ActionResult> {
         );
         if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
 
-        // Soft-deactivate agar tidak merusak data relasi transaksi/audit
+        // Soft-delete: Tandai deleted_at dan is_active=false agar riwayat transaksi/audit terjaga
+        const now = new Date();
         await withTimeout(
           prisma.user.update({
             where: { id: userId },
-            data: { is_active: false },
+            data: {
+              is_active: false,
+              deleted_at: now,
+            },
           }),
           ACTION_TIMEOUT_MS,
         );
@@ -2757,6 +2777,7 @@ export async function deleteStaffAction(userId: string): Promise<ActionResult> {
         const memRecord = memoryUsers.get(userId);
         if (memRecord) {
           memRecord.is_active = false;
+          memRecord.deleted_at = now;
         }
 
         await recordAuditLog({
@@ -2765,14 +2786,14 @@ export async function deleteStaffAction(userId: string): Promise<ActionResult> {
           actorRole: admin.role,
           entityName: "users",
           entityId: userId,
-          action: "DEACTIVATE_STAFF",
-          oldData: { is_active: prev.is_active },
-          newData: { is_active: false },
-          reason: "Akun staf dinonaktifkan permanen oleh Administrator",
+          action: "SOFT_DELETE_USER",
+          oldData: { is_active: prev.is_active, deleted_at: null },
+          newData: { is_active: false, deleted_at: now.toISOString() },
+          reason: "Akun pengguna dinonaktifkan permanen menggunakan mekanisme Soft Delete",
         });
 
         safeRevalidate("/admin");
-        return { success: true, message: `Akun staf "${prev.name}" berhasil dinonaktifkan.` };
+        return { success: true, message: `Akun staf "${prev.name}" berhasil dihapus (Soft Delete).` };
       } catch (err) {
         invalidateDatabaseCheck();
         console.warn("Prisma error deleteStaff, fallback ke in-memory:", err);
@@ -2783,7 +2804,9 @@ export async function deleteStaffAction(userId: string): Promise<ActionResult> {
     const prev = memoryUsers.get(userId);
     if (!prev) return { success: false, error: "Data staf tidak ditemukan." };
 
+    const now = new Date();
     prev.is_active = false;
+    prev.deleted_at = now;
 
     await recordAuditLog({
       actorId: admin.sub,
@@ -2791,14 +2814,14 @@ export async function deleteStaffAction(userId: string): Promise<ActionResult> {
       actorRole: admin.role,
       entityName: "users",
       entityId: userId,
-      action: "DEACTIVATE_STAFF",
-      oldData: { is_active: true },
-      newData: { is_active: false },
-      reason: "Akun staf dinonaktifkan permanen oleh Administrator",
+      action: "SOFT_DELETE_USER",
+      oldData: { is_active: true, deleted_at: null },
+      newData: { is_active: false, deleted_at: now.toISOString() },
+      reason: "Akun pengguna dinonaktifkan permanen menggunakan mekanisme Soft Delete",
     });
 
     safeRevalidate("/admin");
-    return { success: true, message: `Akun staf "${prev.name}" berhasil dinonaktifkan.` };
+    return { success: true, message: `Akun staf "${prev.name}" berhasil dihapus (Soft Delete).` };
   } catch (err) {
     return { success: false, error: errorMessage(err, "Gagal menonaktifkan akun staf.") };
   }
