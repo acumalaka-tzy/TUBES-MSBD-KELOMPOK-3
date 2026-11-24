@@ -3,6 +3,12 @@
 import { getMemoryStore, memoryId } from "@/lib/admin/memory-store";
 import { prisma } from "@/lib/prisma";
 import { safeRevalidate, memoryOrders } from "./helpers";
+import { cleanupExpiredOrders } from "./orders";
+import {
+  findMemoryTableByNumber,
+  syncDbTableSessionLifecycle,
+  syncMemoryTableSessionLifecycle,
+} from "@/lib/orders/table-session";
 import {
   createSnapTransaction,
   checkMidtransStatus,
@@ -99,6 +105,7 @@ export async function createOrReuseSnapSession(orderNumber: string): Promise<{
     if (!orderNumber) {
       return { success: false, statusCode: 400, error: "Nomor pesanan wajib disertakan." };
     }
+    await cleanupExpiredOrders().catch(() => {});
 
     let customerName = "Pelanggan Warkop";
     let customerPhone = "-";
@@ -444,6 +451,10 @@ export async function applyMidtransPaymentUpdate(
                 where: { product_id: item.product_id },
                 data: { available_qty: availAfter, reserved_qty: resAfter },
               });
+              await tx.product.update({
+                where: { id: item.product_id },
+                data: { is_available: availAfter > 0 },
+              });
               await tx.stockMovement.create({
                 data: {
                   product_id: item.product_id,
@@ -459,10 +470,15 @@ export async function applyMidtransPaymentUpdate(
               });
             }
           }
+          if (order.table_id) {
+            await syncDbTableSessionLifecycle(tx, order.table_id);
+          }
         }
       }, { maxWait: 10000, timeout: 20000 });
 
       safeRevalidate(`/orders/${orderNumber}`);
+      safeRevalidate("/checkout");
+      safeRevalidate("/cashier");
       return { success: true, paymentStatus, orderStatus };
     }
   } catch (err) {
@@ -472,8 +488,8 @@ export async function applyMidtransPaymentUpdate(
   // 2. Fallback memory store
   const fallback = memoryOrders.get(orderNumber);
   if (fallback && fallback.payment) {
+    const mem = getMemoryStore();
     if (paymentStatus === "PAID" && fallback.payment.status !== "PAID") {
-      const mem = getMemoryStore();
       for (const item of fallback.items) {
         const prod = item.product_id
           ? mem.products.get(item.product_id)
@@ -499,6 +515,41 @@ export async function applyMidtransPaymentUpdate(
           });
         }
       }
+    } else if (
+      orderStatus === "CANCELLED" &&
+      fallback.status !== "CANCELLED" &&
+      fallback.payment.status !== "PAID"
+    ) {
+      for (const item of fallback.items) {
+        const prod = item.product_id
+          ? mem.products.get(item.product_id)
+          : Array.from(mem.products.values()).find((p) => p.name === item.product_name_snapshot);
+        const st = prod ? mem.stocks.get(prod.id) : undefined;
+        if (prod && st) {
+          const availBefore = st.available_qty;
+          const resBefore = st.reserved_qty;
+          st.available_qty = availBefore + item.quantity;
+          st.reserved_qty = Math.max(0, resBefore - item.quantity);
+          st.updated_at = new Date();
+          if (st.available_qty > 0 && prod.deleted_at === null) {
+            prod.is_available = true;
+          }
+          mem.movements.unshift({
+            id: memoryId("mov"),
+            product_id: prod.id,
+            actor_id: null,
+            actor_name: fallback.customer_name,
+            movement_type: "RELEASE_RESERVE",
+            qty_change: item.quantity,
+            available_before: availBefore,
+            available_after: st.available_qty,
+            reserved_before: resBefore,
+            reserved_after: st.reserved_qty,
+            reason: `Midtrans Expired/Cancelled Order ${orderNumber}`,
+            created_at: new Date(),
+          });
+        }
+      }
     }
     fallback.payment.status = paymentStatus;
     if (paymentStatus === "PAID") {
@@ -508,8 +559,16 @@ export async function applyMidtransPaymentUpdate(
     if (fallback.status === "PENDING") {
       fallback.status = orderStatus;
     }
+    if (orderStatus === "CANCELLED" && fallback.table?.table_number) {
+      const targetTable = findMemoryTableByNumber(fallback.table.table_number);
+      if (targetTable) {
+        syncMemoryTableSessionLifecycle(targetTable.id);
+      }
+    }
     memoryOrders.set(orderNumber, fallback);
     safeRevalidate(`/orders/${orderNumber}`);
+    safeRevalidate("/checkout");
+    safeRevalidate("/cashier");
     return { success: true, paymentStatus, orderStatus };
   }
 
@@ -570,6 +629,7 @@ export async function checkMidtransStatusAction(orderNumber: string) {
 
 // Simulasi Pembayaran Sukses (Testing / Webhook Simulator)
 export async function simulatePaymentSuccess(orderNumber: string) {
+  await cleanupExpiredOrders().catch(() => {});
   try {
     const order = await prisma.order.findUnique({
       where: { order_number: orderNumber },
@@ -577,6 +637,12 @@ export async function simulatePaymentSuccess(orderNumber: string) {
     });
 
     if (order && order.payment) {
+      if (order.status === "CANCELLED" || (order.expires_at && new Date(order.expires_at) < new Date())) {
+        return {
+          success: false,
+          error: "Pesanan sudah kedaluwarsa atau dibatalkan dan tidak dapat dibayar.",
+        };
+      }
       await prisma.$transaction(async (tx: any) => {
         // Update payment to PAID
         await tx.payment.update({
@@ -636,6 +702,15 @@ export async function simulatePaymentSuccess(orderNumber: string) {
 
   const fallback = memoryOrders.get(orderNumber);
   if (fallback && fallback.payment) {
+    if (
+      fallback.status === "CANCELLED" ||
+      (fallback.expires_at && new Date(fallback.expires_at) < new Date())
+    ) {
+      return {
+        success: false,
+        error: "Pesanan sudah kedaluwarsa atau dibatalkan dan tidak dapat dibayar.",
+      };
+    }
     if (fallback.payment.status !== "PAID") {
       const mem = getMemoryStore();
       for (const item of fallback.items) {
@@ -684,9 +759,14 @@ export async function simulateStatusUpdate(orderNumber: string, nextStatus: stri
     });
 
     if (order) {
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { status: nextStatus },
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: nextStatus },
+        });
+        if (nextStatus === "CANCELLED" && order.table_id) {
+          await syncDbTableSessionLifecycle(tx, order.table_id);
+        }
       });
       safeRevalidate(`/orders/${orderNumber}`);
       return { success: true };
@@ -738,6 +818,12 @@ export async function simulateStatusUpdate(orderNumber: string, nextStatus: stri
       }
     }
     fallback.status = nextStatus;
+    if (nextStatus === "CANCELLED" && fallback.table?.table_number) {
+      const targetTable = findMemoryTableByNumber(fallback.table.table_number);
+      if (targetTable) {
+        syncMemoryTableSessionLifecycle(targetTable.id);
+      }
+    }
     memoryOrders.set(orderNumber, fallback);
     safeRevalidate(`/orders/${orderNumber}`);
     return { success: true };

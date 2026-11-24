@@ -1,9 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart, CartItem } from "@/context/cart-context";
-import { getOrderHistoryScope, saveRecentOrder, useActiveTable } from "@/lib/active-table";
+import {
+  getOrderHistoryScope,
+  getTableSessionToken,
+  getTableSessionTokens,
+  saveRecentOrder,
+  saveTableSessionToken,
+  useActiveTable,
+} from "@/lib/active-table";
 import { createOrder, getTablesList, getCatalogProducts } from "@/actions";
 import { TableItem } from "@/actions/types";
 import { Product } from "@/lib/menu-data";
@@ -59,6 +66,7 @@ function CheckoutContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const idempotencyRef = useRef<{ signature: string; key: string } | null>(null);
 
   useEffect(() => {
     void refreshStoreSettings();
@@ -73,8 +81,11 @@ function CheckoutContent() {
   }, [urlTable, urlService, setServiceType]);
 
   useEffect(() => {
-    // Ambil daftar meja dan produk katalog dari MySQL
-    getTablesList().then((data) => {
+    // Ambil daftar meja (dengan konteks sesi & kepemilikan) dan produk katalog
+    getTablesList({
+      customerPhone: customerPhone.trim() || undefined,
+      sessionTokens: getTableSessionTokens(),
+    }).then((data) => {
       setTables(data);
       if (urlTable && data.some((t) => t.table_number === urlTable)) {
         setTableNumber(urlTable);
@@ -93,6 +104,19 @@ function CheckoutContent() {
       }
     });
   }, [urlTable]);
+
+  // Perbarui kepemilikan sesi meja saat nomor WhatsApp / user berubah agar multiple bill tetap mulus
+  useEffect(() => {
+    const t = setTimeout(() => {
+      getTablesList({
+        customerPhone: customerPhone.trim() || undefined,
+        sessionTokens: getTableSessionTokens(),
+      }).then((data) => {
+        setTables(data);
+      });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [customerPhone, currentUser?.id, orderedAsOtherGuest]);
 
   const handleEditItem = (item: CartItem) => {
     const prod = catalogProducts.find((p) => p.id === item.productId);
@@ -135,6 +159,26 @@ function CheckoutContent() {
     setIsSubmitting(true);
 
     try {
+      const payloadSig = JSON.stringify({
+        serviceType,
+        tableNumber: serviceType === "DINE_IN" ? tableNumber : "",
+        paymentMethod,
+        phone: phoneValidation.normalized,
+        items: items.map((i) => ({ id: i.productId, q: i.quantity, opts: i.options.length })),
+      });
+      if (!idempotencyRef.current || idempotencyRef.current.signature !== payloadSig) {
+        const randKey =
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `idem-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+        idempotencyRef.current = { signature: payloadSig, key: randKey };
+      }
+
+      const activeTableSessionToken =
+        serviceType === "DINE_IN" && tableNumber
+          ? getTableSessionToken(tableNumber) ?? undefined
+          : undefined;
+
       const res = await createOrder({
         customerName: customerName.trim(),
         customerPhone: phoneValidation.normalized,
@@ -143,6 +187,8 @@ function CheckoutContent() {
         paymentMethod,
         notes,
         userId: orderedAsOtherGuest ? null : currentUser?.id,
+        idempotencyKey: idempotencyRef.current.key,
+        tableSessionToken: activeTableSessionToken,
         items: items.map((it) => ({
           productId: it.productId,
           name: it.name,
@@ -172,6 +218,11 @@ function CheckoutContent() {
         }
         return;
       }
+
+      if (serviceType === "DINE_IN" && tableNumber && res.tableSessionToken) {
+        saveTableSessionToken(tableNumber, res.tableSessionToken);
+      }
+      idempotencyRef.current = null;
 
       // Simpan riwayat pesanan ke localStorage sesuai pemilik sesi (guest atau user:<id>)
       const ownerScope = getOrderHistoryScope(res.ownerUserId ?? currentUser?.id);

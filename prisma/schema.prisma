@@ -25,6 +25,7 @@ model User {
   payments           Payment[]
   receipts           Receipt[]
   table_qr_codes     TableQrCode[]
+  table_sessions     TableSession[]
   stock_movements    StockMovement[]
   audit_logs         AuditLog[]
   restaurant_settings RestaurantSetting[]
@@ -146,9 +147,32 @@ model Table {
   updated_at   DateTime @default(now()) @updatedAt
 
   qr_codes TableQrCode[]
+  sessions TableSession[]
   orders   Order[]
 
   @@map("tables")
+}
+
+// ============================================================================
+// 7B. Tabel table_sessions (Sesi Kunjungan Meja untuk Multiple Bill)
+// ============================================================================
+model TableSession {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  table_id      String    @db.VarChar(36)
+  session_token String    @unique @db.VarChar(128)
+  owner_user_id String?   @db.VarChar(36)
+  owner_phone   String?   @db.VarChar(20)
+  owner_name    String?   @db.VarChar(100)
+  status        String    @default("ACTIVE") @db.VarChar(20) // ACTIVE, CLOSED
+  opened_at     DateTime  @default(now())
+  closed_at     DateTime?
+
+  table      Table   @relation(fields: [table_id], references: [id], onDelete: Cascade)
+  owner_user User?   @relation(fields: [owner_user_id], references: [id])
+  orders     Order[]
+
+  @@index([table_id, status], map: "idx_table_sessions_table_status")
+  @@map("table_sessions")
 }
 
 // ============================================================================
@@ -174,26 +198,29 @@ model TableQrCode {
 // 9. Tabel orders
 // ============================================================================
 model Order {
-  id             String    @id @default(uuid()) @db.VarChar(36)
-  order_number   String    @unique @db.VarChar(30)
-  user_id        String?   @db.VarChar(36)
-  table_id       String?   @db.VarChar(36)
-  customer_name  String    @db.VarChar(100)
-  customer_phone String    @db.VarChar(20)
-  tracking_token String?   @unique @db.VarChar(128)
-  source         String    @db.VarChar(15) // WEB, POS
-  service_type   String    @db.VarChar(15) // DINE_IN, TAKEAWAY
-  status         String    @default("PENDING") @db.VarChar(20) // PENDING, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED
-  subtotal       Decimal   @default(0.00) @db.Decimal(12, 2)
-  tax_amount     Decimal   @default(0.00) @db.Decimal(12, 2)
-  total_amount   Decimal   @default(0.00) @db.Decimal(12, 2)
-  notes          String?   @db.Text
-  expires_at     DateTime?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @default(now()) @updatedAt
+  id               String    @id @default(uuid()) @db.VarChar(36)
+  order_number     String    @unique @db.VarChar(30)
+  user_id          String?   @db.VarChar(36)
+  table_id         String?   @db.VarChar(36)
+  table_session_id String?   @db.VarChar(36)
+  customer_name    String    @db.VarChar(100)
+  customer_phone   String    @db.VarChar(20)
+  tracking_token   String?   @unique @db.VarChar(128)
+  idempotency_key  String?   @unique @db.VarChar(128)
+  source           String    @db.VarChar(15) // WEB, POS
+  service_type     String    @db.VarChar(15) // DINE_IN, TAKEAWAY
+  status           String    @default("PENDING") @db.VarChar(20) // PENDING, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED
+  subtotal         Decimal   @default(0.00) @db.Decimal(12, 2)
+  tax_amount       Decimal   @default(0.00) @db.Decimal(12, 2)
+  total_amount     Decimal   @default(0.00) @db.Decimal(12, 2)
+  notes            String?   @db.Text
+  expires_at       DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @default(now()) @updatedAt
 
   user            User?           @relation(fields: [user_id], references: [id])
   table           Table?          @relation(fields: [table_id], references: [id])
+  table_session   TableSession?   @relation(fields: [table_session_id], references: [id])
   items           OrderItem[]
   payment         Payment?
   receipts        Receipt[]
@@ -201,6 +228,7 @@ model Order {
 
   @@index([status, created_at(sort: Desc)], map: "idx_orders_status_created")
   @@index([table_id, status], map: "idx_orders_table_status")
+  @@index([table_session_id, status], map: "idx_orders_table_session_status")
   @@index([user_id, created_at(sort: Desc)], map: "idx_orders_user_created")
   @@index([status, expires_at], map: "idx_orders_pending_expires")
   @@map("orders")

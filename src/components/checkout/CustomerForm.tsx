@@ -171,7 +171,7 @@ export function CustomerForm({
               value={tableNumber}
               onChange={(e) => {
                 const targetT = tables.find((t) => t.table_number === e.target.value);
-                if (targetT?.status === "OCCUPIED") return;
+                if (targetT?.status === "OCCUPIED" && !targetT?.activeSessionOwned) return;
                 onTableNumberChange(e.target.value);
               }}
               className="w-full pl-10 pr-10 py-3 bg-card border border-border rounded-xl text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer shadow-2xs"
@@ -180,10 +180,10 @@ export function CustomerForm({
                 -- Pilih Nomor Meja Anda --
               </option>
               {tables.map((t) => {
-                const isOccupied = t.status === "OCCUPIED";
+                const isBlocked = t.status === "OCCUPIED" && !t.activeSessionOwned;
                 const num = String(t.table_number).replace(/^0+/, "") || String(t.table_number);
                 return (
-                  <option key={t.id} value={t.table_number} disabled={isOccupied}>
+                  <option key={t.id} value={t.table_number} disabled={isBlocked}>
                     Meja {num}
                   </option>
                 );

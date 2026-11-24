@@ -17,6 +17,14 @@ import {
 import { memoryOrders } from "@/actions/helpers";
 import { cleanupExpiredOrders } from "@/actions/orders";
 import { generateOrderNumber, generateTrackingToken } from "@/lib/utils";
+import {
+  findMemoryTableByNumber,
+  generateTableSessionToken,
+  normalizeTableNumber,
+  resolveOrCreateMemoryTableSession,
+  syncDbTableSessionLifecycle,
+  syncMemoryTableSessionLifecycle,
+} from "@/lib/orders/table-session";
 import type { OrderDetailData } from "@/actions/types";
 import type {
   CashierDashboardPayload,
@@ -645,24 +653,14 @@ export async function updateOrderStatusCashierAction(input: {
               data: { status: nextStatus },
             });
 
-            // Jika pesanan COMPLETED atau CANCELLED dan meja perlu dikosongkan
+            // Sinkronkan sesi meja: hanya tutup sesi & kosongkan meja bila seluruh bill pada sesi selesai/batal
             if (
               order.table_id &&
               (input.releaseTable || nextStatus === "COMPLETED" || nextStatus === "CANCELLED")
             ) {
-              const otherActiveCount = await tx.order.count({
-                where: {
-                  table_id: order.table_id,
-                  id: { not: order.id },
-                  status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] },
-                },
+              await syncDbTableSessionLifecycle(tx, order.table_id, {
+                closeIfAllCompleted: Boolean(input.releaseTable && nextStatus === "COMPLETED"),
               });
-              if (otherActiveCount === 0) {
-                await tx.table.update({
-                  where: { id: order.table_id },
-                  data: { status: "AVAILABLE" },
-                });
-              }
             }
           });
 
@@ -739,24 +737,16 @@ export async function updateOrderStatusCashierAction(input: {
     fallback.status = nextStatus;
     memoryOrders.set(orderNumber, fallback);
 
-    // Kosongkan meja otomatis jika tidak ada order aktif lain di meja tersebut
+    // Sinkronkan sesi meja memori: jangan kosongkan meja jika masih ada bill aktif / belum lunas dalam sesi
     if (
       fallback.table?.table_number &&
       (input.releaseTable || nextStatus === "COMPLETED" || nextStatus === "CANCELLED")
     ) {
-      const tableNum = fallback.table.table_number;
-      const hasOtherActive = [...memoryOrders.values()].some(
-        (o) =>
-          o.order_number !== orderNumber &&
-          o.table?.table_number === tableNum &&
-          ["PENDING", "CONFIRMED", "PREPARING", "READY"].includes(o.status),
-      );
-      if (!hasOtherActive) {
-        const tbl = [...mem.tables.values()].find((t) => t.table_number === tableNum);
-        if (tbl) {
-          tbl.status = "AVAILABLE";
-          tbl.updated_at = new Date();
-        }
+      const tbl = findMemoryTableByNumber(fallback.table.table_number);
+      if (tbl) {
+        syncMemoryTableSessionLifecycle(tbl.id, {
+          closeIfAllCompleted: Boolean(input.releaseTable && nextStatus === "COMPLETED"),
+        });
       }
     }
 
@@ -843,10 +833,19 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
       try {
         let selectedTable: { id: string; table_number: string; name: string } | null = null;
         if (serviceType === "DINE_IN" && tableNumber) {
-          const t = await prisma.table.findUnique({ where: { table_number: tableNumber } });
+          const { raw, clean, padded } = normalizeTableNumber(tableNumber);
+          const t = await prisma.table.findFirst({
+            where: {
+              OR: [
+                { table_number: raw },
+                { table_number: clean },
+                { table_number: padded },
+              ],
+            },
+          });
           if (t) {
-            if (t.status === "OCCUPIED") {
-              return { success: false, error: `Meja ${tableNumber} sedang terisi dan tidak dapat digunakan.` };
+            if (!t.is_active || t.status === "INACTIVE") {
+              return { success: false, error: `Meja ${tableNumber} sedang nonaktif.` };
             }
             selectedTable = { id: t.id, table_number: t.table_number, name: t.name };
           }
@@ -858,6 +857,28 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
         });
 
         const createdOrder = await prisma.$transaction(async (tx) => {
+          let resolvedSessionId: string | null = null;
+          if (selectedTable) {
+            const activeSess = await tx.tableSession.findFirst({
+              where: { table_id: selectedTable.id, status: "ACTIVE" },
+              orderBy: { opened_at: "desc" },
+            });
+            if (activeSess) {
+              resolvedSessionId = activeSess.id;
+            } else {
+              const newSess = await tx.tableSession.create({
+                data: {
+                  table_id: selectedTable.id,
+                  session_token: generateTableSessionToken(selectedTable.table_number),
+                  owner_phone: customerPhone !== "-" ? customerPhone : null,
+                  owner_name: customerName,
+                  status: "ACTIVE",
+                },
+              });
+              resolvedSessionId = newSess.id;
+            }
+          }
+
           for (const item of input.items) {
             const stock = await tx.productStock.findUnique({
               where: { product_id: item.productId },
@@ -906,6 +927,7 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
             data: {
               order_number: orderNumber,
               table_id: selectedTable?.id ?? null,
+              table_session_id: resolvedSessionId,
               customer_name: customerName,
               customer_phone: customerPhone,
               tracking_token: trackingToken,
@@ -1090,14 +1112,23 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
     }
 
     let resolvedTable: { table_number: string; name: string } | null = null;
+    let resolvedTableSessionId: string | null = null;
     if (serviceType === "DINE_IN" && tableNumber) {
-      const tbl = [...mem.tables.values()].find((t) => t.table_number === tableNumber);
+      const tbl = findMemoryTableByNumber(tableNumber);
       if (tbl) {
-        if (tbl.status === "OCCUPIED") {
-          return { success: false, error: `Meja ${tableNumber} sedang terisi dan tidak dapat digunakan.` };
+        if (!tbl.is_active || tbl.status === "INACTIVE") {
+          return { success: false, error: `Meja ${tableNumber} sedang nonaktif.` };
         }
-        tbl.status = "OCCUPIED";
-        tbl.updated_at = now;
+        const sessRes = resolveOrCreateMemoryTableSession({
+          table: tbl,
+          customerPhone,
+          customerName,
+          allowCashierAttach: true,
+        });
+        if (!sessRes.ok) {
+          return { success: false, error: sessRes.error };
+        }
+        resolvedTableSessionId = sessRes.session.id;
         resolvedTable = { table_number: tbl.table_number, name: tbl.name };
       } else {
         resolvedTable = { table_number: tableNumber, name: `Meja ${tableNumber}` };
@@ -1108,6 +1139,7 @@ export async function createPosOrderAction(input: PosCreateOrderInput): Promise<
       id: `pos-${Date.now()}`,
       order_number: orderNumber,
       user_id: staff.sub,
+      table_session_id: resolvedTableSessionId,
       customer_name: customerName,
       customer_phone: customerPhone,
       tracking_token: trackingToken,
@@ -1192,6 +1224,7 @@ export async function setTableStatusCashierAction(input: {
 }): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const staff = await requireCashierOrAdmin();
+    await cleanupExpiredOrders().catch(() => {});
     const tableNumber = input.tableNumber.trim();
     const nextStatus = input.status;
 
@@ -1229,6 +1262,10 @@ export async function setTableStatusCashierAction(input: {
                   data: { status: "COMPLETED" },
                 });
               }
+              await tx.tableSession.updateMany({
+                where: { table_id: tbl.id, status: "ACTIVE" },
+                data: { status: "CLOSED", closed_at: new Date() },
+              });
               await tx.table.update({
                 where: { id: tbl.id },
                 data: { status: "AVAILABLE" },
@@ -1303,6 +1340,12 @@ export async function setTableStatusCashierAction(input: {
       for (const ord of activeOrders) {
         ord.status = "COMPLETED";
         completedOrderNumbers.push(ord.order_number);
+      }
+      for (const sess of mem.tableSessions.values()) {
+        if (sess.table_id === tbl.id && sess.status === "ACTIVE") {
+          sess.status = "CLOSED";
+          sess.closed_at = new Date();
+        }
       }
     }
 

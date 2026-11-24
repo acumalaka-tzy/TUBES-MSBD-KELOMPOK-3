@@ -21,6 +21,8 @@ export interface CheckoutInput {
   paymentMethod: "CASH" | "MIDTRANS" | "QRIS" | "VIRTUAL_ACCOUNT";
   notes?: string;
   userId?: string | null;
+  idempotencyKey?: string;
+  tableSessionToken?: string;
   items: CheckoutOrderItem[];
 }
 
@@ -50,6 +52,8 @@ export interface TableItem {
   table_number: string;
   name: string;
   status: string;
+  activeSessionId?: string | null;
+  activeSessionOwned?: boolean;
 }
 
 export interface OrderOptionSnapshot {
@@ -73,6 +77,8 @@ export interface OrderDetailData {
   id: string;
   order_number: string;
   user_id?: string | null;
+  table_session_id?: string | null;
+  idempotency_key?: string | null;
   customer_name: string;
   customer_phone: string;
   tracking_token: string | null;
