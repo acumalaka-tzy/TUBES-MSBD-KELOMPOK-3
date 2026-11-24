@@ -206,7 +206,6 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
                 <th className="px-4 py-3.5">Metode Bayar</th>
                 <th className="px-4 py-3.5 text-center">Status Bayar</th>
                 <th className="px-4 py-3.5 text-right">Subtotal</th>
-                <th className="px-4 py-3.5 text-right">Pajak</th>
                 <th className="px-4 py-3.5 text-right">Total Akhir</th>
               </tr>
             </thead>
@@ -216,7 +215,7 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
             >
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                     <ReceiptText className="mx-auto size-8 text-muted-foreground/60 mb-2" />
                     <p className="font-bold text-sm">Tidak Ada Transaksi</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -302,10 +301,6 @@ export function AdminTransactionsTab({ transactions }: AdminTransactionsTabProps
 
                       <td className="px-4 py-3.5 text-right font-mono font-medium text-muted-foreground">
                         {formatRupiah(tx.subtotal)}
-                      </td>
-
-                      <td className="px-4 py-3.5 text-right font-mono text-xs text-muted-foreground">
-                        {formatRupiah(tx.taxAmount)}
                       </td>
 
                       <td className="px-4 py-3.5 text-right font-mono text-sm font-black text-foreground">

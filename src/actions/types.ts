@@ -23,6 +23,8 @@ export interface CheckoutInput {
   userId?: string | null;
   idempotencyKey?: string;
   tableSessionToken?: string;
+  cartToken?: string;
+  checkoutItemIds?: string[];
   items: CheckoutOrderItem[];
 }
 

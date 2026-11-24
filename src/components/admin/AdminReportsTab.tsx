@@ -105,7 +105,6 @@ export function AdminReportsTab({
       "Metode Pembayaran",
       "Status Pesanan",
       "Subtotal (Rp)",
-      "Pajak (Rp)",
       "Total Transaksi (Rp)",
     ];
 
@@ -119,7 +118,6 @@ export function AdminReportsTab({
       `"${getPaymentMethodLabel(tx.paymentMethod)}"`,
       `"${tx.orderStatus}"`,
       tx.subtotal,
-      tx.taxAmount,
       tx.totalAmount,
     ]);
 
@@ -296,7 +294,7 @@ export function AdminReportsTab({
       {/* KPI Cards Finansial */}
       <div
         style={{ animationDelay: "55ms" }}
-        className="animate-fade-slide-up grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+        className="animate-fade-slide-up grid grid-cols-2 gap-3 lg:grid-cols-4"
       >
         {/* Net Sales */}
         <div className="rounded-xl border border-[#E7E5E3] bg-white p-4 shadow-sm">
@@ -305,18 +303,7 @@ export function AdminReportsTab({
             <span className="text-xl font-bold text-[#F16F62]">
               {formatRupiah(report.summary.netSales)}
             </span>
-            <p className="text-[11px] text-[#78716c] mt-0.5">Setelah dikurangi pajak</p>
-          </div>
-        </div>
-
-        {/* Tax Collected */}
-        <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
-          <p className="text-xs font-medium text-stone-600">Pajak Terkumpul (PB1)</p>
-          <div className="mt-2">
-            <span className="text-xl font-bold text-stone-700">
-              {formatRupiah(report.summary.taxCollected)}
-            </span>
-            <p className="text-[11px] text-stone-500 mt-0.5">Titipan pajak daerah</p>
+            <p className="text-[11px] text-[#78716c] mt-0.5">Pendapatan bersih pesanan lunas</p>
           </div>
         </div>
 
@@ -342,7 +329,7 @@ export function AdminReportsTab({
         </div>
 
         {/* AOV */}
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm col-span-2 sm:col-span-1">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
           <p className="text-xs font-medium text-amber-800">Rata-rata Transaksi (AOV)</p>
           <div className="mt-2">
             <span className="text-xl font-bold text-amber-700">
@@ -486,7 +473,6 @@ export function AdminReportsTab({
                     <th className="px-5 py-3">Tanggal</th>
                     <th className="px-5 py-3 text-right">Pesanan</th>
                     <th className="px-5 py-3 text-right">Penjualan Bersih</th>
-                    <th className="px-5 py-3 text-right">Pajak (PB1)</th>
                     <th className="px-5 py-3 text-right">Total Bruto</th>
                     <th className="px-5 py-3 text-right">AOV Harian</th>
                   </tr>
@@ -494,7 +480,7 @@ export function AdminReportsTab({
                 <tbody className="divide-y divide-[#E7E5E3]">
                   {report.dailySales.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-xs text-[#78716c]">
+                      <td colSpan={5} className="py-8 text-center text-xs text-[#78716c]">
                         Belum ada transaksi pada periode ini.
                       </td>
                     </tr>
@@ -507,9 +493,6 @@ export function AdminReportsTab({
                           <td className="px-5 py-3.5 text-right font-mono">{d.ordersCount}</td>
                           <td className="px-5 py-3.5 text-right font-medium text-[#F16F62]">
                             {formatRupiah(d.netAmount)}
-                          </td>
-                          <td className="px-5 py-3.5 text-right text-stone-500">
-                            {formatRupiah(d.taxAmount)}
                           </td>
                           <td className="px-5 py-3.5 text-right font-semibold text-emerald-700">
                             {formatRupiah(d.grossAmount)}
@@ -752,12 +735,8 @@ export function AdminReportsTab({
                 <table className="w-full text-xs">
                   <tbody>
                     <tr className="border-b border-stone-200">
-                      <td className="py-1.5 text-stone-600">Total Penjualan Kotor (Subtotal Menu):</td>
+                      <td className="py-1.5 text-stone-600">Total Penjualan Bersih (Subtotal Menu):</td>
                       <td className="py-1.5 text-right font-medium">{formatRupiah(report.summary.netSales)}</td>
-                    </tr>
-                    <tr className="border-b border-stone-200">
-                      <td className="py-1.5 text-stone-600">Total Pajak Restoran (PB1 Terkumpul):</td>
-                      <td className="py-1.5 text-right font-medium">{formatRupiah(report.summary.taxCollected)}</td>
                     </tr>
                     <tr className="border-b-2 border-stone-900 font-bold text-stone-900">
                       <td className="py-2">Total Pendapatan Bruto (Gross Revenue):</td>

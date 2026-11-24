@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Globe, Lock, Percent, Save, Store } from "lucide-react";
+import { Globe, Lock, Save, Store } from "lucide-react";
 import { toggleWebOrderingAction, updateStoreSettingsAction } from "@/app/actions/admin";
-import { formatRupiah } from "@/lib/utils";
 import type { AdminSettings } from "@/lib/admin/types";
 import { formatDateTimeId } from "./admin-ui";
 
@@ -26,8 +25,6 @@ export function AdminSettingsTab({
   const [address, setAddress] = useState(settings.address);
   const [phoneWhatsapp, setPhoneWhatsapp] = useState(settings.phoneWhatsapp);
   const [openingHours, setOpeningHours] = useState(settings.openingHours);
-  const [taxEnabled, setTaxEnabled] = useState(settings.taxEnabled);
-  const [taxPercentage, setTaxPercentage] = useState(String(settings.taxPercentage));
   const [digitalExpiryMinutes, setDigitalExpiryMinutes] = useState(
     String(settings.digitalExpiryMinutes),
   );
@@ -37,9 +34,6 @@ export function AdminSettingsTab({
   const [receiptFooterNote, setReceiptFooterNote] = useState(settings.receiptFooterNote);
   const [changeReason, setChangeReason] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const numericTax = taxEnabled ? Math.min(100, Math.max(0, Number(taxPercentage) || 0)) : 0;
-  const sampleTax = Math.round(50000 * (numericTax / 100));
 
   async function handleMasterToggle() {
     setToggling(true);
@@ -66,8 +60,6 @@ export function AdminSettingsTab({
       phoneWhatsapp,
       openingHours,
       isWebOrderingOpen: settings.isWebOrderingOpen,
-      taxEnabled,
-      taxPercentage: Number(taxPercentage),
       digitalExpiryMinutes: Number(digitalExpiryMinutes),
       cashExpiryMinutes: Number(cashExpiryMinutes),
       receiptFooterNote,
@@ -169,38 +161,9 @@ export function AdminSettingsTab({
             Pembaruan terakhir: {formatDateTimeId(settings.updatedAt)}
           </p>
         </div>
-
-        {/* Simulasi Pajak PB1 */}
-        <div className="rounded-2xl border border-border bg-background p-5 shadow-xs">
-          <div className="flex items-center gap-2">
-            <Percent className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-bold text-foreground">Simulasi Perhitungan Pajak</h3>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Menampilkan efek konfigurasi pajak pada subtotal pesanan Rp 50.000.
-          </p>
-          <div className="mt-4 space-y-1.5 rounded-xl bg-secondary-bg p-3.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal Menu</span>
-              <span className="font-mono font-semibold text-foreground">Rp 50.000</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                {taxEnabled ? `Pajak Restoran (PB1 ${numericTax}%)` : "Pajak Nonaktif (0%)"}
-              </span>
-              <span className="font-mono font-semibold text-foreground">
-                {formatRupiah(sampleTax)}
-              </span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2 font-bold">
-              <span>Total Dibayar Pelanggan</span>
-              <span className="font-mono text-primary">{formatRupiah(50000 + sampleTax)}</span>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Form Pengaturan Pajak & Profil Toko */}
+      {/* Form Pengaturan Operasional & Profil Toko */}
       <form
         onSubmit={handleSaveSettings}
         style={{ animationDelay: "90ms" }}
@@ -209,44 +172,8 @@ export function AdminSettingsTab({
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Store className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">
-            Pengaturan Pajak PB1, Operasional &amp; Profil Toko
+            Pengaturan Operasional &amp; Profil Toko
           </h2>
-        </div>
-
-        {/* Pajak */}
-        <div className="rounded-xl border border-border bg-secondary-bg/40 p-4">
-          <label className="flex cursor-pointer items-center justify-between gap-3">
-            <div>
-              <span className="block text-xs font-bold text-foreground">
-                Aktifkan Pajak Restoran (PB1)
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                Diterapkan otomatis pada keranjang, checkout, dan invoice pesanan
-              </span>
-            </div>
-            <input
-              type="checkbox"
-              checked={taxEnabled}
-              onChange={(e) => setTaxEnabled(e.target.checked)}
-              className="h-4 w-4 accent-primary"
-            />
-          </label>
-
-          <div className="mt-3">
-            <label className="block text-xs font-semibold text-foreground">
-              Persentase Pajak (%)
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step="0.5"
-              value={taxPercentage}
-              onChange={(e) => setTaxPercentage(e.target.value)}
-              disabled={!taxEnabled}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm text-foreground disabled:opacity-50 sm:w-44"
-            />
-          </div>
         </div>
 
         {/* Profil Toko */}
@@ -335,7 +262,7 @@ export function AdminSettingsTab({
               type="text"
               value={changeReason}
               onChange={(e) => setChangeReason(e.target.value)}
-              placeholder="Contoh: Penyesuaian tarif PB1 atau perpanjangan jam tutup"
+              placeholder="Contoh: Perubahan jam buka operasional atau catatan kaki struk"
               className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground"
             />
           </div>
