@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -9,6 +10,7 @@ import {
   Database,
   FileSpreadsheet,
   Globe,
+  KeyRound,
   LayoutDashboard,
   Lock,
   LogOut,
@@ -269,15 +271,24 @@ export function AdminDashboardShell({
               </div>
             </div>
 
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                title="Keluar (Logout)"
-                className="rounded-lg p-1.5 text-white/60 hover:bg-red-500/20 hover:text-red-400 transition-colors cursor-pointer"
+            <div className="flex items-center gap-1">
+              <Link
+                href="/account"
+                title="Pengaturan Akun & Ubah Password"
+                className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
               >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </form>
+                <KeyRound className="h-4 w-4" />
+              </Link>
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  title="Keluar (Logout)"
+                  className="rounded-lg p-1.5 text-white/60 hover:bg-red-500/20 hover:text-red-400 transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </aside>

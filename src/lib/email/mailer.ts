@@ -10,6 +10,9 @@ export const mailTransporter = nodemailer.createTransport({
   host: smtpHost,
   port: smtpPort,
   secure: smtpPort === 465,
+  connectionTimeout: 8000,
+  greetingTimeout: 8000,
+  socketTimeout: 10000,
   auth: {
     user: smtpUser,
     pass: smtpPass,
@@ -89,9 +92,103 @@ export async function sendOtpEmail({
     });
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gagal mengirim email OTP:", error);
-    return { success: false, error: error?.message || "Gagal mengirim email verifikasi" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Gagal mengirim email verifikasi",
+    };
+  }
+}
+
+export interface SendPasswordResetEmailParams {
+  toEmail: string;
+  recipientName: string;
+  resetUrl: string;
+  expiryMinutes: number;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export async function sendPasswordResetEmail({
+  toEmail,
+  recipientName,
+  resetUrl,
+  expiryMinutes,
+}: SendPasswordResetEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    const safeName = escapeHtml(recipientName);
+    const safeUrl = escapeHtml(resetUrl);
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Password Warkop Agam</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f7f7f8; margin: 0; padding: 24px; color: #1f2937; }
+        .card { max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .header { background-color: #F16F62; padding: 28px 24px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+        .header p { margin: 6px 0 0; font-size: 13px; opacity: 0.9; }
+        .content { padding: 28px; text-align: center; }
+        .greeting { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #111827; }
+        .instruction { font-size: 14px; line-height: 1.6; color: #4b5563; margin-bottom: 24px; }
+        .btn { display: inline-block; background-color: #F16F62; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 28px; border-radius: 12px; }
+        .expire-info { font-size: 12px; color: #6b7280; margin-top: 16px; }
+        .footer { border-top: 1px solid #f3f4f6; padding: 20px; text-align: center; font-size: 11px; color: #9ca3af; line-height: 1.5; background: #fafafa; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <h1>Warkop Agam</h1>
+          <p>Pemulihan Keamanan Akun</p>
+        </div>
+        <div class="content">
+          <div class="greeting">Halo, ${safeName}</div>
+          <p class="instruction">
+            Kami menerima permintaan untuk mengatur ulang password akun <strong>Warkop Agam</strong> Anda. Klik tombol di bawah ini untuk membuat password baru:
+          </p>
+          <a href="${safeUrl}" class="btn">Atur Ulang Password</a>
+          <div class="expire-info">Tautan ini hanya berlaku satu kali selama ${expiryMinutes} menit.</div>
+          <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+            Jika Anda tidak pernah meminta pengaturan ulang password, abaikan email ini. Password akun Anda tetap aman dan tidak berubah.
+          </p>
+        </div>
+        <div class="footer">
+          &copy; ${new Date().getFullYear()} Warkop Agam Senayan &amp; Medan<br>
+          Email otomatis, mohon tidak membalas pesan ini.
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+
+    await mailTransporter.sendMail({
+      from: smtpFrom,
+      to: toEmail,
+      subject: "[Warkop Agam] Tautan Pengaturan Ulang Password",
+      text: `Halo ${recipientName},\n\nKlik tautan berikut untuk mengatur ulang password akun Warkop Agam Anda (berlaku satu kali selama ${expiryMinutes} menit):\n${resetUrl}\n\nJika Anda tidak meminta reset password, abaikan email ini.`,
+      html: htmlContent,
+    });
+
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Gagal mengirim email reset password:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Gagal mengirim email reset password",
+    };
   }
 }
 

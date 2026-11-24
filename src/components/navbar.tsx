@@ -15,6 +15,7 @@ import {
   User,
   LogIn,
   LogOut,
+  KeyRound,
   ShieldCheck,
   ReceiptText,
 } from "lucide-react";
@@ -223,6 +224,15 @@ function NavbarContent() {
                           <span>Riwayat Pesanan</span>
                         </Link>
                       )}
+
+                      <Link
+                        href="/account"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary-bg hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <KeyRound className="h-4 w-4 text-primary" />
+                        <span>Pengaturan Akun</span>
+                      </Link>
                     </div>
 
                     <div className="mt-1 pt-1 border-t border-border">
@@ -371,6 +381,15 @@ function NavbarContent() {
                         Riwayat Pesanan
                       </Link>
                     )}
+
+                    <Link
+                      href="/account"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex h-10 items-center gap-2.5 rounded-xl px-3 text-xs font-bold text-foreground hover:bg-secondary-bg"
+                    >
+                      <KeyRound className="h-4 w-4 text-primary" />
+                      Pengaturan Akun
+                    </Link>
 
                     <form action={logoutAction}>
                       <button

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   BellRing,
   Boxes,
@@ -9,6 +10,7 @@ import {
   ChefHat,
   Database,
   History,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -319,15 +321,24 @@ export function CashierDashboardShell({
               </div>
             </div>
 
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                title="Keluar Shift (Logout)"
-                className="cursor-pointer rounded-lg p-1.5 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-400"
+            <div className="flex items-center gap-1">
+              <Link
+                href="/account"
+                title="Pengaturan Akun & Ubah Password"
+                className="rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
               >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </form>
+                <KeyRound className="h-4 w-4" />
+              </Link>
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  title="Keluar Shift (Logout)"
+                  className="cursor-pointer rounded-lg p-1.5 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-400"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </aside>

@@ -20,6 +20,12 @@ export const PROTECTED_ROUTES: RoutePermission[] = [
     loginRedirect: "/login?redirect=/cashier",
     unauthorizedRedirect: "/unauthorized",
   },
+  {
+    pathPrefix: "/account",
+    allowedRoles: ["CUSTOMER", "CASHIER", "ADMIN"],
+    loginRedirect: "/login?redirect=/account",
+    unauthorizedRedirect: "/login",
+  },
 ];
 
 /**

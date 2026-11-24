@@ -159,6 +159,12 @@ function LoginForm() {
             >
               Password
             </label>
+            <Link
+              href="/forgot-password"
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              Lupa password?
+            </Link>
           </div>
           <div className="relative">
             <input

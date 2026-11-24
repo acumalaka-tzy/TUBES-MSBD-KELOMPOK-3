@@ -5,18 +5,27 @@ import { redirect } from "next/navigation";
 import { recordAuditLog } from "@/lib/admin/audit";
 import {
   authenticateUser,
+  consumePasswordResetToken,
   createSession,
   deleteSession,
   findUserByIdentifier,
   getSession,
+  getUserById,
+  getUserRecordById,
+  issuePasswordResetToken,
+  PASSWORD_RESET_EXPIRATION_MINUTES,
   registerNewUser,
   getDefaultRedirectForRole,
+  updateUserPasswordHash,
+  verifyPasswordResetToken,
+  verifyUserPassword,
   type AuthUser,
   type UserRole,
   INITIAL_MOCK_USERS,
 } from "@/lib/auth";
 import { validateIndonesianWhatsApp } from "@/lib/auth/phone-validation";
-import { sendOtpEmail } from "@/lib/email/mailer";
+import { sendOtpEmail, sendPasswordResetEmail } from "@/lib/email/mailer";
+import { checkApiRateLimit, getClientIpSafe } from "@/lib/security/order-guard";
 import {
   savePendingRegistration,
   getPendingRegistration,
@@ -394,6 +403,239 @@ export async function getCurrentUserAction() {
     email: session.email || null,
     phone: session.phone,
     role: session.role,
+  };
+}
+
+const GENERIC_FORGOT_PASSWORD_MESSAGE =
+  "Jika email tersebut terdaftar di sistem Warkop Agam, tautan untuk mengatur ulang password telah dikirimkan ke kotak masuk Anda.";
+
+/**
+ * Server Action: Permintaan Lupa Password (Forgot Password)
+ * Menggunakan token kriptografis berbatas waktu & sekali pakai tanpa membocorkan status keberadaan email.
+ */
+export async function requestPasswordResetAction(email: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
+  const cleanEmail = (email || "").trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+    return {
+      success: false,
+      error: "Masukkan alamat email yang valid (contoh: nama@domain.com).",
+    };
+  }
+
+  const clientIp = await getClientIpSafe();
+  const rate = checkApiRateLimit(`pwd-reset:${clientIp}:${cleanEmail}`, 5, 15 * 60_000);
+  if (!rate.ok) {
+    return {
+      success: false,
+      error: `Terlalu banyak permintaan reset password. Silakan coba lagi dalam ${Math.ceil(rate.retryAfterSeconds / 60)} menit.`,
+    };
+  }
+
+  const user = await findUserByIdentifier(cleanEmail);
+  if (user && user.is_active && user.email?.toLowerCase() === cleanEmail) {
+    try {
+      const { rawToken } = await issuePasswordResetToken(user.id);
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+      const resetUrl = `${appUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+      const mailRes = await sendPasswordResetEmail({
+        toEmail: cleanEmail,
+        recipientName: user.name,
+        resetUrl,
+        expiryMinutes: PASSWORD_RESET_EXPIRATION_MINUTES,
+      });
+
+      if (!mailRes.success) {
+        console.warn("[auth:forgotPassword] Gagal mengirim email reset:", mailRes.error);
+      }
+
+      await recordAuditLog({
+        actorId: user.id,
+        actorName: user.name,
+        actorRole: user.role,
+        entityName: "users",
+        entityId: user.id,
+        action: "PASSWORD_RESET_REQUESTED",
+        oldData: null,
+        newData: {
+          email: cleanEmail,
+          requestedAt: new Date().toISOString(),
+        },
+        reason: "Pengguna mengajukan permintaan reset password melalui email",
+      });
+    } catch (err) {
+      console.warn("[auth:forgotPassword] Error internal saat memproses token:", err);
+    }
+  }
+
+  // Selalu kembalikan pesan generik agar tidak membocorkan apakah email terdaftar atau tidak
+  return {
+    success: true,
+    message: GENERIC_FORGOT_PASSWORD_MESSAGE,
+  };
+}
+
+/**
+ * Server Action: Verifikasi Validitas Token Reset Password
+ */
+export async function validateResetTokenAction(token: string): Promise<{
+  valid: boolean;
+  error?: string;
+}> {
+  const res = await verifyPasswordResetToken(token);
+  return { valid: res.valid, error: res.error };
+}
+
+/**
+ * Server Action: Atur Ulang Password Menggunakan Token Sekali Pakai
+ */
+export async function resetPasswordWithTokenAction(input: {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<{ success: boolean; message?: string; error?: string }> {
+  const newPassword = input.newPassword || "";
+  const confirmPassword = input.confirmPassword || "";
+
+  if (!input.token?.trim()) {
+    return { success: false, error: "Token reset password tidak ditemukan." };
+  }
+  if (newPassword.length < 6) {
+    return { success: false, error: "Password baru minimal 6 karakter." };
+  }
+  if (newPassword !== confirmPassword) {
+    return { success: false, error: "Konfirmasi password baru tidak cocok." };
+  }
+
+  const consumeRes = await consumePasswordResetToken({
+    rawToken: input.token,
+    newPassword,
+  });
+
+  if (!consumeRes.success || !consumeRes.userId) {
+    return {
+      success: false,
+      error: consumeRes.error || "Tautan reset password tidak valid atau sudah kedaluwarsa.",
+    };
+  }
+
+  const user = await getUserById(consumeRes.userId);
+  await recordAuditLog({
+    actorId: consumeRes.userId,
+    actorName: user?.name ?? null,
+    actorRole: user?.role ?? "CUSTOMER",
+    entityName: "users",
+    entityId: consumeRes.userId,
+    action: "PASSWORD_RESET_COMPLETED",
+    oldData: null,
+    newData: {
+      resetAt: new Date().toISOString(),
+      method: "EMAIL_TOKEN",
+    },
+    reason: "Pengguna menyelesaikan reset password melalui tautan pemulihan satu kali pakai",
+  });
+
+  return {
+    success: true,
+    message: "Password berhasil diatur ulang. Silakan masuk dengan password baru Anda.",
+  };
+}
+
+/**
+ * Server Action: Ubah Password oleh Pengguna Terautentikasi melalui Pengaturan Akun
+ */
+export async function changePasswordAction(input: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<{ success: boolean; message?: string; error?: string }> {
+  const session = await getSession();
+  if (!session || !session.sub) {
+    return {
+      success: false,
+      error: "Anda harus masuk terlebih dahulu untuk mengubah password.",
+    };
+  }
+
+  const currentPassword = input.currentPassword || "";
+  const newPassword = input.newPassword || "";
+  const confirmPassword = input.confirmPassword || "";
+
+  if (newPassword.length < 6) {
+    return { success: false, error: "Password baru minimal 6 karakter." };
+  }
+  if (newPassword !== confirmPassword) {
+    return { success: false, error: "Konfirmasi password baru tidak cocok." };
+  }
+
+  const userRecord = await getUserRecordById(session.sub);
+  if (!userRecord) {
+    return { success: false, error: "Data akun tidak ditemukan." };
+  }
+
+  // Jika akun memiliki password sebelumnya, verifikasi password lama wajib valid
+  if (userRecord.password_hash) {
+    if (!currentPassword) {
+      return { success: false, error: "Password lama wajib diisi." };
+    }
+    const isOldValid = await verifyUserPassword(currentPassword, userRecord.password_hash);
+    if (!isOldValid) {
+      await recordAuditLog({
+        actorId: session.sub,
+        actorName: session.name,
+        actorRole: session.role,
+        entityName: "users",
+        entityId: session.sub,
+        action: "CHANGE_PASSWORD_FAILED",
+        oldData: null,
+        newData: { attemptedAt: new Date().toISOString() },
+        reason: "Verifikasi password lama gagal saat mencoba ubah password",
+      });
+      return { success: false, error: "Password lama yang Anda masukkan salah." };
+    }
+    if (currentPassword === newPassword) {
+      return {
+        success: false,
+        error: "Password baru tidak boleh sama dengan password lama.",
+      };
+    }
+  }
+
+  const updateRes = await updateUserPasswordHash(session.sub, newPassword);
+  if (!updateRes.success) {
+    return { success: false, error: updateRes.error || "Gagal menyimpan password baru." };
+  }
+
+  await recordAuditLog({
+    actorId: session.sub,
+    actorName: session.name,
+    actorRole: session.role,
+    entityName: "users",
+    entityId: session.sub,
+    action: "CHANGE_PASSWORD",
+    oldData: { hadPassword: Boolean(userRecord.password_hash) },
+    newData: {
+      changedAt: new Date().toISOString(),
+      role: session.role,
+    },
+    reason: "Pengguna mengubah password melalui Pengaturan Akun",
+  });
+
+  try {
+    revalidatePath("/account");
+    revalidatePath("/admin");
+  } catch {
+    // Abaikan di luar Next.js request context
+  }
+
+  return {
+    success: true,
+    message: "Password akun Anda berhasil diperbarui dan dicatat dalam sistem keamanan.",
   };
 }
 

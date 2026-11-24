@@ -14,7 +14,7 @@ export interface RegisterUserInput {
 /**
  * Validasi password apakah cocok dengan hash (mendukung bcrypt asli dan placeholder prisma/seed.ts)
  */
-async function verifyUserPassword(password: string, hash: string | null | undefined): Promise<boolean> {
+export async function verifyUserPassword(password: string, hash: string | null | undefined): Promise<boolean> {
   if (!hash) return false;
 
   // Placeholder non-bcrypt dari prisma/seed.ts sebelum diubah admin
@@ -253,5 +253,75 @@ export async function getUserById(userId: string): Promise<AuthUser | null> {
   }
 
   return null;
+}
+
+/**
+ * Ambil data user lengkap termasuk password_hash (internal auth only)
+ */
+export async function getUserRecordById(userId: string): Promise<MockUserRecord | null> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (user) {
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        password_hash: user.password_hash || "",
+        role: user.role as UserRole,
+        is_active: user.is_active,
+      };
+    }
+  } catch {
+    // Fallback ke memory
+  }
+
+  return memoryUsers.get(userId) ?? null;
+}
+
+/**
+ * Perbarui password user dengan hash bcrypt yang aman pada DB dan memory store
+ */
+export async function updateUserPasswordHash(
+  userId: string,
+  newPlainPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!newPlainPassword || newPlainPassword.length < 6) {
+    return { success: false, error: "Password baru minimal terdiri dari 6 karakter." };
+  }
+
+  const newHash = await hashPassword(newPlainPassword);
+  let updated = false;
+
+  try {
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { password_hash: newHash },
+      });
+      updated = true;
+    }
+  } catch {
+    // Fallback ke memory store bila DB belum terhubung
+  }
+
+  const memRec = memoryUsers.get(userId);
+  if (memRec) {
+    memRec.password_hash = newHash;
+    memoryUsers.set(userId, memRec);
+    updated = true;
+  }
+
+  if (!updated) {
+    return { success: false, error: "Akun pengguna tidak ditemukan." };
+  }
+
+  return { success: true };
 }
 
