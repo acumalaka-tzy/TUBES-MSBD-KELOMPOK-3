@@ -36,8 +36,12 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/cashier/:path*",
+    "/account",
+    "/account/:path*",
     "/login",
     "/register",
+    "/forgot-password",
+    "/reset-password",
     "/",
     "/menu",
     "/menu/:path*",

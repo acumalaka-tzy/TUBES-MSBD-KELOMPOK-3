@@ -1,5 +1,6 @@
 export * from "./jwt";
 export * from "./password";
+export * from "./password-reset";
 export * from "./rbac";
 export * from "./session";
 export * from "./user-service";
