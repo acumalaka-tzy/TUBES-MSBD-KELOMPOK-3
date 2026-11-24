@@ -134,6 +134,19 @@ export interface MemTableQrCode {
   revoked_at: Date | null;
 }
 
+export interface MemTableSession {
+  id: string;
+  table_id: string;
+  table_number: string;
+  session_token: string;
+  owner_user_id: string | null;
+  owner_phone: string | null;
+  owner_name: string | null;
+  status: "ACTIVE" | "CLOSED";
+  opened_at: Date;
+  closed_at: Date | null;
+}
+
 export interface AdminMemoryStore {
   categories: Map<string, MemCategory>;
   products: Map<string, MemProduct>;
@@ -144,6 +157,7 @@ export interface AdminMemoryStore {
   demoOrders: MemAnalyticsOrder[];
   tables: Map<string, MemTable>;
   tableQrCodes: Map<string, MemTableQrCode[]>;
+  tableSessions: Map<string, MemTableSession>;
 }
 
 function createStore(): AdminMemoryStore {
@@ -274,6 +288,7 @@ function createStore(): AdminMemoryStore {
     demoOrders: [],
     tables,
     tableQrCodes,
+    tableSessions: new Map<string, MemTableSession>(),
   };
 }
 
@@ -282,6 +297,9 @@ const globalForStore = globalThis as unknown as { __warkopAdminStore?: AdminMemo
 export function getMemoryStore(): AdminMemoryStore {
   if (!globalForStore.__warkopAdminStore) {
     globalForStore.__warkopAdminStore = createStore();
+  }
+  if (!globalForStore.__warkopAdminStore.tableSessions) {
+    globalForStore.__warkopAdminStore.tableSessions = new Map<string, MemTableSession>();
   }
   return globalForStore.__warkopAdminStore;
 }

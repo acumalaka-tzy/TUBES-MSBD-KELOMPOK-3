@@ -2,165 +2,74 @@
 
 import { prisma } from "@/lib/prisma";
 import { CheckoutInput, OrderDetailData } from "./types";
-import { memoryOrders } from "./helpers";
+import { memoryOrders, safeRevalidate } from "./helpers";
 import { getSession } from "@/lib/auth/session";
 import { getPublicStoreSettings } from "@/lib/admin/queries";
 import { getMemoryStore, memoryId } from "@/lib/admin/memory-store";
-import { invalidateDatabaseCheck } from "@/lib/admin/db";
+import { isDatabaseReady, invalidateDatabaseCheck } from "@/lib/admin/db";
 import { generateOrderNumber, generateTrackingToken } from "@/lib/utils";
+import {
+  ORDER_GUARD_CONFIG,
+  checkOrderSpamAndRateLimit,
+  getCachedIdempotencyOrder,
+  getClientIpSafe,
+  normalizeActorPhone,
+  recordSuccessfulOrderAttempt,
+  releaseInFlightOrderKey,
+  saveCachedIdempotencyOrder,
+  tryAcquireInFlightOrderKey,
+} from "@/lib/security/order-guard";
+import {
+  ACTIVE_BILL_STATUSES,
+  findMemoryTableByNumber,
+  generateTableSessionToken,
+  isSessionOwnedBy,
+  normalizeTableNumber,
+  resolveOrCreateMemoryTableSession,
+  syncDbTableSessionLifecycle,
+  syncMemoryTableSessionLifecycle,
+} from "@/lib/orders/table-session";
+
+// Background automatic expiry sweep (berjalan ringan di Node runtime)
+const globalForSweeper = globalThis as unknown as {
+  __warkopExpirySweeperStarted?: boolean;
+};
+
+function ensureBackgroundExpirySweeper() {
+  if (globalForSweeper.__warkopExpirySweeperStarted) return;
+  globalForSweeper.__warkopExpirySweeperStarted = true;
+  if (typeof setInterval === "function") {
+    const timer = setInterval(() => {
+      cleanupExpiredOrders().catch(() => {});
+    }, 30_000);
+    if (typeof timer === "object" && timer !== null && "unref" in timer) {
+      (timer as { unref: () => void }).unref();
+    }
+  }
+}
 
 /**
  * Otomatis membersihkan pesanan PENDING yang telah melewati batas waktu expires_at,
- * melepaskan reserved stok, dan mengosongkan meja kembali ke AVAILABLE.
+ * melepaskan reserved stok, dan menutup sesi meja hanya bila seluruh bill di sesi tersebut batal/kosong.
  */
 export async function cleanupExpiredOrders(): Promise<number> {
   const now = new Date();
   let expiredCount = 0;
 
-  // 1. Bersihkan di Database Prisma
+  // 1. Bersihkan di Database Prisma (hanya jika DB ready agar tidak latency spike)
   try {
-    const expiredOrders = await prisma.order.findMany({
-      where: {
-        status: "PENDING",
-        expires_at: { lt: now },
-        payment: { status: { not: "PAID" } },
-      },
-      include: { items: true, table: true },
-    });
-
-    for (const order of expiredOrders) {
-      await prisma.$transaction(async (tx: any) => {
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: "CANCELLED" },
-        });
-
-        await tx.payment.updateMany({
-          where: { order_id: order.id },
-          data: { status: "FAILED" },
-        });
-
-        for (const item of order.items) {
-          const stock = await tx.productStock.findUnique({
-            where: { product_id: item.product_id },
-          });
-          if (stock) {
-            const availAfter = stock.available_qty + item.quantity;
-            const resAfter = Math.max(0, stock.reserved_qty - item.quantity);
-            await tx.productStock.update({
-              where: { product_id: item.product_id },
-              data: { available_qty: availAfter, reserved_qty: resAfter },
-            });
-            await tx.stockMovement.create({
-              data: {
-                product_id: item.product_id,
-                order_id: order.id,
-                movement_type: "RELEASE_RESERVE",
-                qty_change: item.quantity,
-                available_before: stock.available_qty,
-                available_after: availAfter,
-                reserved_before: stock.reserved_qty,
-                reserved_after: resAfter,
-                reason: `Batas waktu pembayaran pesanan ${order.order_number} habis`,
-              },
-            });
-          }
-        }
-
-        if (order.table_id) {
-          const activeOthers = await tx.order.count({
-            where: {
-              table_id: order.table_id,
-              id: { not: order.id },
-              status: { in: ["CONFIRMED", "PREPARING", "READY"] },
-            },
-          });
-          if (activeOthers === 0) {
-            await tx.table.update({
-              where: { id: order.table_id },
-              data: { status: "AVAILABLE" },
-            });
-          }
-        }
-      });
-      expiredCount++;
-    }
-  } catch {
-    // Abaikan error DB
-  }
-
-  // 2. Bersihkan di Memory Fallback Store
-  try {
-    const mem = getMemoryStore();
-    for (const [orderNumber, order] of memoryOrders.entries()) {
-      if (
-        order.status === "PENDING" &&
-        order.payment?.status !== "PAID" &&
-        order.expires_at &&
-        new Date(order.expires_at) < now
-      ) {
-        order.status = "CANCELLED";
-        if (order.payment) order.payment.status = "FAILED";
-
-        for (const item of order.items) {
-          const prod = item.product_id
-            ? mem.products.get(item.product_id)
-            : [...mem.products.values()].find((p) => p.name === item.product_name_snapshot);
-          const st = prod ? mem.stocks.get(prod.id) : undefined;
-          if (prod && st) {
-            const availBefore = st.available_qty;
-            const resBefore = st.reserved_qty;
-            st.available_qty = availBefore + item.quantity;
-            st.reserved_qty = Math.max(0, resBefore - item.quantity);
-            st.updated_at = new Date();
-            if (st.available_qty > 0 && prod.deleted_at === null) {
-              prod.is_available = true;
-            }
-          }
-        }
-
-        if (order.table?.table_number) {
-          const targetTable = [...mem.tables.values()].find(
-            (t) => t.table_number === order.table?.table_number
-          );
-          if (targetTable) {
-            targetTable.status = "AVAILABLE";
-            targetTable.updated_at = new Date();
-          }
-        }
-        expiredCount++;
-      }
-    }
-  } catch {
-    // Abaikan
-  }
-
-  return expiredCount;
-}
-
-/**
- * Batalkan pesanan PENDING (secara mandiri oleh customer atau kasir),
- * langsung melepaskan stok dan mengosongkan meja.
- */
-export async function cancelPendingOrderAction(orderNumber: string): Promise<{
-  success: boolean;
-  message?: string;
-  error?: string;
-}> {
-  try {
-    // Coba di Prisma DB
-    try {
-      const order = await prisma.order.findUnique({
-        where: { order_number: orderNumber },
-        include: { items: true, payment: true },
+    if (await isDatabaseReady()) {
+      const expiredOrders = await prisma.order.findMany({
+        where: {
+          status: "PENDING",
+          expires_at: { lt: now },
+          payment: { status: { not: "PAID" } },
+        },
+        include: { items: true, table: true },
       });
 
-      if (order) {
-        if (order.status !== "PENDING" && order.payment?.status === "PAID") {
-          return { success: false, error: "Pesanan yang sudah lunas tidak dapat dibatalkan secara otomatis." };
-        }
-
-        await prisma.$transaction(async (tx: any) => {
+      for (const order of expiredOrders) {
+        await prisma.$transaction(async (tx) => {
           await tx.order.update({
             where: { id: order.id },
             data: { status: "CANCELLED" },
@@ -182,6 +91,10 @@ export async function cancelPendingOrderAction(orderNumber: string): Promise<{
                 where: { product_id: item.product_id },
                 data: { available_qty: availAfter, reserved_qty: resAfter },
               });
+              await tx.product.update({
+                where: { id: item.product_id },
+                data: { is_available: availAfter > 0 },
+              });
               await tx.stockMovement.create({
                 data: {
                   product_id: item.product_id,
@@ -192,33 +105,182 @@ export async function cancelPendingOrderAction(orderNumber: string): Promise<{
                   available_after: availAfter,
                   reserved_before: stock.reserved_qty,
                   reserved_after: resAfter,
-                  reason: `Pembatalan pesanan PENDING ${order.order_number}`,
+                  reason: `Batas waktu pembayaran pesanan ${order.order_number} habis`,
                 },
               });
             }
           }
 
           if (order.table_id) {
-            const activeOthers = await tx.order.count({
-              where: {
-                table_id: order.table_id,
-                id: { not: order.id },
-                status: { in: ["CONFIRMED", "PREPARING", "READY"] },
-              },
-            });
-            if (activeOthers === 0) {
-              await tx.table.update({
-                where: { id: order.table_id },
-                data: { status: "AVAILABLE" },
-              });
-            }
+            await syncDbTableSessionLifecycle(tx, order.table_id);
           }
         });
-
-        return { success: true, message: "Pesanan dibatalkan dan meja telah dikosongkan." };
+        safeRevalidate(`/orders/${order.order_number}`);
+        expiredCount++;
       }
-    } catch {
-      // Fallback ke memory
+    }
+  } catch {
+    // Abaikan error DB saat tidak tersedia
+  }
+
+  // 2. Bersihkan di Memory Fallback Store
+  try {
+    const mem = getMemoryStore();
+    for (const order of memoryOrders.values()) {
+      if (
+        order.status === "PENDING" &&
+        order.payment?.status !== "PAID" &&
+        order.expires_at &&
+        new Date(order.expires_at) < now
+      ) {
+        order.status = "CANCELLED";
+        if (order.payment) order.payment.status = "FAILED";
+
+        for (const item of order.items) {
+          const prod = item.product_id
+            ? mem.products.get(item.product_id)
+            : [...mem.products.values()].find((p) => p.name === item.product_name_snapshot);
+          const st = prod ? mem.stocks.get(prod.id) : undefined;
+          if (prod && st) {
+            const availBefore = st.available_qty;
+            const resBefore = st.reserved_qty;
+            st.available_qty = availBefore + item.quantity;
+            st.reserved_qty = Math.max(0, resBefore - item.quantity);
+            st.updated_at = now;
+            if (st.available_qty > 0 && prod.deleted_at === null) {
+              prod.is_available = true;
+            }
+            mem.movements.unshift({
+              id: memoryId("mov"),
+              product_id: prod.id,
+              actor_id: null,
+              actor_name: "Sistem Kedaluwarsa",
+              movement_type: "RELEASE_RESERVE",
+              qty_change: item.quantity,
+              available_before: availBefore,
+              available_after: st.available_qty,
+              reserved_before: resBefore,
+              reserved_after: st.reserved_qty,
+              reason: `Batas waktu pembayaran pesanan ${order.order_number} habis`,
+              created_at: now,
+            });
+          }
+        }
+
+        if (order.table?.table_number) {
+          const targetTable = findMemoryTableByNumber(order.table.table_number);
+          if (targetTable) {
+            syncMemoryTableSessionLifecycle(targetTable.id);
+          }
+        }
+        safeRevalidate(`/orders/${order.order_number}`);
+        expiredCount++;
+      }
+    }
+  } catch {
+    // Abaikan error memory cleanup
+  }
+
+  if (expiredCount > 0) {
+    safeRevalidate("/checkout");
+    safeRevalidate("/cashier");
+    safeRevalidate("/menu");
+  }
+
+  return expiredCount;
+}
+
+/**
+ * Batalkan pesanan PENDING (secara mandiri oleh customer atau kasir),
+ * langsung melepaskan stok dan menyinkronkan sesi meja.
+ */
+export async function cancelPendingOrderAction(orderNumber: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    // Coba di Prisma DB bila tersambung
+    if (await isDatabaseReady()) {
+      try {
+        const order = await prisma.order.findUnique({
+          where: { order_number: orderNumber },
+          include: { items: true, payment: true },
+        });
+
+        if (order) {
+          if (order.status !== "PENDING" && order.payment?.status === "PAID") {
+            return {
+              success: false,
+              error: "Pesanan yang sudah lunas tidak dapat dibatalkan secara otomatis.",
+            };
+          }
+          if (order.status === "CANCELLED") {
+            return { success: true, message: "Pesanan sudah berstatus dibatalkan." };
+          }
+
+          let sessionClosed = false;
+          await prisma.$transaction(async (tx) => {
+            await tx.order.update({
+              where: { id: order.id },
+              data: { status: "CANCELLED" },
+            });
+
+            await tx.payment.updateMany({
+              where: { order_id: order.id },
+              data: { status: "FAILED" },
+            });
+
+            for (const item of order.items) {
+              const stock = await tx.productStock.findUnique({
+                where: { product_id: item.product_id },
+              });
+              if (stock) {
+                const availAfter = stock.available_qty + item.quantity;
+                const resAfter = Math.max(0, stock.reserved_qty - item.quantity);
+                await tx.productStock.update({
+                  where: { product_id: item.product_id },
+                  data: { available_qty: availAfter, reserved_qty: resAfter },
+                });
+                await tx.product.update({
+                  where: { id: item.product_id },
+                  data: { is_available: availAfter > 0 },
+                });
+                await tx.stockMovement.create({
+                  data: {
+                    product_id: item.product_id,
+                    order_id: order.id,
+                    movement_type: "RELEASE_RESERVE",
+                    qty_change: item.quantity,
+                    available_before: stock.available_qty,
+                    available_after: availAfter,
+                    reserved_before: stock.reserved_qty,
+                    reserved_after: resAfter,
+                    reason: `Pembatalan pesanan PENDING ${order.order_number}`,
+                  },
+                });
+              }
+            }
+
+            if (order.table_id) {
+              const syncRes = await syncDbTableSessionLifecycle(tx, order.table_id);
+              sessionClosed = syncRes.closed;
+            }
+          });
+
+          safeRevalidate(`/orders/${orderNumber}`);
+          safeRevalidate("/checkout");
+          safeRevalidate("/cashier");
+          return {
+            success: true,
+            message: sessionClosed
+              ? "Pesanan dibatalkan dan meja telah dikosongkan."
+              : "Pesanan dibatalkan. Bill lain pada sesi meja ini masih aktif.",
+          };
+        }
+      } catch {
+        // Fallback ke memory
+      }
     }
 
     // Fallback di memory
@@ -227,7 +289,11 @@ export async function cancelPendingOrderAction(orderNumber: string): Promise<{
       if (fallback.status !== "PENDING" && fallback.payment?.status === "PAID") {
         return { success: false, error: "Pesanan yang sudah lunas tidak dapat dibatalkan." };
       }
+      if (fallback.status === "CANCELLED") {
+        return { success: true, message: "Pesanan sudah berstatus dibatalkan." };
+      }
 
+      const now = new Date();
       fallback.status = "CANCELLED";
       if (fallback.payment) fallback.payment.status = "FAILED";
 
@@ -238,50 +304,125 @@ export async function cancelPendingOrderAction(orderNumber: string): Promise<{
           : [...mem.products.values()].find((p) => p.name === item.product_name_snapshot);
         const st = prod ? mem.stocks.get(prod.id) : undefined;
         if (prod && st) {
-          st.available_qty += item.quantity;
-          st.reserved_qty = Math.max(0, st.reserved_qty - item.quantity);
-          st.updated_at = new Date();
+          const availBefore = st.available_qty;
+          const resBefore = st.reserved_qty;
+          st.available_qty = availBefore + item.quantity;
+          st.reserved_qty = Math.max(0, resBefore - item.quantity);
+          st.updated_at = now;
           if (st.available_qty > 0 && prod.deleted_at === null) {
             prod.is_available = true;
           }
+          mem.movements.unshift({
+            id: memoryId("mov"),
+            product_id: prod.id,
+            actor_id: null,
+            actor_name: fallback.customer_name,
+            movement_type: "RELEASE_RESERVE",
+            qty_change: item.quantity,
+            available_before: availBefore,
+            available_after: st.available_qty,
+            reserved_before: resBefore,
+            reserved_after: st.reserved_qty,
+            reason: `Pembatalan pesanan PENDING ${fallback.order_number}`,
+            created_at: now,
+          });
         }
       }
 
+      let sessionClosed = false;
       if (fallback.table?.table_number) {
-        const targetTable = [...mem.tables.values()].find(
-          (t) => t.table_number === fallback.table?.table_number
-        );
+        const targetTable = findMemoryTableByNumber(fallback.table.table_number);
         if (targetTable) {
-          targetTable.status = "AVAILABLE";
-          targetTable.updated_at = new Date();
+          const syncRes = syncMemoryTableSessionLifecycle(targetTable.id);
+          sessionClosed = syncRes.closed;
         }
       }
 
-      return { success: true, message: "Pesanan dibatalkan dan meja telah dikosongkan." };
+      safeRevalidate(`/orders/${orderNumber}`);
+      safeRevalidate("/checkout");
+      safeRevalidate("/cashier");
+      return {
+        success: true,
+        message: sessionClosed
+          ? "Pesanan dibatalkan dan meja telah dikosongkan."
+          : "Pesanan dibatalkan. Bill lain pada sesi meja ini masih aktif.",
+      };
     }
 
     return { success: false, error: "Pesanan tidak ditemukan." };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Gagal membatalkan pesanan." };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal membatalkan pesanan.",
+    };
   }
 }
 
 export async function createOrder(input: CheckoutInput) {
+  ensureBackgroundExpirySweeper();
+  const idempotencyKey = input.idempotencyKey?.trim() || null;
+
+  // 0. Idempotency check pertama sebelum spam/rate-limit agar retry aman tidak terblokir
+  if (idempotencyKey) {
+    const cached = getCachedIdempotencyOrder(idempotencyKey);
+    if (cached) {
+      return {
+        success: true,
+        orderNumber: cached.orderNumber,
+        trackingToken: cached.trackingToken,
+        tableSessionToken: cached.tableSessionToken ?? null,
+        deduplicated: true,
+      };
+    }
+    for (const memOrder of memoryOrders.values()) {
+      if (memOrder.idempotency_key === idempotencyKey) {
+        const memStore = getMemoryStore();
+        const sess = memOrder.table_session_id
+          ? memStore.tableSessions.get(memOrder.table_session_id)
+          : undefined;
+        return {
+          success: true,
+          orderNumber: memOrder.order_number,
+          trackingToken: memOrder.tracking_token,
+          tableSessionToken: sess?.session_token ?? null,
+          ownerUserId: memOrder.user_id ?? null,
+          deduplicated: true,
+        };
+      }
+    }
+  }
+
+  if (!tryAcquireInFlightOrderKey(idempotencyKey)) {
+    return {
+      success: false,
+      error: "Permintaan pesanan yang sama sedang diproses. Mohon tunggu sebentar.",
+    };
+  }
+
   try {
-    // Bersihkan pesanan PENDING yang kedaluwarsa agar meja kosong kembali
+    // 1. Bersihkan pesanan PENDING yang kedaluwarsa sebelum validasi meja & kuota
     await cleanupExpiredOrders().catch(() => {});
+
     if (!input.customerName?.trim()) {
       return { success: false, error: "Nama pelanggan wajib diisi." };
     }
     const cleanPhone = (input.customerPhone || "").trim();
     if (!cleanPhone || cleanPhone === "-" || cleanPhone.replace(/\D/g, "").length < 8) {
-      return { success: false, error: "Nomor WhatsApp aktif wajib diisi dengan benar (minimal 8 digit)." };
+      return {
+        success: false,
+        error: "Nomor WhatsApp aktif wajib diisi dengan benar (minimal 8 digit).",
+      };
     }
     if (input.serviceType === "DINE_IN" && !input.tableNumber) {
       return { success: false, error: "Pilih nomor meja untuk pesanan Dine In." };
     }
     if (!input.items || input.items.length === 0) {
       return { success: false, error: "Keranjang pesanan masih kosong." };
+    }
+    for (const it of input.items) {
+      if (!Number.isFinite(it.quantity) || it.quantity <= 0 || it.quantity > 99) {
+        return { success: false, error: `Jumlah item "${it.name}" tidak valid.` };
+      }
     }
 
     const storeSettings = await getPublicStoreSettings();
@@ -292,7 +433,104 @@ export async function createOrder(input: CheckoutInput) {
       };
     }
 
-    // Hitung subtotal dan total mengikuti pengaturan pajak aktif dari Admin
+    // 2. Identifikasi user & periksa DB Idempotency bila DB ready
+    const session = await getSession().catch(() => null);
+    const effectiveUserId = input.userId === null ? null : (session?.sub ?? null);
+    const dbReady = await isDatabaseReady();
+
+    if (idempotencyKey && dbReady) {
+      try {
+        const existingDb = await prisma.order.findUnique({
+          where: { idempotency_key: idempotencyKey },
+          include: { table_session: true },
+        });
+        if (existingDb) {
+          saveCachedIdempotencyOrder(idempotencyKey, {
+            orderNumber: existingDb.order_number,
+            trackingToken: existingDb.tracking_token ?? "",
+            tableSessionToken: existingDb.table_session?.session_token ?? null,
+          });
+          return {
+            success: true,
+            orderNumber: existingDb.order_number,
+            trackingToken: existingDb.tracking_token,
+            tableSessionToken: existingDb.table_session?.session_token ?? null,
+            ownerUserId: existingDb.user_id,
+            deduplicated: true,
+          };
+        }
+      } catch {
+        // Abaikan jika fallback ke memory
+      }
+    }
+
+    let validUserId: string | null = effectiveUserId;
+    if (effectiveUserId && dbReady) {
+      try {
+        const userCheck = await prisma.user.findUnique({
+          where: { id: effectiveUserId },
+          select: { id: true },
+        });
+        validUserId = userCheck?.id ?? null;
+      } catch {
+        validUserId = null;
+      }
+    }
+
+    // 3. Anti-Spam & Rate Limiting Check
+    const clientIp = await getClientIpSafe();
+    const rateCheck = checkOrderSpamAndRateLimit({
+      ip: clientIp,
+      userId: validUserId,
+      customerPhone: cleanPhone,
+    });
+    if (!rateCheck.ok) {
+      return { success: false, error: rateCheck.error };
+    }
+
+    // 4. Batas Maksimal Pesanan PENDING Belum Dibayar Bersamaan
+    const normalizedPhone = normalizeActorPhone(cleanPhone);
+    let pendingUnpaidCount = 0;
+
+    if (dbReady) {
+      try {
+        const pendingOrders = await prisma.order.findMany({
+          where: {
+            status: "PENDING",
+            payment: { status: { not: "PAID" } },
+            OR: [
+              ...(validUserId ? [{ user_id: validUserId }] : []),
+              { customer_phone: cleanPhone },
+            ],
+          },
+          select: { id: true, customer_phone: true, user_id: true },
+        });
+        pendingUnpaidCount = pendingOrders.filter(
+          (o) =>
+            (validUserId && o.user_id === validUserId) ||
+            normalizeActorPhone(o.customer_phone) === normalizedPhone
+        ).length;
+      } catch {
+        // Lanjut hitung memory fallback
+      }
+    }
+
+    const memPendingCount = [...memoryOrders.values()].filter(
+      (o) =>
+        o.status === "PENDING" &&
+        o.payment?.status !== "PAID" &&
+        ((validUserId && o.user_id === validUserId) ||
+          normalizeActorPhone(o.customer_phone) === normalizedPhone)
+    ).length;
+
+    if (Math.max(pendingUnpaidCount, memPendingCount) >= ORDER_GUARD_CONFIG.maxPendingUnpaidOrders) {
+      return {
+        success: false,
+        error: `Anda memiliki ${ORDER_GUARD_CONFIG.maxPendingUnpaidOrders} pesanan yang masih menunggu pembayaran. Selesaikan pembayaran atau batalkan pesanan sebelumnya terlebih dahulu.`,
+      };
+    }
+
+    // 5. Hitung total & masa kedaluwarsa pembayaran
     let subtotal = 0;
     for (const item of input.items) {
       const optionsSum = item.options.reduce(
@@ -304,25 +542,8 @@ export async function createOrder(input: CheckoutInput) {
 
     const taxAmount = 0;
     const totalAmount = subtotal;
-
     const orderNumber = generateOrderNumber();
     const trackingToken = generateTrackingToken();
-
-    // Sesi login & identitas user jika ada (bila user memilih "Pesan Tamu Lain", input.userId === null -> Guest Checkout)
-    const session = await getSession();
-    const effectiveUserId = input.userId === null ? null : (session?.sub ?? null);
-    let validUserId: string | null = null;
-    if (effectiveUserId) {
-      try {
-        const userCheck = await prisma.user.findUnique({
-          where: { id: effectiveUserId },
-          select: { id: true },
-        });
-        if (userCheck) validUserId = userCheck.id;
-      } catch {
-        validUserId = null;
-      }
-    }
 
     const expiryMinutes =
       input.paymentMethod === "CASH"
@@ -330,253 +551,521 @@ export async function createOrder(input: CheckoutInput) {
         : storeSettings.digitalExpiryMinutes;
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
-    // Eksekusi transaksi database Prisma (ACID)
-    try {
-      let selectedTableId: string | null = null;
-      if (input.serviceType === "DINE_IN" && input.tableNumber) {
-        const rawTable = String(input.tableNumber).trim();
-        const cleanNum = rawTable.replace(/^0+/, "") || rawTable;
-        const paddedNum = cleanNum.padStart(2, "0");
-        const table = await prisma.table.findFirst({
-          where: {
-            OR: [
-              { table_number: rawTable },
-              { table_number: cleanNum },
-              { table_number: paddedNum },
-            ],
-          },
-        });
-        if (table) {
-          const activeOrdersAtTable = await prisma.order.count({
-            where: {
-              table_id: table.id,
-              service_type: "DINE_IN",
-              status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] },
-            },
-          });
-          if (table.status === "OCCUPIED" || activeOrdersAtTable > 0) {
-            return {
-              success: false,
-              error: `Meja ${cleanNum} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`,
-            };
-          }
-          selectedTableId = table.id;
-        }
-      }
+    // 6A. Jalankan melalui Prisma MySQL (ACID) jika DB tersedia
+    if (dbReady) {
+      try {
+        const created = await prisma.$transaction(
+          async (tx) => {
+            let selectedTableId: string | null = null;
+            let resolvedTableSessionId: string | null = null;
+            let resolvedTableSessionToken: string | null = null;
 
-      const created = await prisma.$transaction(async (tx) => {
-        // 1. Cek & Reservasi Stok untuk setiap produk
-        for (const item of input.items) {
-          let resolvedProductId = item.productId;
-          let existingProduct = await tx.product.findUnique({
-            where: { id: resolvedProductId },
-            select: { id: true, is_available: true, deleted_at: true },
-          });
+            if (input.serviceType === "DINE_IN" && input.tableNumber) {
+              const { raw, clean, padded } = normalizeTableNumber(input.tableNumber);
+              const table = await tx.table.findFirst({
+                where: {
+                  OR: [
+                    { table_number: raw },
+                    { table_number: clean },
+                    { table_number: padded },
+                  ],
+                },
+              });
 
-          if (!existingProduct) {
-            existingProduct = await tx.product.findFirst({
-              where: { name: item.name, deleted_at: null },
-              select: { id: true, is_available: true, deleted_at: true },
-            });
-            if (existingProduct) {
-              resolvedProductId = existingProduct.id;
-              item.productId = existingProduct.id;
+              if (table) {
+                selectedTableId = table.id;
+                const activeSession = await tx.tableSession.findFirst({
+                  where: { table_id: table.id, status: "ACTIVE" },
+                  orderBy: { opened_at: "desc" },
+                });
+
+                if (activeSession) {
+                  const owned = isSessionOwnedBy({
+                    ownerUserId: activeSession.owner_user_id,
+                    ownerPhone: activeSession.owner_phone,
+                    sessionToken: activeSession.session_token,
+                    requesterUserId: validUserId,
+                    requesterPhone: cleanPhone,
+                    requesterSessionToken: input.tableSessionToken,
+                  });
+                  if (!owned) {
+                    throw new Error(
+                      `Meja ${clean} sedang memiliki sesi kunjungan aktif oleh pelanggan lain. Silakan pilih meja yang kosong.`
+                    );
+                  }
+                  resolvedTableSessionId = activeSession.id;
+                  resolvedTableSessionToken = activeSession.session_token;
+                } else {
+                  const legacyOrders = await tx.order.findMany({
+                    where: {
+                      table_id: table.id,
+                      service_type: "DINE_IN",
+                      status: { in: [...ACTIVE_BILL_STATUSES] },
+                    },
+                    select: { id: true, user_id: true, customer_phone: true },
+                  });
+
+                  if (table.status === "OCCUPIED" && legacyOrders.length === 0) {
+                    throw new Error(
+                      `Meja ${clean} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`
+                    );
+                  }
+
+                  if (legacyOrders.length > 0) {
+                    const sameOwner = legacyOrders.some((lo) =>
+                      isSessionOwnedBy({
+                        ownerUserId: lo.user_id,
+                        ownerPhone: lo.customer_phone,
+                        requesterUserId: validUserId,
+                        requesterPhone: cleanPhone,
+                      })
+                    );
+                    if (!sameOwner) {
+                      throw new Error(
+                        `Meja ${clean} saat ini sedang terisi/ditempati pelanggan lain. Silakan pilih meja yang kosong.`
+                      );
+                    }
+                  }
+
+                  const newSessionToken =
+                    input.tableSessionToken || generateTableSessionToken(table.table_number);
+                  const createdSess = await tx.tableSession.create({
+                    data: {
+                      table_id: table.id,
+                      session_token: newSessionToken,
+                      owner_user_id: validUserId,
+                      owner_phone: normalizedPhone || null,
+                      owner_name: input.customerName.trim(),
+                      status: "ACTIVE",
+                    },
+                  });
+                  resolvedTableSessionId = createdSess.id;
+                  resolvedTableSessionToken = createdSess.session_token;
+
+                  if (legacyOrders.length > 0) {
+                    await tx.order.updateMany({
+                      where: { id: { in: legacyOrders.map((o) => o.id) } },
+                      data: { table_session_id: createdSess.id },
+                    });
+                  }
+                }
+              }
             }
-          }
 
-          if (!existingProduct || existingProduct.deleted_at !== null) {
-            throw new Error(`Menu "${item.name}" sudah tidak tersedia di katalog.`);
-          }
-          if (!existingProduct.is_available) {
-            throw new Error(`Menu "${item.name}" saat ini sedang habis atau dinonaktifkan.`);
-          }
+            // Cek & Reservasi Stok
+            for (const item of input.items) {
+              let resolvedProductId = item.productId;
+              let existingProduct = await tx.product.findUnique({
+                where: { id: resolvedProductId },
+                select: { id: true, is_available: true, deleted_at: true },
+              });
 
-          const stock = await tx.productStock.findUnique({
-            where: { product_id: resolvedProductId },
-          });
+              if (!existingProduct) {
+                existingProduct = await tx.product.findFirst({
+                  where: { name: item.name, deleted_at: null },
+                  select: { id: true, is_available: true, deleted_at: true },
+                });
+                if (existingProduct) {
+                  resolvedProductId = existingProduct.id;
+                  item.productId = existingProduct.id;
+                }
+              }
 
-          if (stock) {
-            if (stock.available_qty < item.quantity) {
-              throw new Error(
-                `Stok menu "${item.name}" tidak mencukupi (Tersedia: ${stock.available_qty}, Diminta: ${item.quantity}).`
+              if (!existingProduct || existingProduct.deleted_at !== null) {
+                throw new Error(`Menu "${item.name}" sudah tidak tersedia di katalog.`);
+              }
+              if (!existingProduct.is_available) {
+                throw new Error(`Menu "${item.name}" saat ini sedang habis atau dinonaktifkan.`);
+              }
+
+              const stock = await tx.productStock.findUnique({
+                where: { product_id: resolvedProductId },
+              });
+
+              if (stock) {
+                if (stock.available_qty < item.quantity) {
+                  throw new Error(
+                    `Stok menu "${item.name}" tidak mencukupi (Tersedia: ${stock.available_qty}, Diminta: ${item.quantity}).`
+                  );
+                }
+
+                const availAfter = stock.available_qty - item.quantity;
+                const resAfter = stock.reserved_qty + item.quantity;
+
+                await tx.productStock.update({
+                  where: { product_id: resolvedProductId },
+                  data: {
+                    available_qty: availAfter,
+                    reserved_qty: resAfter,
+                  },
+                });
+
+                await tx.product.update({
+                  where: { id: resolvedProductId },
+                  data: { is_available: availAfter > 0 },
+                });
+
+                await tx.stockMovement.create({
+                  data: {
+                    product_id: resolvedProductId,
+                    movement_type: "RESERVE",
+                    qty_change: -item.quantity,
+                    available_before: stock.available_qty,
+                    available_after: availAfter,
+                    reserved_before: stock.reserved_qty,
+                    reserved_after: resAfter,
+                    reason: `Reservasi stok pesanan ${orderNumber}`,
+                  },
+                });
+              }
+            }
+
+            // Buat Header Pesanan
+            const order = await tx.order.create({
+              data: {
+                order_number: orderNumber,
+                user_id: validUserId,
+                table_id: selectedTableId,
+                table_session_id: resolvedTableSessionId,
+                customer_name: input.customerName.trim(),
+                customer_phone: cleanPhone,
+                tracking_token: trackingToken,
+                idempotency_key: idempotencyKey,
+                source: "WEB",
+                service_type: input.serviceType,
+                status: "PENDING",
+                subtotal,
+                tax_amount: taxAmount,
+                total_amount: totalAmount,
+                notes: input.notes?.trim() || null,
+                expires_at: expiresAt,
+              },
+            });
+
+            // Buat Detail Item & Varian
+            for (const item of input.items) {
+              const optionsTotal = item.options.reduce(
+                (s, o) => s + (Number(o.priceAdjustment) || 0),
+                0
               );
+              const itemSubtotal = (item.unitPrice + optionsTotal) * item.quantity;
+
+              const orderItem = await tx.orderItem.create({
+                data: {
+                  order_id: order.id,
+                  product_id: item.productId,
+                  product_name_snapshot: item.name,
+                  unit_price_snapshot: item.unitPrice,
+                  quantity: item.quantity,
+                  subtotal: itemSubtotal,
+                  item_notes: item.itemNotes || null,
+                },
+              });
+
+              for (const opt of item.options) {
+                await tx.orderItemOption.create({
+                  data: {
+                    order_item_id: orderItem.id,
+                    option_group_name_snapshot: opt.groupName,
+                    option_name_snapshot: opt.optionName,
+                    price_adjustment_snapshot: opt.priceAdjustment,
+                  },
+                });
+              }
             }
 
-            // Kurangi available_qty, tambah reserved_qty
-            await tx.productStock.update({
-              where: { product_id: resolvedProductId },
+            // Rekaman Pembayaran
+            await tx.payment.create({
               data: {
-                available_qty: stock.available_qty - item.quantity,
-                reserved_qty: stock.reserved_qty + item.quantity,
+                order_id: order.id,
+                method: input.paymentMethod === "CASH" ? "CASH" : "QRIS",
+                status: "UNPAID",
+                amount_due: totalAmount,
+                amount_paid: 0,
+                change_amount: 0,
               },
             });
 
-            // Catat log mutasi stok
-            await tx.stockMovement.create({
-              data: {
-                product_id: resolvedProductId,
-                movement_type: "RESERVE",
-                qty_change: -item.quantity,
-                available_before: stock.available_qty,
-                available_after: stock.available_qty - item.quantity,
-                reserved_before: stock.reserved_qty,
-                reserved_after: stock.reserved_qty + item.quantity,
-                reason: `Reservasi stok pesanan ${orderNumber}`,
-              },
-            });
-          }
-        }
+            if (selectedTableId) {
+              await tx.table.update({
+                where: { id: selectedTableId },
+                data: { status: "OCCUPIED" },
+              });
+            }
 
-        // 2. Buat Header Pesanan (Orders)
-        const order = await tx.order.create({
-          data: {
-            order_number: orderNumber,
-            user_id: validUserId,
-            table_id: selectedTableId,
-            customer_name: input.customerName.trim(),
-            customer_phone: input.customerPhone.trim(),
-            tracking_token: trackingToken,
-            source: "WEB",
-            service_type: input.serviceType,
-            status: "PENDING",
-            subtotal,
-            tax_amount: taxAmount,
-            total_amount: totalAmount,
-            notes: input.notes?.trim() || null,
-            expires_at: expiresAt,
+            return {
+              order,
+              tableSessionId: resolvedTableSessionId,
+              tableSessionToken: resolvedTableSessionToken,
+            };
           },
+          { maxWait: 10000, timeout: 20000 }
+        );
+
+        recordSuccessfulOrderAttempt({
+          ip: clientIp,
+          userId: validUserId,
+          customerPhone: cleanPhone,
         });
-
-        // 3. Buat Detail Item (OrderItems) & Varian (OrderItemOptions)
-        for (const item of input.items) {
-          const optionsTotal = item.options.reduce(
-            (s, o) => s + (Number(o.priceAdjustment) || 0),
-            0
-          );
-          const itemSubtotal = (item.unitPrice + optionsTotal) * item.quantity;
-
-          const orderItem = await tx.orderItem.create({
-            data: {
-              order_id: order.id,
-              product_id: item.productId,
-              product_name_snapshot: item.name,
-              unit_price_snapshot: item.unitPrice,
-              quantity: item.quantity,
-              subtotal: itemSubtotal,
-              item_notes: item.itemNotes || null,
-            },
-          });
-
-          for (const opt of item.options) {
-            await tx.orderItemOption.create({
-              data: {
-                order_item_id: orderItem.id,
-                option_group_name_snapshot: opt.groupName,
-                option_name_snapshot: opt.optionName,
-                price_adjustment_snapshot: opt.priceAdjustment,
-              },
-            });
-          }
-        }
-
-        // 4. Buat Rekaman Pembayaran (Payments)
-        await tx.payment.create({
-          data: {
-            order_id: order.id,
-            method: input.paymentMethod === "CASH" ? "CASH" : "QRIS",
-            status: "UNPAID",
-            amount_due: totalAmount,
-            amount_paid: 0,
-            change_amount: 0,
-          },
+        saveCachedIdempotencyOrder(idempotencyKey, {
+          orderNumber: created.order.order_number,
+          trackingToken: created.order.tracking_token ?? trackingToken,
+          tableSessionToken: created.tableSessionToken,
         });
+        safeRevalidate("/checkout");
+        safeRevalidate("/cashier");
 
-        // 5. Update Status Meja jika Dine In
-        if (selectedTableId) {
-          await tx.table.update({
-            where: { id: selectedTableId },
-            data: { status: "OCCUPIED" },
-          });
+        return {
+          success: true,
+          orderNumber: created.order.order_number,
+          trackingToken: created.order.tracking_token,
+          tableSessionToken: created.tableSessionToken,
+          tableSessionId: created.tableSessionId,
+          ownerUserId: validUserId,
+        };
+      } catch (dbError: unknown) {
+        const msg = dbError instanceof Error ? dbError.message : String(dbError);
+        if (msg.startsWith("Stok ") || msg.startsWith("Menu ") || msg.startsWith("Meja ")) {
+          return { success: false, error: msg };
         }
-
-        return order;
-      }, { maxWait: 10000, timeout: 20000 });
-
-      return {
-        success: true,
-        orderNumber: created.order_number,
-        trackingToken: created.tracking_token,
-        ownerUserId: validUserId,
-      };
-    } catch (dbError: unknown) {
-      const msg = dbError instanceof Error ? dbError.message : String(dbError);
-      console.error("[createOrder Database Transaction Error]:", dbError);
-      if (msg.startsWith("Stok ") || msg.startsWith("Menu ") || msg.startsWith("Meja ")) {
-        return { success: false, error: msg };
+        invalidateDatabaseCheck();
+        console.warn("[createOrder DB fallback ke memory]:", msg);
       }
-
-      return {
-        success: false,
-        error: `Gagal memproses pesanan ke database: ${msg}. Silakan coba lagi.`,
-      };
     }
+
+    // 6B. Fallback In-Memory Store (saat MySQL offline/belum terhubung)
+    const mem = getMemoryStore();
+    const now = new Date();
+    let resolvedTable: { table_number: string; name: string } | null = null;
+    let resolvedSessionId: string | null = null;
+    let resolvedSessionToken: string | null = null;
+
+    if (input.serviceType === "DINE_IN" && input.tableNumber) {
+      const memTable = findMemoryTableByNumber(input.tableNumber);
+      if (memTable) {
+        const sessRes = resolveOrCreateMemoryTableSession({
+          table: memTable,
+          userId: validUserId,
+          customerPhone: cleanPhone,
+          customerName: input.customerName.trim(),
+          tableSessionToken: input.tableSessionToken,
+        });
+        if (!sessRes.ok) {
+          return { success: false, error: sessRes.error };
+        }
+        resolvedSessionId = sessRes.session.id;
+        resolvedSessionToken = sessRes.session.session_token;
+        resolvedTable = { table_number: memTable.table_number, name: memTable.name };
+      } else {
+        const cleanNum = normalizeTableNumber(input.tableNumber).clean;
+        resolvedTable = { table_number: input.tableNumber, name: `Meja ${cleanNum}` };
+      }
+    }
+
+    // Validasi & resolusi produk + stok terlebih dahulu sebelum mutasi (atomik)
+    const resolvedItems: {
+      productId: string;
+      name: string;
+      unitPrice: number;
+      quantity: number;
+      itemNotes?: string;
+      options: CheckoutInput["items"][number]["options"];
+    }[] = [];
+
+    for (const item of input.items) {
+      let prod = mem.products.get(item.productId);
+      if (!prod) {
+        prod = [...mem.products.values()].find(
+          (p) => p.name === item.name && p.deleted_at === null
+        );
+      }
+      if (!prod || prod.deleted_at !== null) {
+        return { success: false, error: `Menu "${item.name}" sudah tidak tersedia di katalog.` };
+      }
+      if (!prod.is_available) {
+        return {
+          success: false,
+          error: `Menu "${item.name}" saat ini sedang habis atau dinonaktifkan.`,
+        };
+      }
+      const st = mem.stocks.get(prod.id);
+      if (st && st.available_qty < item.quantity) {
+        return {
+          success: false,
+          error: `Stok menu "${item.name}" tidak mencukupi (Tersedia: ${st.available_qty}, Diminta: ${item.quantity}).`,
+        };
+      }
+      resolvedItems.push({
+        productId: prod.id,
+        name: item.name,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        itemNotes: item.itemNotes,
+        options: item.options,
+      });
+    }
+
+    // Mutasi stok in-memory
+    for (const rItem of resolvedItems) {
+      const prod = mem.products.get(rItem.productId);
+      const st = mem.stocks.get(rItem.productId);
+      if (st) {
+        const availBefore = st.available_qty;
+        const resBefore = st.reserved_qty;
+        st.available_qty = availBefore - rItem.quantity;
+        st.reserved_qty = resBefore + rItem.quantity;
+        st.updated_at = now;
+        if (prod && st.available_qty <= 0) {
+          prod.is_available = false;
+        }
+        mem.movements.unshift({
+          id: memoryId("mov"),
+          product_id: rItem.productId,
+          actor_id: validUserId,
+          actor_name: input.customerName.trim(),
+          movement_type: "RESERVE",
+          qty_change: -rItem.quantity,
+          available_before: availBefore,
+          available_after: st.available_qty,
+          reserved_before: resBefore,
+          reserved_after: st.reserved_qty,
+          reason: `Reservasi stok pesanan ${orderNumber}`,
+          created_at: now,
+        });
+      }
+    }
+
+    const memOrder: OrderDetailData = {
+      id: memoryId("ord"),
+      order_number: orderNumber,
+      user_id: validUserId,
+      table_session_id: resolvedSessionId,
+      idempotency_key: idempotencyKey,
+      customer_name: input.customerName.trim(),
+      customer_phone: cleanPhone,
+      tracking_token: trackingToken,
+      source: "WEB",
+      service_type: input.serviceType,
+      status: "PENDING",
+      subtotal,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      notes: input.notes?.trim() || null,
+      expires_at: expiresAt,
+      created_at: now,
+      table: resolvedTable,
+      items: resolvedItems.map((it, idx) => {
+        const optionsTotal = it.options.reduce((s, o) => s + (Number(o.priceAdjustment) || 0), 0);
+        return {
+          id: memoryId(`oi-${idx}`),
+          product_id: it.productId,
+          product_name_snapshot: it.name,
+          unit_price_snapshot: it.unitPrice,
+          quantity: it.quantity,
+          subtotal: (it.unitPrice + optionsTotal) * it.quantity,
+          item_notes: it.itemNotes || null,
+          options: it.options.map((opt) => ({
+            option_group_name_snapshot: opt.groupName,
+            option_name_snapshot: opt.optionName,
+            price_adjustment_snapshot: opt.priceAdjustment,
+          })),
+        };
+      }),
+      payment: {
+        id: memoryId("pay"),
+        method: input.paymentMethod === "CASH" ? "CASH" : "QRIS",
+        status: "UNPAID",
+        amount_due: totalAmount,
+        amount_paid: 0,
+        change_amount: 0,
+        paid_at: null,
+      },
+    };
+
+    memoryOrders.set(orderNumber, memOrder);
+
+    recordSuccessfulOrderAttempt({
+      ip: clientIp,
+      userId: validUserId,
+      customerPhone: cleanPhone,
+    });
+    saveCachedIdempotencyOrder(idempotencyKey, {
+      orderNumber,
+      trackingToken,
+      tableSessionToken: resolvedSessionToken,
+    });
+    safeRevalidate("/checkout");
+    safeRevalidate("/cashier");
+
+    return {
+      success: true,
+      orderNumber,
+      trackingToken,
+      tableSessionToken: resolvedSessionToken,
+      tableSessionId: resolvedSessionId,
+      ownerUserId: validUserId,
+    };
   } catch (err: unknown) {
     console.error("Gagal membuat pesanan:", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : "Terjadi kesalahan internal server.",
     };
+  } finally {
+    releaseInFlightOrderKey(idempotencyKey);
   }
 }
 
 export async function getOrderDetail(
-  orderNumber: string,
+  orderNumber: string
 ): Promise<{ success: boolean; data?: OrderDetailData; error?: string }> {
   try {
     await cleanupExpiredOrders().catch(() => {});
-    const order = await prisma.order.findUnique({
-      where: { order_number: orderNumber },
-      include: {
-        table: true,
-        payment: true,
-        items: {
-          include: {
-            options: true,
+    if (await isDatabaseReady()) {
+      const order = await prisma.order.findUnique({
+        where: { order_number: orderNumber },
+        include: {
+          table: true,
+          payment: true,
+          items: {
+            include: {
+              options: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (order) {
-      return {
-        success: true,
-        data: {
-          ...order,
-          table: order.table
-            ? { table_number: order.table.table_number, name: order.table.name }
-            : null,
-          subtotal: Number(order.subtotal),
-          tax_amount: Number(order.tax_amount),
-          total_amount: Number(order.total_amount),
-          items: order.items.map((it) => ({
-            ...it,
-            unit_price_snapshot: Number(it.unit_price_snapshot),
-            subtotal: Number(it.subtotal),
-            options: it.options.map((opt) => ({
-              ...opt,
-              price_adjustment_snapshot: Number(opt.price_adjustment_snapshot),
+      if (order) {
+        return {
+          success: true,
+          data: {
+            ...order,
+            table: order.table
+              ? { table_number: order.table.table_number, name: order.table.name }
+              : null,
+            subtotal: Number(order.subtotal),
+            tax_amount: Number(order.tax_amount),
+            total_amount: Number(order.total_amount),
+            items: order.items.map((it) => ({
+              ...it,
+              unit_price_snapshot: Number(it.unit_price_snapshot),
+              subtotal: Number(it.subtotal),
+              options: it.options.map((opt) => ({
+                ...opt,
+                price_adjustment_snapshot: Number(opt.price_adjustment_snapshot),
+              })),
             })),
-          })),
-          payment: order.payment
-            ? {
-                ...order.payment,
-                amount_due: Number(order.payment.amount_due),
-                amount_paid: Number(order.payment.amount_paid),
-                change_amount: Number(order.payment.change_amount),
-              }
-            : null,
-        },
-      };
+            payment: order.payment
+              ? {
+                  ...order.payment,
+                  amount_due: Number(order.payment.amount_due),
+                  amount_paid: Number(order.payment.amount_paid),
+                  change_amount: Number(order.payment.change_amount),
+                }
+              : null,
+          },
+        };
+      }
     }
   } catch {
     console.warn("Mencari di fallback memory order:", orderNumber);
@@ -621,29 +1110,34 @@ export async function getCustomerRecentOrders(): Promise<{
   try {
     await cleanupExpiredOrders().catch(() => {});
 
-    const dbOrders = await prisma.order.findMany({
-      where: {
-        user_id: session.sub,
-      },
-      orderBy: { created_at: "desc" },
-      take: 25,
-      include: {
-        table: true,
-        items: true,
-      },
-    });
+    const orders: CustomerRecentOrderSummary[] = [];
+    if (await isDatabaseReady()) {
+      const dbOrders = await prisma.order.findMany({
+        where: {
+          user_id: session.sub,
+        },
+        orderBy: { created_at: "desc" },
+        take: 25,
+        include: {
+          table: true,
+          items: true,
+        },
+      });
 
-    const orders: CustomerRecentOrderSummary[] = dbOrders.map((o) => ({
-      orderNumber: o.order_number,
-      trackingToken: o.tracking_token,
-      totalAmount: Number(o.total_amount),
-      status: o.status,
-      itemCount: o.items.reduce((sum, item) => sum + item.quantity, 0),
-      createdAt: o.created_at.toISOString(),
-      serviceType: o.service_type,
-      tableNumber: o.table?.table_number || null,
-      itemsSummary: o.items.map((it) => `${it.quantity}x ${it.product_name_snapshot}`).join(", "),
-    }));
+      for (const o of dbOrders) {
+        orders.push({
+          orderNumber: o.order_number,
+          trackingToken: o.tracking_token,
+          totalAmount: Number(o.total_amount),
+          status: o.status,
+          itemCount: o.items.reduce((sum, item) => sum + item.quantity, 0),
+          createdAt: o.created_at.toISOString(),
+          serviceType: o.service_type,
+          tableNumber: o.table?.table_number || null,
+          itemsSummary: o.items.map((it) => `${it.quantity}x ${it.product_name_snapshot}`).join(", "),
+        });
+      }
+    }
 
     // Sertakan fallback in-memory milik user ini saja (bila ada saat koneksi DB sempat terganggu)
     const seen = new Set(orders.map((o) => o.orderNumber));
@@ -659,7 +1153,9 @@ export async function getCustomerRecentOrders(): Promise<{
           createdAt: new Date(memOrd.created_at).toISOString(),
           serviceType: memOrd.service_type,
           tableNumber: memOrd.table?.table_number || null,
-          itemsSummary: memOrd.items.map((it) => `${it.quantity}x ${it.product_name_snapshot}`).join(", "),
+          itemsSummary: memOrd.items
+            .map((it) => `${it.quantity}x ${it.product_name_snapshot}`)
+            .join(", "),
         });
       }
     }

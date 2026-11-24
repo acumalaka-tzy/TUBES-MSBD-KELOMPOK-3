@@ -390,9 +390,9 @@ export function CashierPosTab({
         return;
       }
       const targetTbl = tables.find((t) => t.tableNumber === selectedTableNumber);
-      if (targetTbl && targetTbl.status === "OCCUPIED") {
+      if (targetTbl && (!targetTbl.isActive || targetTbl.status === "INACTIVE")) {
         const cleanTable = String(selectedTableNumber).replace(/^0+/, "") || selectedTableNumber;
-        onNotify(`Meja ${cleanTable} sedang terisi dan tidak dapat digunakan. Silakan pilih meja yang kosong.`, "error");
+        onNotify(`Meja ${cleanTable} sedang nonaktif dan tidak dapat digunakan.`, "error");
         return;
       }
     }
@@ -708,9 +708,9 @@ export function CashierPosTab({
                     value={selectedTableNumber}
                     onChange={(e) => {
                       const targetTbl = tables.find((t) => t.tableNumber === e.target.value);
-                      if (targetTbl && targetTbl.status === "OCCUPIED") {
+                      if (targetTbl && (!targetTbl.isActive || targetTbl.status === "INACTIVE")) {
                         const cleanNum = String(targetTbl.tableNumber).replace(/^0+/, "") || targetTbl.tableNumber;
-                        onNotify(`Meja ${cleanNum} sedang terisi dan tidak dapat dipilih.`, "error");
+                        onNotify(`Meja ${cleanNum} sedang nonaktif dan tidak dapat dipilih.`, "error");
                         return;
                       }
                       setSelectedTableNumber(e.target.value);
@@ -721,10 +721,10 @@ export function CashierPosTab({
                     {tables
                       .filter((t) => t.isActive)
                       .map((tbl) => {
-                        const isOccupied = tbl.status === "OCCUPIED";
+                        const isBlocked = !tbl.isActive || tbl.status === "INACTIVE";
                         const num = String(tbl.tableNumber).replace(/^0+/, "") || String(tbl.tableNumber);
                         return (
-                          <option key={tbl.id} value={tbl.tableNumber} disabled={isOccupied}>
+                          <option key={tbl.id} value={tbl.tableNumber} disabled={isBlocked}>
                             Meja {num}
                           </option>
                         );

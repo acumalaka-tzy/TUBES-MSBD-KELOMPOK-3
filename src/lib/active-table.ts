@@ -185,3 +185,54 @@ export function clearRecentOrders(scope?: OrderHistoryScope) {
     // localStorage tidak tersedia
   }
 }
+
+const TABLE_SESSIONS_KEY = "warkop_agam_table_sessions";
+
+function normalizeTableStorageKey(tableNumber: string): string {
+  const trimmed = String(tableNumber).trim();
+  return trimmed.replace(/^0+/, "") || trimmed;
+}
+
+export function getTableSessionTokens(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(TABLE_SESSIONS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getTableSessionToken(tableNumber: string): string | null {
+  if (!tableNumber) return null;
+  const map = getTableSessionTokens();
+  const clean = normalizeTableStorageKey(tableNumber);
+  return map[tableNumber] || map[clean] || map[clean.padStart(2, "0")] || null;
+}
+
+export function saveTableSessionToken(tableNumber: string, token: string) {
+  if (!tableNumber || !token) return;
+  try {
+    const map = getTableSessionTokens();
+    const clean = normalizeTableStorageKey(tableNumber);
+    map[clean] = token;
+    localStorage.setItem(TABLE_SESSIONS_KEY, JSON.stringify(map));
+  } catch {
+    // localStorage tidak tersedia
+  }
+}
+
+export function removeTableSessionToken(tableNumber: string) {
+  if (!tableNumber) return;
+  try {
+    const map = getTableSessionTokens();
+    const clean = normalizeTableStorageKey(tableNumber);
+    delete map[tableNumber];
+    delete map[clean];
+    delete map[clean.padStart(2, "0")];
+    localStorage.setItem(TABLE_SESSIONS_KEY, JSON.stringify(map));
+  } catch {
+    // localStorage tidak tersedia
+  }
+}
