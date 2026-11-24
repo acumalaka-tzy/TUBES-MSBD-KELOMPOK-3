@@ -72,8 +72,6 @@ export async function getAdminSettings() {
         phoneWhatsapp: s.phone_whatsapp ?? "",
         openingHours: s.opening_hours ?? "",
         isWebOrderingOpen: s.is_web_ordering_open,
-        taxEnabled: s.tax_enabled,
-        taxPercentage: Number(s.tax_percentage),
         digitalExpiryMinutes: s.digital_expiry_minutes,
         cashExpiryMinutes: s.cash_expiry_minutes,
         receiptFooterNote: s.receipt_footer_note ?? "",
@@ -91,8 +89,6 @@ function memorySettingsToDto(s: ReturnType<typeof getMemoryStore>["settings"]): 
     phoneWhatsapp: s.phone_whatsapp,
     openingHours: s.opening_hours,
     isWebOrderingOpen: s.is_web_ordering_open,
-    taxEnabled: s.tax_enabled,
-    taxPercentage: s.tax_percentage,
     digitalExpiryMinutes: s.digital_expiry_minutes,
     cashExpiryMinutes: s.cash_expiry_minutes,
     receiptFooterNote: s.receipt_footer_note,
@@ -104,8 +100,6 @@ export async function getPublicStoreSettings(): Promise<PublicStoreSettings> {
   const { data } = await getAdminSettings();
   return {
     isWebOrderingOpen: data.isWebOrderingOpen,
-    taxEnabled: data.taxEnabled,
-    taxPercentage: data.taxPercentage,
     digitalExpiryMinutes: data.digitalExpiryMinutes,
     cashExpiryMinutes: data.cashExpiryMinutes,
   };
@@ -456,10 +450,10 @@ function summarize(
   const cancelled = inRange.filter((o) => o.status === "CANCELLED");
 
   const grossSales = successful.reduce((s, o) => s + o.total, 0);
-  const taxCollected = successful.reduce((s, o) => s + o.tax, 0);
+  const legacyTax = successful.reduce((s, o) => s + o.tax, 0);
   const refunds = refundedOrders.reduce((s, o) => s + o.total, 0);
-  // Net Sales = penjualan kotor dikurangi pajak (PB1) — refund sudah tidak dihitung sebagai PAID
-  const netSales = grossSales - taxCollected;
+  // Menjaga konsistensi pendapatan bersih bila ada data transaksi lama yang menyimpan tax_amount
+  const netSales = grossSales - legacyTax;
 
   // Grafik penjualan: per jam bila rentang 1 hari, selain itu per hari
   const spanDays = Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / DAY_MS));
@@ -506,7 +500,6 @@ function summarize(
     from: range.from.toISOString(),
     to: range.to.toISOString(),
     grossSales,
-    taxCollected,
     refunds,
     netSales,
     successfulOrders: successful.length,
@@ -786,17 +779,16 @@ function buildDetailedReport(
   const inRange = orders.filter((o) => o.createdAt >= range.from && o.createdAt <= range.to);
 
   let grossSales = 0;
-  let taxCollected = 0;
   let netSales = 0;
   let refunds = 0;
-  let totalOrders = inRange.length;
+  const totalOrders = inRange.length;
   let completedOrders = 0;
   let cancelledOrders = 0;
   let totalItemsSold = 0;
 
   const paymentMap = new Map<string, { count: number; amount: number }>();
   const serviceMap = new Map<string, { count: number; amount: number }>();
-  const dailyMap = new Map<string, { count: number; gross: number; tax: number; net: number }>();
+  const dailyMap = new Map<string, { count: number; gross: number; net: number }>();
   const productMap = new Map<
     string,
     { name: string; category: string; qty: number; revenue: number }
@@ -809,7 +801,6 @@ function buildDetailedReport(
     if (isCompleted) {
       completedOrders++;
       grossSales += o.totalAmount;
-      taxCollected += o.taxAmount;
       netSales += o.subtotal;
 
       // Payment Breakdown
@@ -828,10 +819,9 @@ function buildDetailedReport(
 
       // Daily Breakdown
       const dateKey = o.createdAt.toISOString().slice(0, 10);
-      const dCur = dailyMap.get(dateKey) ?? { count: 0, gross: 0, tax: 0, net: 0 };
+      const dCur = dailyMap.get(dateKey) ?? { count: 0, gross: 0, net: 0 };
       dCur.count++;
       dCur.gross += o.totalAmount;
-      dCur.tax += o.taxAmount;
       dCur.net += o.subtotal;
       dailyMap.set(dateKey, dCur);
 
@@ -865,7 +855,6 @@ function buildDetailedReport(
       date,
       ordersCount: val.count,
       grossAmount: val.gross,
-      taxAmount: val.tax,
       netAmount: val.net,
     }));
 
@@ -913,7 +902,6 @@ function buildDetailedReport(
       paymentStatus: o.paymentStatus,
       orderStatus: o.status,
       subtotal: o.subtotal,
-      taxAmount: o.taxAmount,
       totalAmount: o.totalAmount,
     }));
 
@@ -925,7 +913,6 @@ function buildDetailedReport(
     generatedAt: new Date().toISOString(),
     summary: {
       grossSales,
-      taxCollected,
       refunds,
       netSales,
       totalOrders,

@@ -43,14 +43,12 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     getProductCartQuantity,
     getProductMaxStock,
     subtotal,
-    taxAmount,
     totalAmount,
     itemCount,
     serviceType,
     setServiceType,
     orderNotes,
     setOrderNotes,
-    taxLabel,
     storeSettings,
   } = useCart();
 

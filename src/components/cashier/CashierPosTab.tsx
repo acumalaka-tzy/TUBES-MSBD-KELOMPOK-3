@@ -200,13 +200,12 @@ export function CashierPosTab({
     return true;
   });
 
-  // Hitung Subtotal, Pajak PB1, dan Total Tagihan
+  // Hitung Subtotal dan Total Tagihan
   const subtotal = cart.reduce((sum, item) => {
     const optDelta = item.options.reduce((s, o) => s + o.priceAdjustment, 0);
     return sum + (item.unitPrice + optDelta) * item.quantity;
   }, 0);
 
-  const taxAmount = 0;
   const totalAmount = subtotal;
 
   // Nominal uang tunai diterima (default = Uang Pas jika kasir belum mengetik manual)

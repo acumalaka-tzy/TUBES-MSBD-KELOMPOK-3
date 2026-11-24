@@ -29,6 +29,10 @@ import {
   syncDbTableSessionLifecycle,
   syncMemoryTableSessionLifecycle,
 } from "@/lib/orders/table-session";
+import {
+  finalizeDbCartAfterCheckout,
+  finalizeMemoryCartAfterCheckout,
+} from "@/lib/orders/cart-sync";
 
 // Background automatic expiry sweep (berjalan ringan di Node runtime)
 const globalForSweeper = globalThis as unknown as {
@@ -799,6 +803,13 @@ export async function createOrder(input: CheckoutInput) {
               });
             }
 
+            // Sinkronkan keranjang aktif di database hanya setelah order sukses tersimpan
+            await finalizeDbCartAfterCheckout(tx, {
+              cartToken: input.cartToken,
+              userId: validUserId,
+              processedItemIds: input.checkoutItemIds,
+            });
+
             return {
               order,
               tableSessionId: resolvedTableSessionId,
@@ -807,6 +818,13 @@ export async function createOrder(input: CheckoutInput) {
           },
           { maxWait: 10000, timeout: 20000 }
         );
+
+        // Sinkronkan juga fallback memori cart
+        finalizeMemoryCartAfterCheckout({
+          cartToken: input.cartToken,
+          userId: validUserId,
+          processedItemIds: input.checkoutItemIds,
+        });
 
         recordSuccessfulOrderAttempt({
           ip: clientIp,
@@ -989,6 +1007,13 @@ export async function createOrder(input: CheckoutInput) {
     };
 
     memoryOrders.set(orderNumber, memOrder);
+
+    // Sinkronkan keranjang aktif di memory store hanya setelah order sukses dibuat
+    finalizeMemoryCartAfterCheckout({
+      cartToken: input.cartToken,
+      userId: validUserId,
+      processedItemIds: input.checkoutItemIds,
+    });
 
     recordSuccessfulOrderAttempt({
       ip: clientIp,

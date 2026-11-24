@@ -92,8 +92,6 @@ export interface MemSettings {
   phone_whatsapp: string;
   opening_hours: string;
   is_web_ordering_open: boolean;
-  tax_enabled: boolean;
-  tax_percentage: number;
   digital_expiry_minutes: number;
   cash_expiry_minutes: number;
   receipt_footer_note: string;
@@ -147,6 +145,34 @@ export interface MemTableSession {
   closed_at: Date | null;
 }
 
+export interface MemShoppingCartItem {
+  client_item_id: string;
+  product_id: string;
+  name: string;
+  unit_price: number;
+  quantity: number;
+  options: { groupName: string; optionName: string; priceAdjustment: number }[];
+  item_notes?: string;
+  subtotal: number;
+  image_url?: string;
+  emoji?: string;
+  category_name?: string;
+  max_stock?: number;
+}
+
+export interface MemShoppingCart {
+  id: string;
+  cart_token: string;
+  user_id: string | null;
+  service_type: "DINE_IN" | "TAKEAWAY";
+  order_notes: string;
+  status: "ACTIVE" | "CHECKED_OUT" | "REPLACED";
+  version: number;
+  items: MemShoppingCartItem[];
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface AdminMemoryStore {
   categories: Map<string, MemCategory>;
   products: Map<string, MemProduct>;
@@ -158,6 +184,7 @@ export interface AdminMemoryStore {
   tables: Map<string, MemTable>;
   tableQrCodes: Map<string, MemTableQrCode[]>;
   tableSessions: Map<string, MemTableSession>;
+  shoppingCarts: Map<string, MemShoppingCart>;
 }
 
 function createStore(): AdminMemoryStore {
@@ -278,8 +305,6 @@ function createStore(): AdminMemoryStore {
       phone_whatsapp: sampleRestaurant.whatsapp,
       opening_hours: sampleRestaurant.openingHours,
       is_web_ordering_open: sampleRestaurant.isWebOrderingOpen,
-      tax_enabled: false,
-      tax_percentage: 0,
       digital_expiry_minutes: 15,
       cash_expiry_minutes: 30,
       receipt_footer_note: "Terima kasih telah berkunjung ke Warkop Agam!",
@@ -289,6 +314,7 @@ function createStore(): AdminMemoryStore {
     tables,
     tableQrCodes,
     tableSessions: new Map<string, MemTableSession>(),
+    shoppingCarts: new Map<string, MemShoppingCart>(),
   };
 }
 
@@ -300,6 +326,9 @@ export function getMemoryStore(): AdminMemoryStore {
   }
   if (!globalForStore.__warkopAdminStore.tableSessions) {
     globalForStore.__warkopAdminStore.tableSessions = new Map<string, MemTableSession>();
+  }
+  if (!globalForStore.__warkopAdminStore.shoppingCarts) {
+    globalForStore.__warkopAdminStore.shoppingCarts = new Map<string, MemShoppingCart>();
   }
   return globalForStore.__warkopAdminStore;
 }

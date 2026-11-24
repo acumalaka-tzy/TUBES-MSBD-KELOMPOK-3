@@ -1337,7 +1337,7 @@ export async function adjustStockAction(input: z.infer<typeof AdjustStockSchema>
 }
 
 /* ----------------------------------------------------------------------------
- * 4. Pengaturan Toko (Master Toggle Buka/Tutup & Pajak PB1)
+ * 4. Pengaturan Toko (Master Toggle Buka/Tutup & Profil Operasional)
  * ------------------------------------------------------------------------- */
 
 const StoreSettingsSchema = z.object({
@@ -1346,11 +1346,6 @@ const StoreSettingsSchema = z.object({
   phoneWhatsapp: z.string().trim().min(6, "Nomor WhatsApp minimal 6 digit.").max(20),
   openingHours: z.string().trim().min(3, "Jam operasional wajib diisi.").max(100),
   isWebOrderingOpen: z.boolean(),
-  taxEnabled: z.boolean(),
-  taxPercentage: z.coerce
-    .number()
-    .min(0, "Persentase pajak minimal 0%.")
-    .max(100, "Persentase pajak maksimal 100%."),
   digitalExpiryMinutes: z.coerce.number().int().min(5).max(120).default(15),
   cashExpiryMinutes: z.coerce.number().int().min(5).max(240).default(30),
   receiptFooterNote: z.string().trim().max(500).default(""),
@@ -1390,8 +1385,6 @@ export async function toggleWebOrderingAction(isOpen: boolean, reason?: string):
             phone_whatsapp: mem.phone_whatsapp,
             opening_hours: mem.opening_hours,
             is_web_ordering_open: isOpen,
-            tax_enabled: mem.tax_enabled,
-            tax_percentage: mem.tax_percentage,
             digital_expiry_minutes: mem.digital_expiry_minutes,
             cash_expiry_minutes: mem.cash_expiry_minutes,
             receipt_footer_note: mem.receipt_footer_note,
@@ -1460,7 +1453,7 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
     }
 
     const d = parsed.data;
-    const cleanReason = d.reason?.trim() || "Pembaruan pengaturan operasional restoran & pajak oleh Admin";
+    const cleanReason = d.reason?.trim() || "Pembaruan pengaturan operasional restoran oleh Admin";
 
     if (await isDatabaseReady()) {
       const current = await withTimeout(
@@ -1474,8 +1467,6 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
         ? {
             restaurant_name: current.restaurant_name,
             is_web_ordering_open: current.is_web_ordering_open,
-            tax_enabled: current.tax_enabled,
-            tax_percentage: Number(current.tax_percentage),
             opening_hours: current.opening_hours,
           }
         : null;
@@ -1489,8 +1480,6 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
             phone_whatsapp: d.phoneWhatsapp,
             opening_hours: d.openingHours,
             is_web_ordering_open: d.isWebOrderingOpen,
-            tax_enabled: d.taxEnabled,
-            tax_percentage: d.taxPercentage,
             digital_expiry_minutes: d.digitalExpiryMinutes,
             cash_expiry_minutes: d.cashExpiryMinutes,
             receipt_footer_note: d.receiptFooterNote || null,
@@ -1503,8 +1492,6 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
             phone_whatsapp: d.phoneWhatsapp,
             opening_hours: d.openingHours,
             is_web_ordering_open: d.isWebOrderingOpen,
-            tax_enabled: d.taxEnabled,
-            tax_percentage: d.taxPercentage,
             digital_expiry_minutes: d.digitalExpiryMinutes,
             cash_expiry_minutes: d.cashExpiryMinutes,
             receipt_footer_note: d.receiptFooterNote || null,
@@ -1525,23 +1512,19 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
         newData: {
           restaurant_name: d.restaurantName,
           is_web_ordering_open: d.isWebOrderingOpen,
-          tax_enabled: d.taxEnabled,
-          tax_percentage: d.taxPercentage,
           opening_hours: d.openingHours,
         },
         reason: cleanReason,
       });
 
       revalidateCatalogAndAdmin();
-      return { success: true, message: "Pengaturan toko dan pajak berhasil disimpan." };
+      return { success: true, message: "Pengaturan toko berhasil disimpan." };
     }
 
     const store = getMemoryStore();
     const oldSnapshot = {
       restaurant_name: store.settings.restaurant_name,
       is_web_ordering_open: store.settings.is_web_ordering_open,
-      tax_enabled: store.settings.tax_enabled,
-      tax_percentage: store.settings.tax_percentage,
       opening_hours: store.settings.opening_hours,
     };
 
@@ -1551,8 +1534,6 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
       phone_whatsapp: d.phoneWhatsapp,
       opening_hours: d.openingHours,
       is_web_ordering_open: d.isWebOrderingOpen,
-      tax_enabled: d.taxEnabled,
-      tax_percentage: d.taxPercentage,
       digital_expiry_minutes: d.digitalExpiryMinutes,
       cash_expiry_minutes: d.cashExpiryMinutes,
       receipt_footer_note: d.receiptFooterNote,
@@ -1570,15 +1551,13 @@ export async function updateStoreSettingsAction(input: StoreSettingsInput): Prom
       newData: {
         restaurant_name: d.restaurantName,
         is_web_ordering_open: d.isWebOrderingOpen,
-        tax_enabled: d.taxEnabled,
-        tax_percentage: d.taxPercentage,
         opening_hours: d.openingHours,
       },
       reason: cleanReason,
     });
 
     revalidateCatalogAndAdmin();
-    return { success: true, message: "Pengaturan toko dan pajak berhasil disimpan." };
+    return { success: true, message: "Pengaturan toko berhasil disimpan." };
   } catch (err) {
     return { success: false, error: errorMessage(err, "Gagal menyimpan pengaturan toko.") };
   }
