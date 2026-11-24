@@ -923,7 +923,6 @@ DELIMITER ;
 -- Buat Roles Database
 CREATE ROLE IF NOT EXISTS 'warkop_admin_role';
 CREATE ROLE IF NOT EXISTS 'warkop_cashier_role';
-CREATE ROLE IF NOT EXISTS 'warkop_chef_role';
 CREATE ROLE IF NOT EXISTS 'warkop_customer_role';
 
 -- A. HAK AKSES ROLE ADMIN:
@@ -943,18 +942,7 @@ GRANT SELECT ON warkop_agam_db.vw_table_occupancy_status TO 'warkop_cashier_role
 GRANT SELECT ON warkop_agam_db.vw_payment_method_summary TO 'warkop_cashier_role';
 GRANT EXECUTE ON PROCEDURE warkop_agam_db.sp_complete_and_clear_table TO 'warkop_cashier_role';
 
--- C. HAK AKSES ROLE CHEF (KOKI / KITCHEN STAFF):
--- Bertanggung jawab atas antrean dapur dan ketersediaan stok
-GRANT SELECT ON warkop_agam_db.vw_active_kitchen_queue TO 'warkop_chef_role';
-GRANT SELECT ON warkop_agam_db.vw_menu_availability TO 'warkop_chef_role';
-GRANT SELECT, UPDATE (status) ON warkop_agam_db.orders TO 'warkop_chef_role';
-GRANT SELECT ON warkop_agam_db.order_items TO 'warkop_chef_role';
-GRANT SELECT ON warkop_agam_db.order_item_options TO 'warkop_chef_role';
-GRANT SELECT, UPDATE (is_available) ON warkop_agam_db.products TO 'warkop_chef_role';
-GRANT SELECT ON warkop_agam_db.product_stocks TO 'warkop_chef_role';
-GRANT EXECUTE ON FUNCTION warkop_agam_db.fn_get_product_available_stock TO 'warkop_chef_role';
-
--- D. HAK AKSES ROLE CUSTOMER (PELANGGAN):
+-- C. HAK AKSES ROLE CUSTOMER (PELANGGAN):
 -- Hanya diperbolehkan membaca menu yang aktif, cek validitas token QR, dan membuat pesanan
 GRANT SELECT ON warkop_agam_db.vw_menu_availability TO 'warkop_customer_role';
 GRANT SELECT ON warkop_agam_db.categories TO 'warkop_customer_role';

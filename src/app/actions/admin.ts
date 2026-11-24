@@ -2276,7 +2276,7 @@ const CreateStaffSchema = z.object({
   email: z.string().trim().email("Format email tidak valid.").or(z.literal("")).optional(),
   phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter.").max(20),
   password: z.string().min(6, "Password minimal 6 karakter."),
-  role: z.enum(["CASHIER", "CHEF", "ADMIN"]).default("CASHIER"),
+  role: z.enum(["CASHIER", "ADMIN"]).default("CASHIER"),
 });
 
 export type CreateStaffInput = z.infer<typeof CreateStaffSchema>;
@@ -2286,7 +2286,7 @@ const UpdateStaffSchema = z.object({
   name: z.string().trim().min(2, "Nama staf minimal 2 karakter.").max(100),
   email: z.string().trim().email("Format email tidak valid.").or(z.literal("")).optional(),
   phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter.").max(20),
-  role: z.enum(["CASHIER", "CHEF", "ADMIN"]).default("CASHIER"),
+  role: z.enum(["CASHIER", "ADMIN"]).default("CASHIER"),
 });
 
 export type UpdateStaffInput = z.infer<typeof UpdateStaffSchema>;

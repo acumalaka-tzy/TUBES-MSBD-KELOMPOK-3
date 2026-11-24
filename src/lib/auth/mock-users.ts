@@ -14,7 +14,6 @@ export interface MockUserRecord {
 // Fallback user data yang selaras dengan prisma/seed.ts
 // Memungkinkan pengujian mandiri RBAC & Login meski database MySQL lokal belum running
 // Catatan: Sesuai aturan bisnis, hanya boleh ada 1 akun ADMIN yang aktif (usr-admin-001).
-// usr-admin-002 dialihkan menjadi role CHEF (Kepala Dapur Agam).
 export const INITIAL_MOCK_USERS: MockUserRecord[] = [
   {
     id: "usr-admin-001",
@@ -24,17 +23,6 @@ export const INITIAL_MOCK_USERS: MockUserRecord[] = [
     // bcrypt hash untuk "admin123"
     password_hash: "$2b$10$I6kXNF9zntOmY7wOGB7lzunxeD.YINMFS0CbcXkL4t99xwmv1rsiW",
     role: "ADMIN",
-    is_active: true,
-    deleted_at: null,
-  },
-  {
-    id: "usr-chef-001",
-    name: "Chef Agam (Kepala Dapur)",
-    email: "chefAgam@gmail.com",
-    phone: "087760352023",
-    // bcrypt hash untuk "chef123"
-    password_hash: "$2b$10$I6kXNF9zntOmY7wOGB7lzunxeD.YINMFS0CbcXkL4t99xwmv1rsiW",
-    role: "CHEF",
     is_active: true,
     deleted_at: null,
   },

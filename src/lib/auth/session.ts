@@ -79,7 +79,3 @@ export async function requireRole(allowedRoles: UserRole[]): Promise<AuthTokenPa
   return session;
 }
 
-export async function requireChef(): Promise<AuthTokenPayload> {
-  return await requireRole(["CHEF", "ADMIN"]);
-}
-

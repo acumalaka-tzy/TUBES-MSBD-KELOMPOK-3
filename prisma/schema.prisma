@@ -16,7 +16,7 @@ model User {
   email         String?   @unique @db.VarChar(150)
   phone         String    @db.VarChar(20)
   password_hash String?   @db.VarChar(255)
-  role          String    @default("CUSTOMER") @db.VarChar(20) // CUSTOMER, CASHIER, CHEF, ADMIN
+  role          String    @default("CUSTOMER") @db.VarChar(20) // CUSTOMER, CASHIER, ADMIN
   is_active     Boolean   @default(true)
   deleted_at    DateTime?
   created_at    DateTime  @default(now())

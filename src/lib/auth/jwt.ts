@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-export type UserRole = "ADMIN" | "CASHIER" | "CHEF" | "CUSTOMER";
+export type UserRole = "ADMIN" | "CASHIER" | "CUSTOMER";
 
 export interface AuthUser {
   id: string;

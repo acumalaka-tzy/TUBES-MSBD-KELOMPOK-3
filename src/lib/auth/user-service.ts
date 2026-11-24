@@ -21,9 +21,6 @@ export async function verifyUserPassword(password: string, hash: string | null |
   if (hash.startsWith("$2b$12$examplehashedpasswordadmin")) {
     return password === "admin123";
   }
-  if (hash.startsWith("$2b$12$examplehashedpasswordchef")) {
-    return password === "chef123" || password === "admin123";
-  }
   if (hash.startsWith("$2b$12$examplehashedpasswordcashier")) {
     return password === "kasir123";
   }
