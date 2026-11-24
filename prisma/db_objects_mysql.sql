@@ -161,7 +161,7 @@ LEFT JOIN (
 WHERE u.role IN ('ADMIN', 'CASHIER');
 
 -- ============================================================================
--- 2. TRIGGERS BASIS DATA (7 Triggers — Aman terhadap Prisma Transaction)
+-- 2. TRIGGERS BASIS DATA (10 Triggers — Aman terhadap Prisma Transaction)
 -- ============================================================================
 
 DROP TRIGGER IF EXISTS trg_audit_product_price;
@@ -171,6 +171,9 @@ DROP TRIGGER IF EXISTS trg_prevent_hard_delete_product;
 DROP TRIGGER IF EXISTS trg_audit_order_status_change;
 DROP TRIGGER IF EXISTS trg_validate_stock_non_negative;
 DROP TRIGGER IF EXISTS trg_audit_table_qr_revocation;
+DROP TRIGGER IF EXISTS trg_limit_single_admin_insert;
+DROP TRIGGER IF EXISTS trg_limit_single_admin_update;
+DROP TRIGGER IF EXISTS trg_prevent_hard_delete_user;
 
 DELIMITER //
 
@@ -314,6 +317,56 @@ BEGIN
             'Token QR meja dinonaktifkan'
         );
     END IF;
+END//
+
+-- 8. Trigger Pembatasan Single Admin (INSERT)
+CREATE TRIGGER trg_limit_single_admin_insert
+BEFORE INSERT ON users
+FOR EACH ROW
+BEGIN
+    DECLARE v_active_admin_count INT DEFAULT 0;
+
+    IF NEW.role = 'ADMIN' AND NEW.is_active = TRUE AND NEW.deleted_at IS NULL THEN
+        SELECT COUNT(*) INTO v_active_admin_count
+        FROM users
+        WHERE role = 'ADMIN' AND is_active = TRUE AND deleted_at IS NULL;
+
+        IF v_active_admin_count >= 1 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pelanggaran Aturan: Sistem hanya diperbolehkan memiliki satu akun ADMIN yang aktif.';
+        END IF;
+    END IF;
+END//
+
+-- 9. Trigger Pembatasan Single Admin (UPDATE)
+CREATE TRIGGER trg_limit_single_admin_update
+BEFORE UPDATE ON users
+FOR EACH ROW
+BEGIN
+    DECLARE v_other_admin_count INT DEFAULT 0;
+
+    IF NEW.role = 'ADMIN' AND NEW.is_active = TRUE AND NEW.deleted_at IS NULL THEN
+        SELECT COUNT(*) INTO v_other_admin_count
+        FROM users
+        WHERE role = 'ADMIN'
+          AND is_active = TRUE
+          AND deleted_at IS NULL
+          AND id <> OLD.id;
+
+        IF v_other_admin_count >= 1 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pelanggaran Aturan: Sistem hanya diperbolehkan memiliki satu akun ADMIN yang aktif.';
+        END IF;
+    END IF;
+END//
+
+-- 10. Trigger Mencegah Hard Delete Akun Pengguna (Enforce Soft Delete)
+CREATE TRIGGER trg_prevent_hard_delete_user
+BEFORE DELETE ON users
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Penghapusan akun permanen (Hard Delete) dilarang. Gunakan mekanisme Soft Delete (set deleted_at dan is_active=false).';
 END//
 
 DELIMITER ;
@@ -859,3 +912,59 @@ BEGIN
 END//
 
 DELIMITER ;
+
+-- ============================================================================
+-- 5. DATA CONTROL LANGUAGE (DCL) — HAK AKSES DAN MANAJEMEN ROLE PADA DATABASE
+-- ============================================================================
+-- Enforcement keamanan multi-tier pada level MySQL / TiDB DBMS.
+-- Setiap role aplikasi dipetakan ke role database dengan privilege spesifik.
+-- ============================================================================
+
+-- Buat Roles Database
+CREATE ROLE IF NOT EXISTS 'warkop_admin_role';
+CREATE ROLE IF NOT EXISTS 'warkop_cashier_role';
+CREATE ROLE IF NOT EXISTS 'warkop_chef_role';
+CREATE ROLE IF NOT EXISTS 'warkop_customer_role';
+
+-- A. HAK AKSES ROLE ADMIN:
+-- Memiliki akses penuh atas seluruh tabel master, transaksional, view, dan eksekusi SP/Function
+GRANT ALL PRIVILEGES ON warkop_agam_db.* TO 'warkop_admin_role';
+
+-- B. HAK AKSES ROLE CASHIER (KASIR):
+-- Hanya diperbolehkan membaca katalog, mengelola pembayaran, membaca pesanan dan meja, serta eksekusi settlement
+GRANT SELECT ON warkop_agam_db.products TO 'warkop_cashier_role';
+GRANT SELECT ON warkop_agam_db.categories TO 'warkop_cashier_role';
+GRANT SELECT ON warkop_agam_db.product_stocks TO 'warkop_cashier_role';
+GRANT SELECT, UPDATE ON warkop_agam_db.tables TO 'warkop_cashier_role';
+GRANT SELECT, UPDATE (status) ON warkop_agam_db.orders TO 'warkop_cashier_role';
+GRANT SELECT, INSERT, UPDATE ON warkop_agam_db.payments TO 'warkop_cashier_role';
+GRANT SELECT, INSERT ON warkop_agam_db.receipts TO 'warkop_cashier_role';
+GRANT SELECT ON warkop_agam_db.vw_table_occupancy_status TO 'warkop_cashier_role';
+GRANT SELECT ON warkop_agam_db.vw_payment_method_summary TO 'warkop_cashier_role';
+GRANT EXECUTE ON PROCEDURE warkop_agam_db.sp_complete_and_clear_table TO 'warkop_cashier_role';
+
+-- C. HAK AKSES ROLE CHEF (KOKI / KITCHEN STAFF):
+-- Bertanggung jawab atas antrean dapur dan ketersediaan stok
+GRANT SELECT ON warkop_agam_db.vw_active_kitchen_queue TO 'warkop_chef_role';
+GRANT SELECT ON warkop_agam_db.vw_menu_availability TO 'warkop_chef_role';
+GRANT SELECT, UPDATE (status) ON warkop_agam_db.orders TO 'warkop_chef_role';
+GRANT SELECT ON warkop_agam_db.order_items TO 'warkop_chef_role';
+GRANT SELECT ON warkop_agam_db.order_item_options TO 'warkop_chef_role';
+GRANT SELECT, UPDATE (is_available) ON warkop_agam_db.products TO 'warkop_chef_role';
+GRANT SELECT ON warkop_agam_db.product_stocks TO 'warkop_chef_role';
+GRANT EXECUTE ON FUNCTION warkop_agam_db.fn_get_product_available_stock TO 'warkop_chef_role';
+
+-- D. HAK AKSES ROLE CUSTOMER (PELANGGAN):
+-- Hanya diperbolehkan membaca menu yang aktif, cek validitas token QR, dan membuat pesanan
+GRANT SELECT ON warkop_agam_db.vw_menu_availability TO 'warkop_customer_role';
+GRANT SELECT ON warkop_agam_db.categories TO 'warkop_customer_role';
+GRANT SELECT ON warkop_agam_db.products TO 'warkop_customer_role';
+GRANT SELECT ON warkop_agam_db.product_option_groups TO 'warkop_customer_role';
+GRANT SELECT ON warkop_agam_db.product_option_items TO 'warkop_customer_role';
+GRANT SELECT, INSERT ON warkop_agam_db.orders TO 'warkop_customer_role';
+GRANT SELECT, INSERT ON warkop_agam_db.order_items TO 'warkop_customer_role';
+GRANT SELECT, INSERT ON warkop_agam_db.order_item_options TO 'warkop_customer_role';
+GRANT SELECT ON warkop_agam_db.payments TO 'warkop_customer_role';
+GRANT EXECUTE ON FUNCTION warkop_agam_db.fn_check_table_qr_valid TO 'warkop_customer_role';
+GRANT EXECUTE ON FUNCTION warkop_agam_db.fn_calculate_order_total TO 'warkop_customer_role';
+GRANT EXECUTE ON PROCEDURE warkop_agam_db.sp_reserve_product_stock TO 'warkop_customer_role';
