@@ -1,8 +1,21 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { sampleProducts } from "@/lib/menu-data";
 import { getPublicStoreSettingsAction } from "@/app/actions/store";
+import { getCurrentUserAction } from "@/app/actions/auth";
+import {
+  getActiveCartAction,
+  replaceWithNewCartAction,
+  syncActiveCartAction,
+} from "@/actions/cart";
 import type { PublicStoreSettings } from "@/lib/admin/types";
 
 const DEFAULT_STORE_SETTINGS: PublicStoreSettings = {
@@ -36,6 +49,7 @@ export type ServiceTypeOption = "DINE_IN" | "TAKEAWAY";
 
 interface CartContextType {
   items: CartItem[];
+  cartToken: string;
   addItem: (item: Omit<CartItem, "id" | "subtotal">) => { added: number; cappedByStock: boolean };
   updateItem: (oldId: string, updated: Omit<CartItem, "id" | "subtotal">) => void;
   updateItemNotes: (id: string, itemNotes: string) => void;
@@ -45,6 +59,8 @@ interface CartContextType {
   getProductCartQuantity: (productId: string, excludeCartItemId?: string) => number;
   getProductMaxStock: (productId: string, fallbackMaxStock?: number) => number;
   clearCart: () => void;
+  startNewCart: (initialItems?: Omit<CartItem, "id" | "subtotal">[]) => void;
+  completeCheckout: (processedItemIds?: string[]) => void;
   loadSampleItems: () => void;
   subtotal: number;
   totalAmount: number;
@@ -62,11 +78,28 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const STORAGE_KEY = "warkop_agam_cart";
-const PREFS_STORAGE_KEY = "warkop_agam_cart_prefs";
+const LEGACY_STORAGE_KEY = "warkop_agam_cart";
+const LEGACY_PREFS_STORAGE_KEY = "warkop_agam_cart_prefs";
+const CART_KEY_PREFIX = "warkop_agam_cart:";
+
+interface StoredCartPayload {
+  cartToken: string;
+  items: CartItem[];
+  serviceType: ServiceTypeOption;
+  orderNotes: string;
+  updatedAt: number;
+}
+
+function getScopedCartStorageKey(userId: string | null): string {
+  return userId ? `${CART_KEY_PREFIX}user:${userId}` : `${CART_KEY_PREFIX}guest`;
+}
+
+function generateClientCartToken(): string {
+  return `cart_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function normalizeOptions(options: CartOption[]): CartOption[] {
-  return [...options].map((o) => ({
+  return options.map((o) => ({
     groupName: o.groupName,
     optionName: o.optionName,
     priceAdjustment: Number(o.priceAdjustment) || 0,
@@ -92,66 +125,262 @@ function enrichCartItemMeta(item: CartItem): CartItem {
   };
 }
 
+function readLocalCartPayload(storageKey: string): StoredCartPayload | null {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<StoredCartPayload>;
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) {
+        return {
+          cartToken:
+            typeof parsed.cartToken === "string" && parsed.cartToken
+              ? parsed.cartToken
+              : generateClientCartToken(),
+          items: parsed.items.map(enrichCartItemMeta),
+          serviceType: parsed.serviceType === "TAKEAWAY" ? "TAKEAWAY" : "DINE_IN",
+          orderNotes: typeof parsed.orderNotes === "string" ? parsed.orderNotes : "",
+          updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),
+        };
+      }
+    }
+
+    // Migrasi aman hanya satu kali dari legacy storage jika belum ada scoped key
+    if (storageKey === `${CART_KEY_PREFIX}guest`) {
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        const parsedLegacy = JSON.parse(legacyRaw);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        let serviceType: ServiceTypeOption = "DINE_IN";
+        let orderNotes = "";
+        const legacyPrefsRaw = localStorage.getItem(LEGACY_PREFS_STORAGE_KEY);
+        if (legacyPrefsRaw) {
+          const lp = JSON.parse(legacyPrefsRaw) as {
+            serviceType?: ServiceTypeOption;
+            orderNotes?: string;
+          };
+          if (lp.serviceType === "TAKEAWAY") serviceType = "TAKEAWAY";
+          if (typeof lp.orderNotes === "string") orderNotes = lp.orderNotes;
+          localStorage.removeItem(LEGACY_PREFS_STORAGE_KEY);
+        }
+        if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+          return {
+            cartToken: generateClientCartToken(),
+            items: parsedLegacy.map(enrichCartItemMeta),
+            serviceType,
+            orderNotes,
+            updatedAt: Date.now(),
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Gagal membaca cart dari localStorage", e);
+  }
+  return null;
+}
+
+function writeLocalCartPayload(storageKey: string, payload: StoredCartPayload): void {
+  try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_PREFS_STORAGE_KEY);
+    localStorage.setItem(storageKey, JSON.stringify(payload));
+  } catch (e) {
+    console.error("Gagal menyimpan cart ke localStorage", e);
+  }
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [cartToken, setCartToken] = useState<string>(() => generateClientCartToken());
   const [serviceType, setServiceType] = useState<ServiceTypeOption>("DINE_IN");
   const [orderNotes, setOrderNotes] = useState<string>("");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const storageKeyRef = useRef<string>(`${CART_KEY_PREFIX}guest`);
+  const cartTokenRef = useRef<string>(cartToken);
+  const itemsRef = useRef<CartItem[]>(items);
+  const serviceTypeRef = useRef<ServiceTypeOption>(serviceType);
+  const orderNotesRef = useRef<string>(orderNotes);
+  const skipNextAutoSyncRef = useRef<boolean>(false);
+
   useEffect(() => {
-    queueMicrotask(() => {
+    cartTokenRef.current = cartToken;
+  }, [cartToken]);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+  useEffect(() => {
+    serviceTypeRef.current = serviceType;
+  }, [serviceType]);
+  useEffect(() => {
+    orderNotesRef.current = orderNotes;
+  }, [orderNotes]);
+
+  // 1. Hydrate scoped local cart + sinkronkan dengan state server/DB saat mount
+  useEffect(() => {
+    let active = true;
+
+    async function hydrateAndSync() {
+      const user = await getCurrentUserAction().catch(() => null);
+      if (!active) return;
+
+      const scopedKey = getScopedCartStorageKey(user?.id ?? null);
+      storageKeyRef.current = scopedKey;
+
+      const localData = readLocalCartPayload(scopedKey);
+      let resolvedToken = localData?.cartToken ?? generateClientCartToken();
+      let resolvedItems = localData?.items ?? [];
+      let resolvedService: ServiceTypeOption = localData?.serviceType ?? "DINE_IN";
+      let resolvedNotes = localData?.orderNotes ?? "";
+      const localUpdatedAt = localData?.updatedAt ?? 0;
+
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved) as CartItem[];
-          if (Array.isArray(parsed)) {
-            setItems(parsed.map(enrichCartItemMeta));
+        const serverSnap = await getActiveCartAction({ cartToken: resolvedToken });
+        if (!active) return;
+
+        if (serverSnap.status === "CHECKED_OUT" || serverSnap.status === "REPLACED") {
+          // Keranjang dengan token ini sudah selesai di-checkout atau diganti: bersihkan paksa item lama!
+          resolvedToken = generateClientCartToken();
+          resolvedItems = [];
+          resolvedNotes = "";
+          writeLocalCartPayload(scopedKey, {
+            cartToken: resolvedToken,
+            items: [],
+            serviceType: resolvedService,
+            orderNotes: "",
+            updatedAt: Date.now(),
+          });
+        } else if (serverSnap.status === "ACTIVE") {
+          const serverUpdatedAt = new Date(serverSnap.updatedAt).getTime() || 0;
+          const shouldTakeServer =
+            serverSnap.cartToken === resolvedToken
+              ? serverUpdatedAt > localUpdatedAt || (resolvedItems.length === 0 && serverSnap.items.length > 0)
+              : resolvedItems.length === 0 && serverSnap.items.length > 0;
+
+          if (shouldTakeServer) {
+            resolvedToken = serverSnap.cartToken;
+            resolvedItems = serverSnap.items.map(enrichCartItemMeta);
+            resolvedService = serverSnap.serviceType;
+            resolvedNotes = serverSnap.orderNotes;
+            writeLocalCartPayload(scopedKey, {
+              cartToken: resolvedToken,
+              items: resolvedItems,
+              serviceType: resolvedService,
+              orderNotes: resolvedNotes,
+              updatedAt: Date.now(),
+            });
+          } else if (resolvedItems.length > 0) {
+            void syncActiveCartAction({
+              cartToken: resolvedToken,
+              serviceType: resolvedService,
+              orderNotes: resolvedNotes,
+              items: resolvedItems,
+            });
           }
+        } else if (resolvedItems.length > 0) {
+          // NOT_FOUND di server tetapi masih ada item lokal aktif: unggah ke server
+          void syncActiveCartAction({
+            cartToken: resolvedToken,
+            serviceType: resolvedService,
+            orderNotes: resolvedNotes,
+            items: resolvedItems,
+          });
         }
-        const savedPrefs = localStorage.getItem(PREFS_STORAGE_KEY);
-        if (savedPrefs) {
-          const prefs = JSON.parse(savedPrefs) as {
-            serviceType?: ServiceTypeOption;
-            orderNotes?: string;
-          };
-          if (prefs.serviceType === "DINE_IN" || prefs.serviceType === "TAKEAWAY") {
-            setServiceType(prefs.serviceType);
-          }
-          if (typeof prefs.orderNotes === "string") {
-            setOrderNotes(prefs.orderNotes);
-          }
-        }
-      } catch (e) {
-        console.error("Gagal membaca cart dari localStorage", e);
-      } finally {
-        setIsLoaded(true);
+      } catch {
+        // Offline / server fallback: tetap pakai local snapshot
       }
-    });
+
+      if (!active) return;
+      skipNextAutoSyncRef.current = true;
+      cartTokenRef.current = resolvedToken;
+      itemsRef.current = resolvedItems;
+      serviceTypeRef.current = resolvedService;
+      orderNotesRef.current = resolvedNotes;
+      setCartToken(resolvedToken);
+      setItems(resolvedItems);
+      setServiceType(resolvedService);
+      setOrderNotes(resolvedNotes);
+      setIsLoaded(true);
+    }
+
+    void hydrateAndSync();
+
+    // Sinkronisasi lintas-tab browser bila tab lain mengubah atau mengosongkan keranjang
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key !== storageKeyRef.current) return;
+      const fresh = readLocalCartPayload(storageKeyRef.current);
+      skipNextAutoSyncRef.current = true;
+      if (fresh) {
+        cartTokenRef.current = fresh.cartToken;
+        itemsRef.current = fresh.items;
+        setCartToken(fresh.cartToken);
+        setItems(fresh.items);
+        setServiceType(fresh.serviceType);
+        setOrderNotes(fresh.orderNotes);
+      } else {
+        const freshToken = generateClientCartToken();
+        cartTokenRef.current = freshToken;
+        itemsRef.current = [];
+        setCartToken(freshToken);
+        setItems([]);
+        setOrderNotes("");
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      active = false;
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
+  // 2. Sinkronisasi otomatis localStorage & server setiap kali keranjang berubah
   useEffect(() => {
-    if (isLoaded) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-      } catch (e) {
-        console.error("Gagal menyimpan cart ke localStorage", e);
-      }
-    }
-  }, [items, isLoaded]);
+    if (!isLoaded) return;
 
-  useEffect(() => {
-    if (isLoaded) {
-      try {
-        localStorage.setItem(
-          PREFS_STORAGE_KEY,
-          JSON.stringify({ serviceType, orderNotes })
-        );
-      } catch (e) {
-        console.error("Gagal menyimpan preferensi cart ke localStorage", e);
-      }
+    writeLocalCartPayload(storageKeyRef.current, {
+      cartToken,
+      items,
+      serviceType,
+      orderNotes,
+      updatedAt: Date.now(),
+    });
+
+    if (skipNextAutoSyncRef.current) {
+      skipNextAutoSyncRef.current = false;
+      return;
     }
-  }, [serviceType, orderNotes, isLoaded]);
+
+    const timer = setTimeout(() => {
+      void syncActiveCartAction({
+        cartToken: cartTokenRef.current,
+        serviceType: serviceTypeRef.current,
+        orderNotes: orderNotesRef.current,
+        items: itemsRef.current,
+      }).then((res) => {
+        if (res.alreadyClosed) {
+          // Token ini sudah ditandai selesai/diganti di server (mis. dari tab lain): reset agar item lama tidak muncul lagi
+          const freshToken = generateClientCartToken();
+          skipNextAutoSyncRef.current = true;
+          cartTokenRef.current = freshToken;
+          itemsRef.current = [];
+          setCartToken(freshToken);
+          setItems([]);
+          setOrderNotes("");
+          writeLocalCartPayload(storageKeyRef.current, {
+            cartToken: freshToken,
+            items: [],
+            serviceType: serviceTypeRef.current,
+            orderNotes: "",
+            updatedAt: Date.now(),
+          });
+        }
+      }).catch(() => {});
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [items, serviceType, orderNotes, cartToken, isLoaded]);
 
   const calculateItemSubtotal = (
     unitPrice: number,
@@ -272,7 +501,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (duplicateTarget) {
-        // Merge into the position of oldIndex and remove the duplicate entry
         return prev
           .map((item, idx) => (idx === oldIndex ? newItem : item))
           .filter((item, idx) => idx === oldIndex || item.id !== newId);
@@ -389,22 +617,114 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const clearCart = () => {
-    setItems([]);
-    setOrderNotes("");
-  };
+  /**
+   * Membuat keranjang baru yang benar-benar bersih tanpa membawa item dari keranjang sebelumnya,
+   * sekaligus menandai keranjang lama sebagai REPLACED di server dan menulis sinkron ke localStorage.
+   */
+  const startNewCart = useCallback(
+    (initialItems: Omit<CartItem, "id" | "subtotal">[] = []) => {
+      const prevToken = cartTokenRef.current;
+      const nextToken = generateClientCartToken();
+
+      const builtItems: CartItem[] = [];
+      for (const raw of initialItems) {
+        const cleanNote = raw.itemNotes?.trim() || undefined;
+        const normalizedOpts = normalizeOptions(raw.options);
+        const id = buildCartItemId(raw.productId, normalizedOpts, cleanNote);
+        const maxStock = getProductMaxStock(raw.productId, raw.maxStock);
+        const qty = Math.max(1, Math.min(raw.quantity, maxStock));
+        builtItems.push(
+          enrichCartItemMeta({
+            ...raw,
+            options: normalizedOpts,
+            itemNotes: cleanNote,
+            maxStock,
+            quantity: qty,
+            id,
+            subtotal: calculateItemSubtotal(raw.unitPrice, normalizedOpts, qty),
+          })
+        );
+      }
+
+      skipNextAutoSyncRef.current = true;
+      cartTokenRef.current = nextToken;
+      itemsRef.current = builtItems;
+      orderNotesRef.current = "";
+
+      setCartToken(nextToken);
+      setItems(builtItems);
+      setOrderNotes("");
+
+      writeLocalCartPayload(storageKeyRef.current, {
+        cartToken: nextToken,
+        items: builtItems,
+        serviceType: serviceTypeRef.current,
+        orderNotes: "",
+        updatedAt: Date.now(),
+      });
+
+      void replaceWithNewCartAction({
+        previousCartToken: prevToken,
+        newCartToken: nextToken,
+        serviceType: serviceTypeRef.current,
+        orderNotes: "",
+        items: builtItems,
+      }).catch(() => {});
+    },
+    [getProductMaxStock]
+  );
+
+  const clearCart = useCallback(() => {
+    startNewCart([]);
+  }, [startNewCart]);
+
+  /**
+   * Dipanggil HANYA saat checkout berhasil: menghapus item yang telah diproses dari keranjang aktif,
+   * merotasi token keranjang baru, dan menyinkronkan localStorage secara instan sebelum navigasi.
+   */
+  const completeCheckout = useCallback((processedItemIds?: string[]) => {
+    const processedSet =
+      processedItemIds && processedItemIds.length > 0 ? new Set(processedItemIds) : null;
+    const remaining = processedSet
+      ? itemsRef.current.filter((it) => !processedSet.has(it.id))
+      : [];
+
+    const nextToken = generateClientCartToken();
+    const nextNotes = remaining.length === 0 ? "" : orderNotesRef.current;
+
+    skipNextAutoSyncRef.current = true;
+    cartTokenRef.current = nextToken;
+    itemsRef.current = remaining;
+    orderNotesRef.current = nextNotes;
+
+    setCartToken(nextToken);
+    setItems(remaining);
+    if (remaining.length === 0) {
+      setOrderNotes("");
+    }
+
+    // Tulis sinkron ke localStorage sebelum router.push agar tidak ada item lama yang muncul kembali
+    writeLocalCartPayload(storageKeyRef.current, {
+      cartToken: nextToken,
+      items: remaining,
+      serviceType: serviceTypeRef.current,
+      orderNotes: nextNotes,
+      updatedAt: Date.now(),
+    });
+
+    if (remaining.length > 0) {
+      void syncActiveCartAction({
+        cartToken: nextToken,
+        serviceType: serviceTypeRef.current,
+        orderNotes: nextNotes,
+        items: remaining,
+      }).catch(() => {});
+    }
+  }, []);
 
   const loadSampleItems = () => {
-    const sampleItems: CartItem[] = [
-      enrichCartItemMeta({
-        id: buildCartItemId(
-          "prd-bangladesh-06",
-          [
-            { groupName: "Pilihan Porsi & Puding", optionName: "Bangladesh Puding Ayam", priceAdjustment: 5000 },
-            { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
-          ],
-          "Kuah nyemek pas, pedas nendang"
-        ),
+    startNewCart([
+      {
         productId: "prd-bangladesh-06",
         name: "Indomie Bangladesh",
         unitPrice: 15000,
@@ -414,17 +734,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           { groupName: "Level Pedas", optionName: "Pedas Ekstra", priceAdjustment: 0 },
         ],
         itemNotes: "Kuah nyemek pas, pedas nendang",
-        subtotal: 40000, // (15000 + 5000) * 2
-      }),
-      enrichCartItemMeta({
-        id: buildCartItemId(
-          "prd-sanger-01",
-          [
-            { groupName: "Varian & Penyajian", optionName: "Dingin (Es)", priceAdjustment: 2000 },
-            { groupName: "Tingkat Manis", optionName: "Manis Normal", priceAdjustment: 0 },
-          ],
-          "Es batu jangan kebanyakan"
-        ),
+      },
+      {
         productId: "prd-sanger-01",
         name: "Kopi Sanger",
         unitPrice: 12000,
@@ -434,10 +745,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           { groupName: "Tingkat Manis", optionName: "Manis Normal", priceAdjustment: 0 },
         ],
         itemNotes: "Es batu jangan kebanyakan",
-        subtotal: 28000, // (12000 + 2000) * 2
-      }),
-    ];
-    setItems(sampleItems);
+      },
+    ]);
   };
 
   const [storeSettings, setStoreSettings] = useState<PublicStoreSettings>(DEFAULT_STORE_SETTINGS);
@@ -479,6 +788,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     <CartContext.Provider
       value={{
         items,
+        cartToken,
         addItem,
         updateItem,
         updateItemNotes,
@@ -488,6 +798,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         getProductCartQuantity,
         getProductMaxStock,
         clearCart,
+        startNewCart,
+        completeCheckout,
         loadSampleItems,
         subtotal,
         totalAmount,
@@ -515,5 +827,3 @@ export function useCart() {
   }
   return context;
 }
-
-

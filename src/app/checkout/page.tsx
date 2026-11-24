@@ -31,9 +31,11 @@ function CheckoutContent() {
 
   const {
     items,
+    cartToken,
     updateQuantity,
     removeItem,
     clearCart,
+    completeCheckout,
     subtotal,
     totalAmount,
     itemCount,
@@ -177,6 +179,8 @@ function CheckoutContent() {
           ? getTableSessionToken(tableNumber) ?? undefined
           : undefined;
 
+      const checkoutItemIds = items.map((it) => it.id);
+
       const res = await createOrder({
         customerName: customerName.trim(),
         customerPhone: phoneValidation.normalized,
@@ -187,6 +191,8 @@ function CheckoutContent() {
         userId: orderedAsOtherGuest ? null : currentUser?.id,
         idempotencyKey: idempotencyRef.current.key,
         tableSessionToken: activeTableSessionToken,
+        cartToken,
+        checkoutItemIds,
         items: items.map((it) => ({
           productId: it.productId,
           name: it.name,
@@ -236,7 +242,7 @@ function CheckoutContent() {
         ownerScope,
       );
 
-      clearCart();
+      completeCheckout(checkoutItemIds);
       router.push(`/orders/${res.orderNumber}${res.trackingToken ? `?token=${res.trackingToken}` : ""}`);
     } catch (err: unknown) {
       setErrorMessage(
