@@ -191,14 +191,14 @@ function writeLocalCartPayload(storageKey: string, payload: StoredCartPayload): 
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [cartToken, setCartToken] = useState<string>(() => generateClientCartToken());
+  const [cartToken, setCartToken] = useState<string>("");
   const [serviceType, setServiceType] = useState<ServiceTypeOption>("DINE_IN");
   const [orderNotes, setOrderNotes] = useState<string>("");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const storageKeyRef = useRef<string>(`${CART_KEY_PREFIX}guest`);
-  const cartTokenRef = useRef<string>(cartToken);
+  const cartTokenRef = useRef<string>("");
   const itemsRef = useRef<CartItem[]>(items);
   const serviceTypeRef = useRef<ServiceTypeOption>(serviceType);
   const orderNotesRef = useRef<string>(orderNotes);

@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Mail, Phone, ShieldCheck, User } from "lucide-react";
 import { getDefaultRedirectForRole, getSession, getUserRecordById } from "@/lib/auth";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 
-export default async function AccountSettingsPage() {
+async function AccountSettingsContent() {
   const session = await getSession();
   if (!session) {
     redirect("/login?redirect=/account");
@@ -85,5 +86,25 @@ export default async function AccountSettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function AccountFallback() {
+  return (
+    <div className="min-h-[calc(100vh-4rem)] bg-secondary-bg px-4 py-8 sm:py-10">
+      <div className="mx-auto w-full max-w-lg space-y-5 animate-pulse">
+        <div className="h-10 w-32 rounded-xl bg-white/70" />
+        <div className="h-44 rounded-2xl bg-white/70" />
+        <div className="h-64 rounded-2xl bg-white/70" />
+      </div>
+    </div>
+  );
+}
+
+export default function AccountSettingsPage() {
+  return (
+    <Suspense fallback={<AccountFallback />}>
+      <AccountSettingsContent />
+    </Suspense>
   );
 }

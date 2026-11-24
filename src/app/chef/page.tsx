@@ -10,7 +10,7 @@ export const metadata = {
   description: "Antrean Dapur Real-time terintegrasi View Database vw_active_kitchen_queue",
 };
 
-export default async function ChefPage() {
+async function ChefPageContent() {
   const session = await getSession();
 
   if (!session) {
@@ -28,6 +28,10 @@ export default async function ChefPage() {
 
   const queue = await getActiveKitchenQueueAction();
 
+  return <ChefDashboardView initialQueue={queue} chefName={session.name} />;
+}
+
+export default function ChefPage() {
   return (
     <Suspense
       fallback={
@@ -36,7 +40,7 @@ export default async function ChefPage() {
         </div>
       }
     >
-      <ChefDashboardView initialQueue={queue} chefName={session.name} />
+      <ChefPageContent />
     </Suspense>
   );
 }
