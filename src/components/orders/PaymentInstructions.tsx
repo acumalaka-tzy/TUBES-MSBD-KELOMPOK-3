@@ -118,10 +118,11 @@ export function PaymentInstructions({
   const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "";
   const isProduction = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true";
 
-  // Pre-load script snap.js di awal
+  // Pre-load script snap.js hanya untuk pesanan non-tunai yang masih menunggu pembayaran
   useEffect(() => {
+    if (!isNonCash || isPaid || isCancelled) return;
     void loadSnapScript(clientKey, isProduction).catch(() => {});
-  }, [clientKey, isProduction]);
+  }, [clientKey, isProduction, isNonCash, isPaid, isCancelled]);
 
   const handlePay = async () => {
     if (isExpired) {

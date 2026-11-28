@@ -647,6 +647,8 @@ CREATE PROCEDURE sp_release_expired_orders()
 BEGIN
     DECLARE v_done_order      INT DEFAULT FALSE;
     DECLARE v_order_id        VARCHAR(36);
+    DECLARE v_table_id        VARCHAR(36);
+    DECLARE v_active_cnt      INT DEFAULT 0;
     DECLARE v_avail_before    INT;
     DECLARE v_reserved_before INT;
     DECLARE v_avail_after     INT;
@@ -654,12 +656,12 @@ BEGIN
     DECLARE v_release_qty     INT;
 
     DECLARE cur_orders CURSOR FOR
-        SELECT o.id
+        SELECT o.id, o.table_id
         FROM orders o
         LEFT JOIN payments p ON p.order_id = o.id
         WHERE o.status = 'PENDING'
           AND o.expires_at IS NOT NULL
-          AND o.expires_at < CURRENT_TIMESTAMP
+          AND o.expires_at < UTC_TIMESTAMP()
           AND COALESCE(p.status, 'UNPAID') = 'UNPAID'
         FOR UPDATE SKIP LOCKED;
 
@@ -667,7 +669,7 @@ BEGIN
 
     OPEN cur_orders;
     order_loop: LOOP
-        FETCH cur_orders INTO v_order_id;
+        FETCH cur_orders INTO v_order_id, v_table_id;
         IF v_done_order THEN
             LEAVE order_loop;
         END IF;
@@ -727,6 +729,25 @@ BEGIN
         UPDATE payments
         SET status = 'FAILED'
         WHERE order_id = v_order_id AND status = 'UNPAID';
+
+        IF v_table_id IS NOT NULL THEN
+            SELECT COUNT(*)
+            INTO v_active_cnt
+            FROM orders
+            WHERE table_id = v_table_id
+              AND status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY');
+
+            IF v_active_cnt = 0 THEN
+                UPDATE tables
+                SET status = 'AVAILABLE'
+                WHERE id = v_table_id;
+
+                UPDATE table_sessions
+                SET status = 'CLOSED',
+                    closed_at = UTC_TIMESTAMP()
+                WHERE table_id = v_table_id AND status = 'ACTIVE';
+            END IF;
+        END IF;
     END LOOP;
     CLOSE cur_orders;
 END//

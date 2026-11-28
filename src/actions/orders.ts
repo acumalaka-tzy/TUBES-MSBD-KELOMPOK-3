@@ -129,6 +129,16 @@ export async function cleanupExpiredOrders(): Promise<number> {
         safeRevalidate(`/orders/${order.order_number}`);
         expiredCount++;
       }
+      // Pastikan meja yang tidak lagi memiliki pesanan aktif ikut dikosongkan
+      const occupiedTables = await prisma.table.findMany({
+        where: { status: "OCCUPIED" },
+        select: { id: true },
+      });
+      for (const tbl of occupiedTables) {
+        await prisma.$transaction(async (tx) => {
+          await syncDbTableSessionLifecycle(tx, tbl.id);
+        });
+      }
     }
   } catch {
     // Abaikan error DB saat tidak tersedia

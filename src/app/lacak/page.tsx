@@ -312,7 +312,7 @@ export default function LacakPage() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const value = orderNumber.trim().toUpperCase();
+    const value = orderNumber.replace(/^#/, "").trim().toUpperCase();
     if (!/^ORD-\d{8}-\d{3,}$/.test(value)) {
       setError("Format nomor pesanan tidak valid. Contoh: ORD-20261114-451");
       return;

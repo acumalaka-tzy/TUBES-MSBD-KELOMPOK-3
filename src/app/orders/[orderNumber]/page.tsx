@@ -109,25 +109,34 @@ function OrderTrackingContent({ params }: PageProps) {
   // Countdown Timer
   useEffect(() => {
     const expiresAt = order?.expires_at;
-    if (!expiresAt || order?.payment?.status === "PAID") return;
+    if (!expiresAt || order?.payment?.status === "PAID" || order?.status === "CANCELLED") return;
 
-    const timer = setInterval(() => {
+    const updateTimer = () => {
       const expiry = new Date(expiresAt).getTime();
       const now = Date.now();
       const diff = expiry - now;
 
       if (diff <= 0) {
         setTimeLeft("Kedaluwarsa");
+        return true;
+      }
+      const minutes = Math.floor(diff / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft(`${minutes}m ${seconds < 10 ? "0" : ""}${seconds}s`);
+      return false;
+    };
+
+    if (updateTimer()) return;
+
+    const timer = setInterval(() => {
+      if (updateTimer()) {
         clearInterval(timer);
-      } else {
-        const minutes = Math.floor(diff / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft(`${minutes}m ${seconds < 10 ? "0" : ""}${seconds}s`);
+        void fetchOrder();
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [order]);
+  }, [order, fetchOrder]);
 
   const handleCopyOrderNumber = async () => {
     try {
